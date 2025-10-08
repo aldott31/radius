@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_asr_device_admin,asr.device admin,model_asr_device,ab_radius_connector.group_ab_radius_admin,1,1,1,1
+access_asr_device_user,asr.device user,model_asr_device,base.group_user,1,0,0,0

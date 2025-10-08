@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- List View -->
+        <record id="view_asr_device_list" model="ir.ui.view">
+            <field name="name">asr.device.list</field>
+            <field name="model">asr.device</field>
+            <field name="arch" type="xml">
+                <list string="RADIUS Devices"
+                      decoration-muted="not active"
+                      decoration-success="radius_synced"
+                      decoration-danger="not radius_synced and active">
+                    <field name="name"/>
+                    <field name="ip_address"/>
+                    <field name="type"/>
+                    <field name="company_id" groups="base.group_multi_company"/>
+                    <field name="radius_synced" widget="boolean_toggle"/>
+                    <field name="last_sync_date"/>
+                    <field name="active" widget="boolean_toggle"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Form View -->
+        <record id="view_asr_device_form" model="ir.ui.view">
+            <field name="name">asr.device.form</field>
+            <field name="model">asr.device</field>
+            <field name="arch" type="xml">
+                <form string="RADIUS Device">
+                    <header>
+                        <button name="action_sync_to_radius"
+                                type="object"
+                                string="Sync to RADIUS"
+                                class="oe_highlight"
+                                invisible="not active"
+                                groups="ab_radius_connector.group_ab_radius_admin"/>
+                        <button name="action_remove_from_radius"
+                                type="object"
+                                string="Remove from RADIUS"
+                                confirm="Are you sure you want to remove this device from RADIUS database?"
+                                invisible="not radius_synced"
+                                groups="ab_radius_connector.group_ab_radius_admin"/>
+                        <field name="active" widget="boolean_button" options="{'terminology': 'archive'}"/>
+                    </header>
+
+                    <sheet>
+                        <div class="oe_button_box" name="button_box">
+                            <button class="oe_stat_button"
+                                    type="object"
+                                    name="action_view_radius_info"
+                                    icon="fa-database"
+                                    invisible="not radius_synced">
+                                <div class="o_field_widget o_stat_info">
+                                    <span class="o_stat_value">
+                                        <field name="radius_id"/>
+                                    </span>
+                                    <span class="o_stat_text">RADIUS ID</span>
+                                </div>
+                            </button>
+                        </div>
+
+                        <widget name="web_ribbon" title="Not Synced" bg_color="text-bg-danger"
+                                invisible="radius_synced"/>
+                        <widget name="web_ribbon" title="Synced" bg_color="text-bg-success"
+                                invisible="not radius_synced"/>
+
+                        <group>
+                            <group string="Device Information">
+                                <field name="name" placeholder="e.g., RouterOS-Main"/>
+                                <field name="ip_address" placeholder="192.168.1.1"/>
+                                <field name="type"/>
+                                <field name="shortname" placeholder="Optional short identifier"/>
+                            </group>
+
+                            <group string="RADIUS Configuration">
+                                <field name="secret" password="True" placeholder="Shared secret"/>
+                                <field name="ports" placeholder="e.g., 1812,1813"/>
+                                <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
+                            </group>
+                        </group>
+
+                        <group string="Description">
+                            <field name="description" nolabel="1" placeholder="Additional notes about this device..."/>
+                        </group>
+
+                        <notebook>
+                            <page string="Sync Status">
+                                <group>
+                                    <group>
+                                        <field name="radius_synced" readonly="1"/>
+                                        <field name="last_sync_date" readonly="1"/>
+                                    </group>
+                                    <group>
+                                        <field name="radius_id" readonly="1"/>
+                                    </group>
+                                </group>
+                                <group string="Last Error" invisible="not last_sync_error">
+                                    <field name="last_sync_error" nolabel="1" readonly="1" widget="text"/>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </form>
+            </field>
+        </record>
+
+        <!-- Search View -->
+        <record id="view_asr_device_search" model="ir.ui.view">
+            <field name="name">asr.device.search</field>
+            <field name="model">asr.device</field>
+            <field name="arch" type="xml">
+                <search string="Search Devices">
+                    <field name="name"/>
+                    <field name="ip_address"/>
+                    <field name="type"/>
+                    <field name="company_id" groups="base.group_multi_company"/>
+
+                    <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+                    <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+                    <separator/>
+                    <filter string="Synced" name="synced" domain="[('radius_synced', '=', True)]"/>
+                    <filter string="Not Synced" name="not_synced" domain="[('radius_synced', '=', False)]"/>
+                    <separator/>
+                    <filter string="MikroTik" name="mikrotik" domain="[('type', '=', 'mikrotik')]"/>
+                    <filter string="ASR" name="asr" domain="[('type', '=', 'asr')]"/>
+
+                    <group expand="0" string="Group By">
+                        <filter string="Type" name="group_type" context="{'group_by': 'type'}"/>
+                        <filter string="Company" name="group_company" context="{'group_by': 'company_id'}"/>
+                        <filter string="Sync Status" name="group_synced" context="{'group_by': 'radius_synced'}"/>
+                    </group>
+                </search>
+            </field>
+        </record>
+
+        <!-- Action -->
+        <record id="action_asr_device" model="ir.actions.act_window">
+            <field name="name">Devices</field>
+            <field name="res_model">asr.device</field>
+            <field name="view_mode">list,form</field>
+            <field name="context">{'search_default_active': 1}</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create your first RADIUS device (NAS)
+                </p>
+                <p>
+                    Register MikroTik routers, ASR devices, or other NAS equipment<br/>
+                    that will authenticate users via FreeRADIUS.
+                </p>
+            </field>
+        </record>
+
+    </data>
+</odoo>

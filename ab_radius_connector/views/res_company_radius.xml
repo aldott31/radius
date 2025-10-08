@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_company_form_radius" model="ir.ui.view">
+    <field name="name">res.company.form.ab_radius_connector</field>
+    <field name="model">res.company</field>
+    <field name="inherit_id" ref="base.view_company_form"/>
+    <field name="arch" type="xml">
+
+      <xpath expr="//div[@name='button_box']" position="inside">
+</xpath>
+
+      <xpath expr="//notebook" position="inside">
+        <page string="FreeRADIUS">
+          <group>
+            <group>
+              <field name="fr_db_host"/>
+              <field name="fr_db_port"/>
+              <field name="fr_db_name"/>
+            </group>
+            <group>
+              <field name="fr_db_user"/>
+              <field name="fr_db_password" password="True"/>
+              <field name="fr_default_group"/>
+            </group>
+          </group>
+          <group>
+            <field name="fr_last_test_ok" readonly="1"/>
+            <field name="fr_last_error" readonly="1" widget="text"/>
+          </group>
+          <button name="action_fr_test_connection"
+                  type="object"
+                  string="Test FreeRADIUS"
+                  class="oe_highlight"
+                  groups="ab_radius_connector.group_ab_radius_admin"/>
+        </page>
+      </xpath>
+    </field>
+  </record>
+</odoo>

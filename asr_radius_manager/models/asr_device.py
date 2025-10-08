@@ -1,0 +1,402 @@
+# -*- coding: utf-8 -*-
+import logging
+from odoo import models, fields, api, _
+from odoo.exceptions import UserError, ValidationError
+
+_logger = logging.getLogger(__name__)
+
+
+class AsrDevice(models.Model):
+    _name = 'asr.device'
+    _description = 'RADIUS Network Device (NAS)'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _rec_name = 'name'
+    _order = 'name'
+
+    # Basic Info
+    name = fields.Char(
+        string='Device Name',
+        required=True,
+        tracking=True,
+        help='Friendly name for this NAS device'
+    )
+
+    ip_address = fields.Char(
+        string='IP Address',
+        required=True,
+        tracking=True,
+        help='NAS IP address (nasname in FreeRADIUS)'
+    )
+
+    secret = fields.Char(
+        string='Shared Secret',
+        required=True,
+        help='RADIUS shared secret for authentication'
+    )
+
+    type = fields.Selection([
+        ('mikrotik', 'MikroTik'),
+        ('asr', 'ASR Router'),
+        ('cisco', 'Cisco'),
+        ('other', 'Other')
+    ], string='Device Type', required=True, default='mikrotik', tracking=True)
+
+    shortname = fields.Char(
+        string='Short Name',
+        help='Short identifier (optional, defaults to name)'
+    )
+
+    ports = fields.Char(
+        string='Ports',
+        help='RADIUS ports (e.g., 1812,1813)'
+    )
+
+    description = fields.Text(string='Description')
+
+    # Status
+    active = fields.Boolean(
+        string='Active',
+        default=True,
+        tracking=True,
+        help='If unchecked, this device will not sync to RADIUS'
+    )
+
+    # Multi-company
+    company_id = fields.Many2one(
+        'res.company',
+        string='Company',
+        required=True,
+        default=lambda self: self.env.company,
+        help='Company that owns this device'
+    )
+
+    # Sync tracking
+    radius_id = fields.Integer(
+        string='RADIUS DB ID',
+        readonly=True,
+        help='Primary key in FreeRADIUS nas table'
+    )
+
+    radius_synced = fields.Boolean(
+        string='Synced to RADIUS',
+        readonly=True,
+        default=False,
+        tracking=True,
+        help='Indicates if this device exists in RADIUS database'
+    )
+
+    last_sync_date = fields.Datetime(
+        string='Last Sync',
+        readonly=True
+    )
+
+    last_sync_error = fields.Text(
+        string='Last Sync Error',
+        readonly=True
+    )
+
+    # Constraints
+    _sql_constraints = [
+        ('ip_company_unique', 'UNIQUE(ip_address, company_id)',
+         'IP Address must be unique per company!'),
+    ]
+
+    @api.constrains('ip_address')
+    def _check_ip_address(self):
+        """Basic IP validation"""
+        import re
+        for record in self:
+            if record.ip_address:
+                # Simple regex for IPv4
+                pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
+                if not re.match(pattern, record.ip_address):
+                    raise ValidationError(_('Invalid IP address format: %s') % record.ip_address)
+
+    # -------------------------------------------------------------------------
+    # UI Actions
+    # -------------------------------------------------------------------------
+
+    def action_view_radius_info(self):
+        """Stat button click handler - shows RADIUS sync info"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('RADIUS Info'),
+                'message': _(
+                    'Device: %s\n'
+                    'RADIUS ID: %s\n'
+                    'Last Sync: %s\n'
+                    'Status: %s'
+                ) % (
+                               self.name,
+                               self.radius_id or 'Not synced',
+                               self.last_sync_date or 'Never',
+                               'Synced' if self.radius_synced else 'Not synced'
+                           ),
+                'type': 'info',
+                'sticky': False,
+            }
+        }
+
+    # -------------------------------------------------------------------------
+    # RADIUS Sync Methods
+    # -------------------------------------------------------------------------
+
+    def _get_radius_connection(self):
+        """Get MySQL connection from company FreeRADIUS settings"""
+        self.ensure_one()
+        try:
+            conn = self.company_id._get_direct_conn()
+            return conn
+        except Exception as e:
+            raise UserError(_('Cannot connect to RADIUS database:\n%s') % str(e))
+
+    def _prepare_nas_values(self):
+        """Prepare values for NAS table insert/update"""
+        self.ensure_one()
+        return {
+            'nasname': self.ip_address.strip(),
+            'shortname': self.shortname or self.name[:32],
+            'type': self.type,
+            'ports': self.ports or '',
+            'secret': self.secret,
+            'server': '',
+            'community': '',
+            'description': self.description or '',
+            'company_id': self.company_id.id,
+        }
+
+    def action_sync_to_radius(self):
+        """Manual button action to sync device to RADIUS"""
+        for record in self:
+            if not record.active:
+                raise UserError(_('Cannot sync inactive device: %s') % record.name)
+            record._sync_to_radius()
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('RADIUS Sync'),
+                'message': _('%d device(s) synced successfully') % len(self),
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def _sync_to_radius(self):
+        """Core sync logic: INSERT or UPDATE in FreeRADIUS nas table"""
+        self.ensure_one()
+
+        conn = None
+        try:
+            conn = self._get_radius_connection()
+            cursor = conn.cursor()
+
+            values = self._prepare_nas_values()
+
+            # Check if exists
+            cursor.execute(
+                "SELECT id FROM nas WHERE nasname = %s AND company_id = %s",
+                (values['nasname'], values['company_id'])
+            )
+            existing = cursor.fetchone()
+
+            if existing:
+                # UPDATE
+                radius_id = existing['id']
+                update_sql = """
+                             UPDATE nas
+                             SET shortname   = %s,
+                                 type        = %s,
+                                 ports       = %s,
+                                 secret      = %s,
+                                 description = %s
+                             WHERE id = %s
+                             """
+                cursor.execute(update_sql, (
+                    values['shortname'],
+                    values['type'],
+                    values['ports'],
+                    values['secret'],
+                    values['description'],
+                    radius_id
+                ))
+                _logger.info('Updated NAS %s (id=%d) in RADIUS', self.name, radius_id)
+                msg = _('Device updated in RADIUS database')
+            else:
+                # INSERT
+                insert_sql = """
+                             INSERT INTO nas (nasname, shortname, type, ports, secret, server,
+                                              community, description, company_id)
+                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                             """
+                cursor.execute(insert_sql, (
+                    values['nasname'],
+                    values['shortname'],
+                    values['type'],
+                    values['ports'],
+                    values['secret'],
+                    values['server'],
+                    values['community'],
+                    values['description'],
+                    values['company_id']
+                ))
+                radius_id = cursor.lastrowid
+                _logger.info('Inserted NAS %s (id=%d) in RADIUS', self.name, radius_id)
+                msg = _('Device synced to RADIUS database')
+
+            # Commit changes
+            conn.commit()
+
+            # Update Odoo record
+            self.sudo().write({
+                'radius_id': radius_id,
+                'radius_synced': True,
+                'last_sync_date': fields.Datetime.now(),
+                'last_sync_error': False,
+            })
+
+            # Post message in chatter
+            self.message_post(body=msg, message_type='notification')
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            error_msg = str(e)
+            _logger.error('Failed to sync device %s to RADIUS: %s', self.name, error_msg)
+
+            # Update error status
+            self.sudo().write({
+                'radius_synced': False,
+                'last_sync_error': error_msg,
+                'last_sync_date': fields.Datetime.now(),
+            })
+
+            # Post error in chatter
+            self.message_post(
+                body=_('RADIUS sync failed: %s') % error_msg,
+                message_type='notification',
+                subtype_xmlid='mail.mt_note'
+            )
+
+            raise UserError(_('RADIUS sync failed for %s:\n%s') % (self.name, error_msg))
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+    def action_remove_from_radius(self):
+        """Remove device from RADIUS database"""
+        for record in self:
+            record._remove_from_radius()
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('RADIUS Removal'),
+                'message': _('%d device(s) removed from RADIUS') % len(self),
+                'type': 'info',
+                'sticky': False,
+            }
+        }
+
+    def _remove_from_radius(self):
+        """Delete from RADIUS nas table"""
+        self.ensure_one()
+
+        if not self.radius_id:
+            return
+
+        conn = None
+        try:
+            conn = self._get_radius_connection()
+            cursor = conn.cursor()
+
+            cursor.execute(
+                "DELETE FROM nas WHERE id = %s AND company_id = %s",
+                (self.radius_id, self.company_id.id)
+            )
+            conn.commit()
+
+            self.sudo().write({
+                'radius_id': False,
+                'radius_synced': False,
+                'last_sync_date': fields.Datetime.now(),
+                'last_sync_error': False,
+            })
+
+            # Post message in chatter
+            self.message_post(
+                body=_('Device removed from RADIUS database'),
+                message_type='notification'
+            )
+
+            _logger.info('Removed NAS %s from RADIUS', self.name)
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            error_msg = str(e)
+            _logger.error('Failed to remove device %s from RADIUS: %s', self.name, error_msg)
+
+            # Post error in chatter
+            self.message_post(
+                body=_('RADIUS removal failed: %s') % error_msg,
+                message_type='notification',
+                subtype_xmlid='mail.mt_note'
+            )
+
+            raise UserError(_('RADIUS removal failed:\n%s') % error_msg)
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+
+    # -------------------------------------------------------------------------
+    # ORM Hooks
+    # -------------------------------------------------------------------------
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Auto-sync to RADIUS on create if active"""
+        records = super().create(vals_list)
+        for record in records:
+            if record.active:
+                try:
+                    record._sync_to_radius()
+                except Exception as e:
+                    _logger.warning('Auto-sync failed for new device %s: %s', record.name, e)
+        return records
+
+    def write(self, vals):
+        """Auto-sync to RADIUS on update if relevant fields changed"""
+        result = super().write(vals)
+
+        sync_fields = {'ip_address', 'secret', 'type', 'shortname', 'ports', 'description', 'active'}
+        if any(f in vals for f in sync_fields):
+            for record in self:
+                if record.active and record.radius_synced:
+                    try:
+                        record._sync_to_radius()
+                    except Exception as e:
+                        _logger.warning('Auto-sync failed for device %s: %s', record.name, e)
+
+        return result
+
+    def unlink(self):
+        """Remove from RADIUS before deleting from Odoo"""
+        for record in self:
+            if record.radius_synced:
+                try:
+                    record._remove_from_radius()
+                except Exception as e:
+                    _logger.warning('Could not remove device %s from RADIUS: %s', record.name, e)
+        return super().unlink()
