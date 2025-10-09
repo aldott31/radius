@@ -61,7 +61,7 @@ class AsrDevice(models.Model):
         help='If unchecked, this device will not sync to RADIUS'
     )
 
-    # Multi-company
+    # Multi-company (Odoo-only)
     company_id = fields.Many2one(
         'res.company',
         string='Company',
@@ -94,6 +94,11 @@ class AsrDevice(models.Model):
         string='Last Sync Error',
         readonly=True
     )
+
+    # --- Ping status (NEW) ---
+    last_ping_ok = fields.Boolean('Last Ping OK', readonly=True)
+    last_ping_rtt_ms = fields.Float('Last Ping RTT (ms)', digits=(16, 3), readonly=True)
+    last_ping_at = fields.Datetime('Last Ping At', readonly=True)
 
     # Constraints
     _sql_constraints = [
@@ -130,11 +135,11 @@ class AsrDevice(models.Model):
                     'Last Sync: %s\n'
                     'Status: %s'
                 ) % (
-                               self.name,
-                               self.radius_id or 'Not synced',
-                               self.last_sync_date or 'Never',
-                               'Synced' if self.radius_synced else 'Not synced'
-                           ),
+                    self.name,
+                    self.radius_id or 'Not synced',
+                    self.last_sync_date or 'Never',
+                    'Synced' if self.radius_synced else 'Not synced'
+                ),
                 'type': 'info',
                 'sticky': False,
             }
@@ -154,18 +159,17 @@ class AsrDevice(models.Model):
             raise UserError(_('Cannot connect to RADIUS database:\n%s') % str(e))
 
     def _prepare_nas_values(self):
-        """Prepare values for NAS table insert/update"""
+        """Prepare values for NAS table insert/update (no company_id in RADIUS)"""
         self.ensure_one()
         return {
             'nasname': self.ip_address.strip(),
-            'shortname': self.shortname or self.name[:32],
-            'type': self.type,
+            'shortname': (self.shortname or self.name or '')[:32],
+            'type': self.type or '',
             'ports': self.ports or '',
-            'secret': self.secret,
+            'secret': self.secret or '',
             'server': '',
             'community': '',
             'description': self.description or '',
-            'company_id': self.company_id.id,
         }
 
     def action_sync_to_radius(self):
@@ -187,7 +191,7 @@ class AsrDevice(models.Model):
         }
 
     def _sync_to_radius(self):
-        """Core sync logic: INSERT or UPDATE in FreeRADIUS nas table"""
+        """Core sync logic: INSERT or UPDATE in FreeRADIUS nas table (no company_id in SQL)"""
         self.ensure_one()
 
         conn = None
@@ -197,25 +201,25 @@ class AsrDevice(models.Model):
 
             values = self._prepare_nas_values()
 
-            # Check if exists
-            cursor.execute(
-                "SELECT id FROM nas WHERE nasname = %s AND company_id = %s",
-                (values['nasname'], values['company_id'])
-            )
+            # Check if exists (by nasname only)
+            cursor.execute("SELECT id FROM nas WHERE nasname = %s", (values['nasname'],))
             existing = cursor.fetchone()
+            if isinstance(existing, dict):
+                radius_id = existing.get('id')
+            else:
+                radius_id = existing[0] if existing else None
 
-            if existing:
+            if radius_id:
                 # UPDATE
-                radius_id = existing['id']
                 update_sql = """
-                             UPDATE nas
-                             SET shortname   = %s,
-                                 type        = %s,
-                                 ports       = %s,
-                                 secret      = %s,
-                                 description = %s
-                             WHERE id = %s
-                             """
+                    UPDATE nas
+                       SET shortname=%s,
+                           type=%s,
+                           ports=%s,
+                           secret=%s,
+                           description=%s
+                     WHERE id=%s
+                """
                 cursor.execute(update_sql, (
                     values['shortname'],
                     values['type'],
@@ -229,10 +233,9 @@ class AsrDevice(models.Model):
             else:
                 # INSERT
                 insert_sql = """
-                             INSERT INTO nas (nasname, shortname, type, ports, secret, server,
-                                              community, description, company_id)
-                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                             """
+                    INSERT INTO nas (nasname, shortname, type, ports, secret, server, community, description)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """
                 cursor.execute(insert_sql, (
                     values['nasname'],
                     values['shortname'],
@@ -242,7 +245,6 @@ class AsrDevice(models.Model):
                     values['server'],
                     values['community'],
                     values['description'],
-                    values['company_id']
                 ))
                 radius_id = cursor.lastrowid
                 _logger.info('Inserted NAS %s (id=%d) in RADIUS', self.name, radius_id)
@@ -307,10 +309,10 @@ class AsrDevice(models.Model):
         }
 
     def _remove_from_radius(self):
-        """Delete from RADIUS nas table"""
+        """Delete from RADIUS nas table (no company_id in SQL)"""
         self.ensure_one()
 
-        if not self.radius_id:
+        if not self.radius_id and not self.ip_address:
             return
 
         conn = None
@@ -318,10 +320,12 @@ class AsrDevice(models.Model):
             conn = self._get_radius_connection()
             cursor = conn.cursor()
 
-            cursor.execute(
-                "DELETE FROM nas WHERE id = %s AND company_id = %s",
-                (self.radius_id, self.company_id.id)
-            )
+            if self.radius_id:
+                cursor.execute("DELETE FROM nas WHERE id = %s", (self.radius_id,))
+            else:
+                # Fallback: delete by nasname if id isn’t stored
+                cursor.execute("DELETE FROM nas WHERE nasname = %s", (self.ip_address.strip(),))
+
             conn.commit()
 
             self.sudo().write({
@@ -359,6 +363,94 @@ class AsrDevice(models.Model):
                     conn.close()
                 except Exception:
                     pass
+
+    # -------------------------------------------------------------------------
+    # Ping Methods (NEW)
+    # -------------------------------------------------------------------------
+
+    def _ping_host(self, count=1, timeout=2, tcp_fallback_port=1812):
+        """Perform ICMP ping via system 'ping'. Fallback: TCP connect to RADIUS port.
+        Returns dict: {'ok': bool, 'rtt_ms': float|None, 'raw': str}
+        """
+        self.ensure_one()
+        import platform, subprocess, shutil, re, socket
+
+        host = (self.ip_address or '').strip()
+        if not host:
+            return {'ok': False, 'rtt_ms': None, 'raw': 'Empty IP address'}
+
+        # Try ICMP ping if binary exists
+        if shutil.which('ping'):
+            sys = platform.system().lower()
+            if 'windows' in sys:
+                cmd = ['ping', '-n', str(count), '-w', str(int(timeout * 1000)), host]
+            else:
+                cmd = ['ping', '-c', str(count), '-W', str(int(timeout)), host]
+
+            try:
+                run = subprocess.run(
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, timeout=timeout * (count + 1)
+                )
+                out = run.stdout or ''
+                ok = (run.returncode == 0)
+
+                # Parse average RTT
+                m_unix = re.search(r'(?:rtt|round-trip).*?=\s*([\d\.]+)/([\d\.]+)/', out)
+                m_win = re.search(r'Average\s*=\s*(\d+)\s*ms', out, flags=re.IGNORECASE)
+
+                rtt_ms = None
+                if m_unix:
+                    rtt_ms = float(m_unix.group(2))
+                elif m_win:
+                    rtt_ms = float(m_win.group(1))
+
+                return {'ok': ok, 'rtt_ms': rtt_ms, 'raw': out}
+            except Exception as e:
+                fb = f'ICMP ping failed: {e!s}. Trying TCP connect to port {tcp_fallback_port}.'
+        else:
+            fb = f"'ping' binary not found. Trying TCP connect to port {tcp_fallback_port}."
+
+        # Fallback: TCP connect to RADIUS auth port
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            sock.connect((host, tcp_fallback_port))
+            sock.close()
+            return {'ok': True, 'rtt_ms': None, 'raw': 'TCP connect OK (fallback)'}
+        except Exception as e:
+            return {'ok': False, 'rtt_ms': None, 'raw': f'{fb} TCP connect failed: {e!s}'}
+
+    def action_ping_device(self):
+        """UI action to ping the device and store results"""
+        self.ensure_one()
+        res = self._ping_host(count=2, timeout=2)
+
+        self.sudo().write({
+            'last_ping_ok': bool(res.get('ok')),
+            'last_ping_rtt_ms': res.get('rtt_ms') or False,
+            'last_ping_at': fields.Datetime.now(),
+        })
+
+        msg = _("Ping OK: %(ok)s\nRTT avg: %(rtt)s ms\nDetails:\n%(raw)s") % {
+            'ok': 'Yes' if res.get('ok') else 'No',
+            'rtt': ('%.3f' % res.get('rtt_ms')) if res.get('rtt_ms') is not None else '—',
+            'raw': (res.get('raw') or '')[:2000],
+        }
+        self.message_post(body=msg, message_type='notification', subtype_xmlid='mail.mt_note')
+
+        title = _('Ping OK') if res.get('ok') else _('Ping Failed')
+        body = _('RTT: %s ms') % ('%.3f' % res['rtt_ms'] if res.get('rtt_ms') is not None else '—')
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': title,
+                'message': body,
+                'type': 'success' if res.get('ok') else 'warning',
+                'sticky': False,
+            }
+        }
 
     # -------------------------------------------------------------------------
     # ORM Hooks
