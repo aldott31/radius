@@ -100,6 +100,15 @@ class AsrDevice(models.Model):
     last_ping_rtt_ms = fields.Float('Last Ping RTT (ms)', digits=(16, 3), readonly=True)
     last_ping_at = fields.Datetime('Last Ping At', readonly=True)
 
+    # --- Online status (computed from last ping) (NEW) ---
+    is_online = fields.Selection(
+        [('unknown', 'Unknown'), ('online', 'Online'), ('offline', 'Offline')],
+        string='Online Status',
+        compute='_compute_is_online',
+        store=True,
+        readonly=True,
+    )
+
     # Constraints
     _sql_constraints = [
         ('ip_company_unique', 'UNIQUE(ip_address, company_id)',
@@ -451,6 +460,23 @@ class AsrDevice(models.Model):
                 'sticky': False,
             }
         }
+
+    # -------------------------------------------------------------------------
+    # Online Status Compute (NEW)
+    # -------------------------------------------------------------------------
+
+    @api.depends('last_ping_ok', 'last_ping_at')
+    def _compute_is_online(self):
+        from datetime import timedelta
+        now = fields.Datetime.now()
+        ttl_minutes = 5  # sa kohë konsiderohet “fresh” ping-u i fundit
+        for r in self:
+            if not r.last_ping_at:
+                r.is_online = 'unknown'
+            elif now - r.last_ping_at > timedelta(minutes=ttl_minutes):
+                r.is_online = 'unknown'
+            else:
+                r.is_online = 'online' if r.last_ping_ok else 'offline'
 
     # -------------------------------------------------------------------------
     # ORM Hooks
