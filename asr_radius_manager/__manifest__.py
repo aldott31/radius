@@ -8,17 +8,16 @@
     'website': 'https://www.abissnet.al',
     'license': 'LGPL-3',
     'depends': [
-        'ab_radius_connector',  # Our MySQL connector module
         'base',                 # res.users, res.company
-        'mail',                 # For chatter (mail.thread, mail.activity.mixin)
+        'mail',                 # chatter (mail.thread)
+        'product',              # product.product link
+        'ab_radius_connector'   # DSN & MySQL connector te res.company
     ],
     'data': [
-        # Security
         'security/ir.model.access.csv',
-
-        # Views
         'views/asr_device_views.xml',
         'views/menu.xml',
+        'views/asr_subscription_views.xml'
     ],
     'installable': True,
     'application': True,

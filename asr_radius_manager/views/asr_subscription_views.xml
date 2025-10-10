@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <!-- LIST -->
+  <record id="view_asr_subscription_tree" model="ir.ui.view">
+    <field name="name">asr.subscription.list</field>
+    <field name="model">asr.subscription</field>
+    <field name="arch" type="xml">
+      <list string="Subscriptions">
+        <field name="name"/>
+        <field name="code"/>
+        <field name="rate_limit"/>
+        <field name="session_timeout"/>
+        <field name="price"/>
+        <field name="product_id"/>
+        <field name="company_id"/>
+        <field name="radius_synced"/>
+        <field name="last_sync_date"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- FORM -->
+  <record id="view_asr_subscription_form" model="ir.ui.view">
+    <field name="name">asr.subscription.form</field>
+    <field name="model">asr.subscription</field>
+    <field name="arch" type="xml">
+      <form string="Subscription Plan">
+        <header>
+          <!-- SYNC -->
+          <button name="action_sync_attributes_to_radius"
+                  type="object"
+                  string="Sync Attributes to RADIUS"
+                  class="btn-primary"
+                  groups="ab_radius_connector.group_ab_radius_admin"/>
+
+          <!-- REMOVE (attrs -> invisible=) -->
+          <button name="action_remove_from_radius"
+                  type="object"
+                  string="Remove from RADIUS"
+                  class="oe_highlight"
+                  groups="ab_radius_connector.group_ab_radius_admin"
+                  invisible="not radius_synced"/>
+
+          <!-- INFO -->
+          <button name="action_view_radius_info"
+                  type="object"
+                  string="Info"
+                  class="oe_secondary"/>
+        </header>
+
+        <sheet>
+          <group>
+            <group>
+              <field name="name"/>
+              <field name="code"/>
+              <field name="company_id" groups="base.group_multi_company"/>
+            </group>
+            <group>
+              <field name="rate_limit"/>
+              <field name="session_timeout"/>
+              <field name="price"/>
+              <field name="product_id"/>
+            </group>
+          </group>
+
+          <notebook>
+            <page string="RADIUS Attributes">
+              <field name="attribute_ids">
+                <list editable="bottom" create="1" edit="1" delete="1">
+                  <field name="attribute"/>
+                  <field name="op"/>
+                  <field name="value"/>
+                </list>
+              </field>
+            </page>
+
+            <page string="Sync Status">
+              <group>
+                <field name="radius_synced" readonly="1"/>
+                <field name="last_sync_date" readonly="1"/>
+                <field name="last_sync_error" readonly="1"/>
+              </group>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ACTION -->
+  <record id="action_asr_subscription" model="ir.actions.act_window">
+    <field name="name">Subscriptions</field>
+    <field name="res_model">asr.subscription</field>
+    <field name="view_mode">list,form</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        Create your RADIUS service plans here. Attributes sync to radgroupreply.
+      </p>
+    </field>
+  </record>
+
+  <!-- MENU -->
+  <menuitem id="menu_asr_subscriptions"
+            name="Subscriptions"
+            parent="menu_asr_radius_config"
+            action="action_asr_subscription"
+            sequence="20"/>
+</odoo>
