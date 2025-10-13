@@ -12,6 +12,11 @@
         <field name="session_timeout"/>
         <field name="price"/>
         <field name="product_id"/>
+        <!-- IP Pool fields -->
+        <field name="ip_pool_active"/>
+        <field name="ip_pool_expired"/>
+        <!-- Users count -->
+        <field name="user_count"/>
         <field name="company_id"/>
         <field name="radius_synced"/>
         <field name="last_sync_date"/>
@@ -19,7 +24,7 @@
     </field>
   </record>
 
-  <!-- FORM -->
+  <!-- FORM (base) -->
   <record id="view_asr_subscription_form" model="ir.ui.view">
     <field name="name">asr.subscription.form</field>
     <field name="model">asr.subscription</field>
@@ -33,7 +38,7 @@
                   class="btn-primary"
                   groups="ab_radius_connector.group_ab_radius_admin"/>
 
-          <!-- REMOVE (attrs -> invisible=) -->
+          <!-- REMOVE -->
           <button name="action_remove_from_radius"
                   type="object"
                   string="Remove from RADIUS"
@@ -46,6 +51,12 @@
                   type="object"
                   string="Info"
                   class="oe_secondary"/>
+
+          <!-- APPLY CISCO SUGGESTIONS -->
+          <button name="action_apply_cisco_suggestions"
+                  type="object"
+                  string="Apply Cisco Suggestions"
+                  class="oe_highlight"/>
         </header>
 
         <sheet>
@@ -64,6 +75,14 @@
           </group>
 
           <notebook>
+            <!-- IP Pool Management -->
+            <page string="IP Pool Management">
+              <group>
+                <field name="ip_pool_active" placeholder="e.g., pool-active"/>
+                <field name="ip_pool_expired" placeholder="e.g., pool-expired"/>
+              </group>
+            </page>
+
             <page string="RADIUS Attributes">
               <field name="attribute_ids">
                 <list editable="bottom" create="1" edit="1" delete="1">
@@ -87,6 +106,62 @@
     </field>
   </record>
 
+  <!-- Smart button (Users count) -->
+  <record id="view_asr_subscription_form_inherit_buttons" model="ir.ui.view">
+    <field name="name">asr.subscription.form.buttons.inherit</field>
+    <field name="model">asr.subscription</field>
+    <field name="inherit_id" ref="view_asr_subscription_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//sheet" position="before">
+        <div class="oe_button_box" name="button_box">
+          <button type="object"
+                  name="action_view_radius_users"
+                  class="oe_stat_button"
+                  icon="fa-users">
+            <field name="user_count" widget="statinfo" string="Users"/>
+          </button>
+        </div>
+      </xpath>
+    </field>
+  </record>
+
+  <!-- Cisco overrides inside IP Pool page -->
+  <record id="view_asr_subscription_form_inherit_cisco" model="ir.ui.view">
+    <field name="name">asr.subscription.form.cisco.inherit</field>
+    <field name="model">asr.subscription</field>
+    <field name="inherit_id" ref="view_asr_subscription_form"/>
+    <field name="arch" type="xml">
+      <!-- Anchor by field to avoid fragile selectors -->
+      <xpath expr="//page[.//field[@name='ip_pool_active']]" position="inside">
+        <group string="Cisco Overrides (optional)">
+          <!-- IN = Upload; OUT = Download -->
+          <field name="cisco_policy_in"  placeholder="POLICY_UL_20M"/>
+          <field name="cisco_policy_out" placeholder="POLICY_DL_200M"/>
+          <field name="cisco_pool_active"  placeholder="POOL_ACTIVE"/>
+          <field name="cisco_pool_expired" placeholder="POOL_EXPIRED"/>
+        </group>
+      </xpath>
+    </field>
+  </record>
+
+  <!-- Search view with quick filters -->
+  <record id="view_asr_subscription_search" model="ir.ui.view">
+    <field name="name">asr.subscription.search</field>
+    <field name="model">asr.subscription</field>
+    <field name="arch" type="xml">
+      <search string="Search Subscriptions">
+        <field name="name"/>
+        <field name="code"/>
+        <filter string="Synced" name="f_synced" domain="[('radius_synced','=',True)]"/>
+        <filter string="Not Synced" name="f_nsynced" domain="[('radius_synced','=',False)]"/>
+        <filter string="Missing Pools" name="f_misspool" domain="['|',('ip_pool_active','=',False),('ip_pool_expired','=',False)]"/>
+        <group expand="0" string="Group By">
+          <filter string="Company" name="g_company" context="{'group_by':'company_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
   <!-- ACTION -->
   <record id="action_asr_subscription" model="ir.actions.act_window">
     <field name="name">Subscriptions</field>
@@ -99,10 +174,5 @@
     </field>
   </record>
 
-  <!-- MENU -->
-  <menuitem id="menu_asr_subscriptions"
-            name="Subscriptions"
-            parent="menu_asr_radius_config"
-            action="action_asr_subscription"
-            sequence="20"/>
+
 </odoo>

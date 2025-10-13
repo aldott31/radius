@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <record id="asr_radius_settings_form" model="ir.ui.view">
+    <field name="name">res.config.settings.asr.radius.form</field>
+    <field name="model">res.config.settings</field>
+    <field name="arch" type="xml">
+      <form string="RADIUS Settings">
+        <sheet>
+          <h2>RADIUS Settings</h2>
+
+          <group string="Vendors">
+            <field name="asr_emit_mikrotik"/>
+            <field name="asr_emit_cisco"/>
+          </group>
+
+          <group string="Cisco Policy Naming">
+            <field name="asr_cisco_prefix_dl" placeholder="POLICY_DL_"/>
+            <field name="asr_cisco_prefix_ul" placeholder="POLICY_UL_"/>
+            <div class="o_form_label">Example: 200M/20M ⇒ POLICY_DL_200M / POLICY_UL_20M</div>
+          </group>
+
+          <div class="text-muted">
+            <p>
+              - “Emit MikroTik VSAs”: shton <code>Mikrotik-Rate-Limit</code> (vetëm MikroTik).<br/>
+              - “Emit Cisco VSAs”: shton <code>Cisco-AVPair</code> (policy/pool).
+            </p>
+          </div>
+        </sheet>
+        <footer>
+          <button name="execute" type="object" string="Save" class="btn-primary"/>
+          <button string="Discard" special="cancel" class="btn-secondary"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_asr_radius_settings" model="ir.actions.act_window">
+    <field name="name">RADIUS Settings</field>
+    <field name="res_model">res.config.settings</field>
+    <field name="view_mode">form</field>
+    <field name="target">current</field>
+    <field name="view_id" ref="asr_radius_settings_form"/>
+    <field name="context">{}</field>
+  </record>
+
+
+</odoo>

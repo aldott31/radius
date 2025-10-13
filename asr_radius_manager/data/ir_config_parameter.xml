@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data noupdate="1">
+    <!-- Safe & idempotent: sets if exists, creates otherwise -->
+    <function model="ir.config_parameter" name="set_param">
+      <value>asr_radius.emit_cisco</value>
+      <value>1</value>
+    </function>
+    <function model="ir.config_parameter" name="set_param">
+      <value>asr_radius.emit_mikrotik</value>
+      <value>0</value>
+    </function>
+    <function model="ir.config_parameter" name="set_param">
+      <value>asr_radius.cisco_prefix_dl</value>
+      <value>POLICY_DL_</value>
+    </function>
+    <function model="ir.config_parameter" name="set_param">
+      <value>asr_radius.cisco_prefix_ul</value>
+      <value>POLICY_UL_</value>
+    </function>
+  </data>
+</odoo>

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <!-- List -->
+  <record id="view_asr_radius_user_list" model="ir.ui.view">
+    <field name="name">asr.radius.user.list</field>
+    <field name="model">asr.radius.user</field>
+    <field name="arch" type="xml">
+      <list string="RADIUS Users">
+        <field name="username"/>
+        <field name="name"/>
+        <field name="subscription_id"/>
+        <field name="device_id"/>
+        <field name="company_id"/>
+        <field name="radius_synced"/>
+        <field name="last_sync_date"/>
+        <field name="active"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- Form -->
+  <record id="view_asr_radius_user_form" model="ir.ui.view">
+    <field name="name">asr.radius.user.form</field>
+    <field name="model">asr.radius.user</field>
+    <field name="arch" type="xml">
+      <form string="RADIUS User">
+        <header>
+          <button name="action_sync_to_radius" type="object" string="Sync to RADIUS"
+                  class="btn-primary" groups="ab_radius_connector.group_ab_radius_admin"/>
+          <button name="action_suspend" type="object" string="Suspend"
+                  class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"/>
+          <button name="action_reactivate" type="object" string="Reactivate"
+                  class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"/>
+        </header>
+        <sheet>
+          <group>
+            <group>
+              <field name="username" required="1"/>
+              <field name="radius_password" password="True" placeholder="Cleartext-Password"/>
+              <field name="subscription_id" required="1" options="{'no_open': True}"/>
+              <field name="device_id"/>
+            </group>
+            <group>
+              <field name="company_id" groups="base.group_multi_company"/>
+              <field name="radius_synced" readonly="1"/>
+              <field name="last_sync_date" readonly="1"/>
+              <field name="last_sync_error" readonly="1"/>
+              <field name="groupname" readonly="1"/>
+              <field name="active"/>
+            </group>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- Search -->
+  <record id="view_asr_radius_user_search" model="ir.ui.view">
+    <field name="name">asr.radius.user.search</field>
+    <field name="model">asr.radius.user</field>
+    <field name="arch" type="xml">
+      <search string="Search RADIUS Users">
+        <field name="username"/>
+        <field name="subscription_id"/>
+        <filter string="Synced" name="f_synced" domain="[('radius_synced','=',True)]"/>
+        <filter string="Not Synced" name="f_nsynced" domain="[('radius_synced','=',False)]"/>
+        <group expand="0" string="Group By">
+          <filter string="Subscription" name="g_sub" context="{'group_by':'subscription_id'}"/>
+          <filter string="Company" name="g_company" context="{'group_by':'company_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- Action -->
+  <record id="action_asr_radius_user" model="ir.actions.act_window">
+    <field name="name">RADIUS Users</field>
+    <field name="res_model">asr.radius.user</field>
+    <field name="view_mode">list,form</field>
+    <field name="context">{}</field>
+  </record>
+
+
+</odoo>

@@ -5,3 +5,5 @@ access_asr_subscription_admin,asr.subscription admin,model_asr_subscription,ab_r
 access_asr_subscription_user,asr.subscription user,model_asr_subscription,base.group_user,1,0,0,0
 access_asr_radius_attribute_admin,asr.radius.attribute admin,model_asr_radius_attribute,ab_radius_connector.group_ab_radius_admin,1,1,1,1
 access_asr_radius_attribute_user,asr.radius.attribute user,model_asr_radius_attribute,base.group_user,1,0,0,0
+access_asr_radius_user_admin,asr.radius.user admin,model_asr_radius_user,ab_radius_connector.group_ab_radius_admin,1,1,1,1
+access_asr_radius_user_user,asr.radius.user user,model_asr_radius_user,base.group_user,1,0,0,0

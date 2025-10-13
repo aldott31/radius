@@ -5,7 +5,6 @@
     'version': '18.0.1.0.0',
     'category': 'Services/RADIUS',
     'author': 'Abissnet',
-    'website': 'https://www.abissnet.al',
     'license': 'LGPL-3',
     'depends': [
         'base',                 # res.users, res.company
@@ -15,9 +14,13 @@
     ],
     'data': [
         'security/ir.model.access.csv',
-        'views/asr_device_views.xml',
+        'data/ir_config_parameter.xml',
+        'views/settings.xml',
+        'data/server_actions.xml',
         'views/menu.xml',
-        'views/asr_subscription_views.xml'
+        'views/asr_device_views.xml',
+        'views/asr_subscription_views.xml',
+        'views/asr_radius_user_views.xml',
     ],
     'installable': True,
     'application': True,

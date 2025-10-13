@@ -1,23 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Root Menu -->
-    <menuitem id="menu_asr_radius_root"
-              name="RADIUS"
-              web_icon="asr_radius_manager,static/description/icon.png"
-              sequence="50"/>
+  <!-- Root Menu -->
+  <menuitem id="menu_asr_radius_root"
+            name="RADIUS"
+            web_icon="asr_radius_manager,static/description/icon.png"
+            sequence="50"/>
 
-    <!-- Configuration Menu -->
-    <menuitem id="menu_asr_radius_config"
-              name="Configuration"
-              parent="menu_asr_radius_root"
-              sequence="100"/>
+  <!-- Top-level items under ROOT -->
+  <menuitem id="menu_asr_device"
+            name="Devices"
+            parent="menu_asr_radius_root"
+            action="action_asr_device"
+            sequence="10"/>
 
-    <!-- Devices Menu -->
-    <menuitem id="menu_asr_device"
-              name="Devices"
-              parent="menu_asr_radius_config"
-              action="action_asr_device"
-              sequence="10"/>
+  <menuitem id="menu_asr_subscriptions"
+            name="Subscriptions"
+            parent="menu_asr_radius_root"
+            action="action_asr_subscription"
+            sequence="20"/>
+
+  <menuitem id="menu_asr_radius_users"
+            name="Users"
+            parent="menu_asr_radius_root"
+            action="action_asr_radius_user"
+            sequence="30"/>
+
+  <!-- Configuration (as a top-level child of ROOT) -->
+  <menuitem id="menu_asr_radius_config"
+            name="Configuration"
+            parent="menu_asr_radius_root"
+            sequence="90"/>
+
+  <!-- Settings under Configuration -->
+  <menuitem id="menu_asr_radius_settings"
+            name="Settings"
+            parent="menu_asr_radius_config"
+            action="action_asr_radius_settings"
+            sequence="10"/>
 
 </odoo>
