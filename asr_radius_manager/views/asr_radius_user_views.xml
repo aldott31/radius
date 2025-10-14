@@ -5,15 +5,20 @@
     <field name="name">asr.radius.user.list</field>
     <field name="model">asr.radius.user</field>
     <field name="arch" type="xml">
-      <list string="RADIUS Users">
+      <list string="RADIUS Users"
+            decoration-muted="not active"
+            decoration-success="radius_synced"
+            decoration-danger="not radius_synced"
+            decoration-warning="is_suspended or last_sync_error">
         <field name="username"/>
         <field name="name"/>
-        <field name="subscription_id"/>
+        <field name="groupname" string="Planned Group"/>
+        <field name="current_radius_group" string="Current RADIUS Group"/>
+        <field name="subscription_id" options="{'no_open': False}"/>
         <field name="device_id"/>
         <field name="company_id"/>
-        <field name="radius_synced"/>
-        <field name="last_sync_date"/>
-        <field name="active"/>
+        <field name="radius_synced" string="Synced"/>
+        <field name="last_sync_date" string="Last Sync"/>
       </list>
     </field>
   </record>
@@ -31,30 +36,61 @@
                   class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"/>
           <button name="action_reactivate" type="object" string="Reactivate"
                   class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"/>
+          <button name="action_remove_from_radius" type="object" string="Remove from RADIUS"
+                  class="oe_highlight" groups="ab_radius_connector.group_ab_radius_admin"/>
         </header>
+
         <sheet>
           <group>
-            <group>
-              <field name="username" required="1"/>
+            <group string="Credentials">
+              <field name="username" required="1" placeholder="customer123"/>
               <field name="radius_password" password="True" placeholder="Cleartext-Password"/>
-              <field name="subscription_id" required="1" options="{'no_open': True}"/>
-              <field name="device_id"/>
             </group>
-            <group>
+
+            <group string="Plan &amp; Device">
               <field name="company_id" groups="base.group_multi_company"/>
-              <field name="radius_synced" readonly="1"/>
-              <field name="last_sync_date" readonly="1"/>
-              <field name="last_sync_error" readonly="1"/>
-              <field name="groupname" readonly="1"/>
-              <field name="active"/>
+              <field name="subscription_id" required="1"
+                     domain="[('company_id','=',company_id)]"
+                     options="{'no_create': True}"
+                     placeholder="Select plan/package"/>
+              <field name="device_id"
+                     domain="[('company_id','=',company_id)]"
+                     options="{'no_create': True}"/>
+              <field name="groupname" readonly="1" string="Planned Group"/>
+              <field name="current_radius_group" readonly="1" string="Current RADIUS Group"/>
             </group>
           </group>
+
+          <notebook>
+            <page string="Overrides (optional)">
+              <group string="RADIUS Overrides">
+                <group>
+                  <field name="framed_ip" placeholder="Static IPv4, e.g. 10.10.10.10"/>
+                  <field name="framed_ipv6_prefix" placeholder="IPv6 prefix, e.g. 2001:db8::/56"/>
+                </group>
+                <group>
+                  <field name="custom_rate_limit" placeholder="e.g. 100M/20M (Mikrotik)"/>
+                  <field name="override_pool" placeholder="POOL_ACTIVE or POOL_BUSINESS"/>
+                </group>
+                <div class="o_form_label">These apply as radreply and override plan attributes.</div>
+              </group>
+            </page>
+
+            <page string="Status">
+              <group>
+                <field name="radius_synced" readonly="1"/>
+                <field name="last_sync_date" readonly="1"/>
+                <field name="last_sync_error" readonly="1"/>
+                <field name="active"/>
+              </group>
+            </page>
+          </notebook>
         </sheet>
       </form>
     </field>
   </record>
 
-  <!-- Search -->
+  <!-- Search (pa Active filter / group-by) -->
   <record id="view_asr_radius_user_search" model="ir.ui.view">
     <field name="name">asr.radius.user.search</field>
     <field name="model">asr.radius.user</field>
@@ -62,23 +98,24 @@
       <search string="Search RADIUS Users">
         <field name="username"/>
         <field name="subscription_id"/>
-        <filter string="Synced" name="f_synced" domain="[('radius_synced','=',True)]"/>
-        <filter string="Not Synced" name="f_nsynced" domain="[('radius_synced','=',False)]"/>
+
+        <filter name="f_synced" string="Synced" domain="[('radius_synced','=',True)]"/>
+        <filter name="f_nsynced" string="Not Synced" domain="[('radius_synced','=',False)]"/>
+        <filter name="f_err" string="Errors" domain="[('last_sync_error','!=',False)]"/>
+
         <group expand="0" string="Group By">
-          <filter string="Subscription" name="g_sub" context="{'group_by':'subscription_id'}"/>
-          <filter string="Company" name="g_company" context="{'group_by':'company_id'}"/>
+          <filter name="g_sub" string="Subscription" context="{'group_by':'subscription_id'}"/>
+          <filter name="g_dev" string="Device" context="{'group_by':'device_id'}"/>
+          <filter name="g_company" string="Company" context="{'group_by':'company_id'}"/>
         </group>
       </search>
     </field>
   </record>
 
-  <!-- Action -->
+  <!-- Action (pa context default Active) -->
   <record id="action_asr_radius_user" model="ir.actions.act_window">
     <field name="name">RADIUS Users</field>
     <field name="res_model">asr.radius.user</field>
     <field name="view_mode">list,form</field>
-    <field name="context">{}</field>
   </record>
-
-
 </odoo>

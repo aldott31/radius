@@ -32,11 +32,5 @@
             parent="menu_asr_radius_root"
             sequence="90"/>
 
-  <!-- Settings under Configuration -->
-  <menuitem id="menu_asr_radius_settings"
-            name="Settings"
-            parent="menu_asr_radius_config"
-            action="action_asr_radius_settings"
-            sequence="10"/>
 
 </odoo>

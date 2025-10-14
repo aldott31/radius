@@ -17,6 +17,7 @@ class AsrSubscription(models.Model):
     _description = "RADIUS Service Plan (Subscription)"
     _order = "id desc"
     _inherit = ['mail.thread', 'mail.activity.mixin']
+    _check_company_auto = True  # <-- SHTUAR
 
     # ---- Basic Fields ----
     name = fields.Char(required=True, tracking=True)
@@ -65,9 +66,9 @@ class AsrSubscription(models.Model):
     last_sync_date = fields.Datetime(readonly=True)
     last_sync_error = fields.Text(readonly=True)
 
-    # Global unique code (sepse nuk namespacojmë në RADIUS)
+    # Code unik për kompani (tani që namespacojmë groupname me kompaninë)
     _sql_constraints = [
-        ('code_unique', 'unique(code)', 'Code must be globally unique.'),
+        ('code_company_unique', 'unique(code, company_id)', 'Code must be unique per company.'),
     ]
 
     @api.onchange('name')
@@ -118,12 +119,21 @@ class AsrSubscription(models.Model):
             rec.suggested_cisco_policy_in = f"{pref_ul}{ul}"    # IN  = Upload
 
     def action_apply_cisco_suggestions(self):
-        """Copy suggested policy names into real Cisco fields."""
+        """Copy suggested policy names into real Cisco fields + (optional) auto-fill Cisco pools from IP pools."""
         for rec in self:
+            # Policies from rate limit
             if rec.suggested_cisco_policy_out:
                 rec.cisco_policy_out = rec.suggested_cisco_policy_out
             if rec.suggested_cisco_policy_in:
                 rec.cisco_policy_in = rec.suggested_cisco_policy_in
+
+            # NEW: Optional auto-fill of Cisco pools from ip_pool_* when empty
+            if rec._get_conf_bool('asr_radius.autofill_cisco_pools', True):
+                if (not rec.cisco_pool_active) and rec.ip_pool_active:
+                    rec.cisco_pool_active = rec.ip_pool_active.strip()
+                if (not rec.cisco_pool_expired) and rec.ip_pool_expired:
+                    rec.cisco_pool_expired = rec.ip_pool_expired.strip()
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -161,7 +171,7 @@ class AsrSubscription(models.Model):
     # -------------------------------------------------------------------------
     def action_view_radius_info(self):
         self.ensure_one()
-        grp = (self.code or self.name or '').strip()
+        grp = self._groupname()  # përdor realin me prefix kompanie
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -241,10 +251,16 @@ class AsrSubscription(models.Model):
     # -------------------------------------------------------------------------
     def _groupname(self):
         self.ensure_one()
-        grp = (self.code or _slugify(self.name)).strip()
-        if not grp:
-            raise UserError(_("Group code is empty."))
-        return grp
+        # PLAN në formatin e unifikuar: UPPER + vetëm A–Z0–9
+        base = (self.code or self.name or '').upper()
+        grp = re.sub(r'[^A-Z0-9]+', '', base) or 'PLAN'
+
+        # Prefix kompanie: përdor company.code NËSE ekziston, përndryshe name
+        comp = (self.company_id or self.env.company)
+        comp_base = ((getattr(comp, 'code', None) or comp.name) or '').upper()
+        comp_slug = re.sub(r'[^A-Z0-9]+', '', comp_base) or 'COMPANY'
+
+        return f"{comp_slug}:{grp}"
 
     # -------------------------------------------------------------------------
     # Sync to radgroupreply (NO company_id; vetëm groupname/attribute/op/value)
@@ -469,6 +485,7 @@ class AsrRadiusAttribute(models.Model):
     _name = "asr.radius.attribute"
     _description = "RADIUS Attribute for Plan"
     _order = "id asc"
+    _check_company_auto = True  # <-- SHTUAR
 
     attribute = fields.Char(required=True, help="e.g. Mikrotik-Rate-Limit, Session-Timeout, Idle-Timeout")
     op = fields.Char(default=':=', help="Operator, e.g. :=, ==, +=, =")

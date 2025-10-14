@@ -7,3 +7,4 @@ access_asr_radius_attribute_admin,asr.radius.attribute admin,model_asr_radius_at
 access_asr_radius_attribute_user,asr.radius.attribute user,model_asr_radius_attribute,base.group_user,1,0,0,0
 access_asr_radius_user_admin,asr.radius.user admin,model_asr_radius_user,ab_radius_connector.group_ab_radius_admin,1,1,1,1
 access_asr_radius_user_user,asr.radius.user user,model_asr_radius_user,base.group_user,1,0,0,0
+access_asr_radius_settings,asr.radius.settings,model_asr_radius_settings,base.group_system,1,1,1,1

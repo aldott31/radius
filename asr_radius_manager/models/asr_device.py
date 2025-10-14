@@ -12,6 +12,7 @@ class AsrDevice(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _rec_name = 'name'
     _order = 'name'
+    _check_company_auto = True  # izolim auto për multi-company
 
     # Basic Info
     name = fields.Char(
@@ -174,7 +175,7 @@ class AsrDevice(models.Model):
             'nasname': self.ip_address.strip(),
             'shortname': (self.shortname or self.name or '')[:32],
             'type': self.type or '',
-            'ports': self.ports or '',
+            'ports': self.ports or '',   # do të konvertohet në int/NULL në _sync_to_radius
             'secret': self.secret or '',
             'server': '',
             'community': '',
@@ -210,6 +211,12 @@ class AsrDevice(models.Model):
 
             values = self._prepare_nas_values()
 
+            # Normalizo 'ports': vetëm int ose NULL (mos dërgo lista si "1812,1813")
+            ports_val = None
+            praw = str(values.get('ports') or '').strip()
+            if praw.isdigit():
+                ports_val = int(praw)
+
             # Check if exists (by nasname only)
             cursor.execute("SELECT id FROM nas WHERE nasname = %s", (values['nasname'],))
             existing = cursor.fetchone()
@@ -232,7 +239,7 @@ class AsrDevice(models.Model):
                 cursor.execute(update_sql, (
                     values['shortname'],
                     values['type'],
-                    values['ports'],
+                    ports_val,              # INT ose NULL
                     values['secret'],
                     values['description'],
                     radius_id
@@ -249,7 +256,7 @@ class AsrDevice(models.Model):
                     values['nasname'],
                     values['shortname'],
                     values['type'],
-                    values['ports'],
+                    ports_val,              # INT ose NULL
                     values['secret'],
                     values['server'],
                     values['community'],

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+
   <!-- LIST -->
   <record id="view_asr_subscription_tree" model="ir.ui.view">
     <field name="name">asr.subscription.list</field>
@@ -9,104 +10,113 @@
         <field name="name"/>
         <field name="code"/>
         <field name="rate_limit"/>
-        <field name="session_timeout"/>
-        <field name="price"/>
-        <field name="product_id"/>
-        <!-- IP Pool fields -->
         <field name="ip_pool_active"/>
-        <field name="ip_pool_expired"/>
-        <!-- Users count -->
         <field name="user_count"/>
-        <field name="company_id"/>
         <field name="radius_synced"/>
         <field name="last_sync_date"/>
+        <field name="company_id" groups="base.group_multi_company"/>
       </list>
     </field>
   </record>
 
-  <!-- FORM (base) -->
+  <!-- FORM -->
   <record id="view_asr_subscription_form" model="ir.ui.view">
     <field name="name">asr.subscription.form</field>
     <field name="model">asr.subscription</field>
     <field name="arch" type="xml">
       <form string="Subscription Plan">
         <header>
-          <!-- SYNC -->
           <button name="action_sync_attributes_to_radius"
                   type="object"
-                  string="Sync Attributes to RADIUS"
-                  class="btn-primary"
+                  string="Sync to RADIUS"
+                  class="oe_highlight"
                   groups="ab_radius_connector.group_ab_radius_admin"/>
-
-          <!-- REMOVE -->
           <button name="action_remove_from_radius"
                   type="object"
                   string="Remove from RADIUS"
-                  class="oe_highlight"
+                  class="btn-secondary"
                   groups="ab_radius_connector.group_ab_radius_admin"
                   invisible="not radius_synced"/>
-
-          <!-- INFO -->
           <button name="action_view_radius_info"
                   type="object"
                   string="Info"
-                  class="oe_secondary"/>
-
-          <!-- APPLY CISCO SUGGESTIONS -->
+                  class="btn-secondary"/>
+          <!-- ishte attrs=..., tani expression boolean -->
           <button name="action_apply_cisco_suggestions"
                   type="object"
                   string="Apply Cisco Suggestions"
-                  class="oe_highlight"/>
+                  class="btn-secondary"
+                  invisible="(not show_cisco) or (not rate_limit)"/>
         </header>
 
         <sheet>
           <group>
             <group>
-              <field name="name"/>
-              <field name="code"/>
+              <field name="name" placeholder="P.sh. Paketa 300/30"/>
+              <field name="code" placeholder="Auto nga emri nëse bosh"/>
               <field name="company_id" groups="base.group_multi_company"/>
             </group>
             <group>
-              <field name="rate_limit"/>
-              <field name="session_timeout"/>
-              <field name="price"/>
-              <field name="product_id"/>
+              <field name="rate_limit" placeholder="p.sh. 300M/30M"/>
+              <field name="ip_pool_active" placeholder="p.sh. POOL_ACTIVE"/>
+              <field name="ip_pool_expired" placeholder="p.sh. POOL_EXPIRED"/>
             </group>
           </group>
 
           <notebook>
-            <!-- IP Pool Management -->
-            <page string="IP Pool Management">
-              <group>
-                <field name="ip_pool_active" placeholder="e.g., pool-active"/>
-                <field name="ip_pool_expired" placeholder="e.g., pool-expired"/>
+
+            <!-- Cisco vetëm kur toggle është ON -->
+            <page string="Cisco (optional)" invisible="not show_cisco">
+              <group string="Policies">
+                <field name="cisco_policy_in"  placeholder="POLICY_UL_30"/>
+                <field name="cisco_policy_out" placeholder="POLICY_DL_300"/>
+              </group>
+              <group string="Address Pools">
+                <field name="cisco_pool_active"  placeholder="POOL_ACTIVE"/>
+                <field name="cisco_pool_expired" placeholder="POOL_EXPIRED"/>
               </group>
             </page>
 
-            <page string="RADIUS Attributes">
+            <!-- Attributes (advanced) -->
+            <page string="RADIUS Attributes (advanced)">
+              <!-- hiqur context me active_id; Odoo e plotëson vetë subscription_id -->
               <field name="attribute_ids">
                 <list editable="bottom" create="1" edit="1" delete="1">
-                  <field name="attribute"/>
+                  <field name="attribute" placeholder="Mikrotik-Rate-Limit / Cisco-AVPair / Session-Timeout..."/>
                   <field name="op"/>
-                  <field name="value"/>
+                  <field name="value" placeholder="p.sh. 300M/30M, subscriber:service-policy-in POLICY_UL_30"/>
                 </list>
               </field>
             </page>
 
+            <!-- Advanced timers & billing -->
+            <page string="Advanced">
+              <group string="Timers">
+                <field name="session_timeout" placeholder="sekonda (p.sh. 3600)"/>
+                <field name="acct_interim_interval" placeholder="default 300"/>
+              </group>
+              <group string="Billing (optional)">
+                <field name="price"/>
+                <field name="product_id"/>
+              </group>
+            </page>
+
+            <!-- Status -->
             <page string="Sync Status">
               <group>
                 <field name="radius_synced" readonly="1"/>
                 <field name="last_sync_date" readonly="1"/>
-                <field name="last_sync_error" readonly="1"/>
+                <field name="last_sync_error" readonly="1" widget="text"/>
               </group>
             </page>
+
           </notebook>
         </sheet>
       </form>
     </field>
   </record>
 
-  <!-- Smart button (Users count) -->
+  <!-- Smart button -->
   <record id="view_asr_subscription_form_inherit_buttons" model="ir.ui.view">
     <field name="name">asr.subscription.form.buttons.inherit</field>
     <field name="model">asr.subscription</field>
@@ -125,26 +135,7 @@
     </field>
   </record>
 
-  <!-- Cisco overrides inside IP Pool page -->
-  <record id="view_asr_subscription_form_inherit_cisco" model="ir.ui.view">
-    <field name="name">asr.subscription.form.cisco.inherit</field>
-    <field name="model">asr.subscription</field>
-    <field name="inherit_id" ref="view_asr_subscription_form"/>
-    <field name="arch" type="xml">
-      <!-- Anchor by field to avoid fragile selectors -->
-      <xpath expr="//page[.//field[@name='ip_pool_active']]" position="inside">
-        <group string="Cisco Overrides (optional)">
-          <!-- IN = Upload; OUT = Download -->
-          <field name="cisco_policy_in"  placeholder="POLICY_UL_20M"/>
-          <field name="cisco_policy_out" placeholder="POLICY_DL_200M"/>
-          <field name="cisco_pool_active"  placeholder="POOL_ACTIVE"/>
-          <field name="cisco_pool_expired" placeholder="POOL_EXPIRED"/>
-        </group>
-      </xpath>
-    </field>
-  </record>
-
-  <!-- Search view with quick filters -->
+  <!-- Search -->
   <record id="view_asr_subscription_search" model="ir.ui.view">
     <field name="name">asr.subscription.search</field>
     <field name="model">asr.subscription</field>
@@ -154,7 +145,8 @@
         <field name="code"/>
         <filter string="Synced" name="f_synced" domain="[('radius_synced','=',True)]"/>
         <filter string="Not Synced" name="f_nsynced" domain="[('radius_synced','=',False)]"/>
-        <filter string="Missing Pools" name="f_misspool" domain="['|',('ip_pool_active','=',False),('ip_pool_expired','=',False)]"/>
+        <filter string="Missing Pools" name="f_misspool"
+                domain="['|',('ip_pool_active','=',False),('ip_pool_expired','=',False)]"/>
         <group expand="0" string="Group By">
           <filter string="Company" name="g_company" context="{'group_by':'company_id'}"/>
         </group>
@@ -162,17 +154,16 @@
     </field>
   </record>
 
-  <!-- ACTION -->
+  <!-- Action -->
   <record id="action_asr_subscription" model="ir.actions.act_window">
     <field name="name">Subscriptions</field>
     <field name="res_model">asr.subscription</field>
     <field name="view_mode">list,form</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">
-        Create your RADIUS service plans here. Attributes sync to radgroupreply.
+        Create your RADIUS service plans here. Attributes sync to <code>radgroupreply</code>.
       </p>
     </field>
   </record>
-
 
 </odoo>

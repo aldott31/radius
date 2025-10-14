@@ -38,6 +38,21 @@ class AsrRadiusUser(models.Model):
 
     groupname = fields.Char(string="Group Name", compute='_compute_groupname', store=False)
 
+    # --- LIVE from RADIUS (radusergroup) ---
+    current_radius_group = fields.Char(
+        string="Current RADIUS Group",
+        compute="_compute_current_radius_group",
+        store=False,
+        help="Lexohet live nga radusergroup për këtë username."
+    )
+
+    # NEW: flag për dekorim në listë kur user-i është në grup SUSPENDED
+    is_suspended = fields.Boolean(
+        string="Suspended (live)",
+        compute="_compute_is_suspended",
+        store=False
+    )
+
     _sql_constraints = [
         ('uniq_username_company', 'unique(username, company_id)', 'RADIUS username must be unique per company.')
     ]
@@ -49,6 +64,40 @@ class AsrRadiusUser(models.Model):
             comp_prefix = _slug_company(getattr(comp, 'code', None) or comp.name)
             plan_code = _slug_plan(rec.subscription_id.code, rec.subscription_id.name) if rec.subscription_id else "NOPLAN"
             rec.groupname = f"{comp_prefix}:{plan_code}"
+
+    @api.depends('username', 'company_id')
+    def _compute_current_radius_group(self):
+        for rec in self:
+            cur_group = False
+            if rec.username:
+                conn = None
+                try:
+                    conn = rec._get_radius_conn()
+                    with conn.cursor() as cur:
+                        # Merr grupin aktual (zakonisht 1 grup per user)
+                        cur.execute(
+                            "SELECT groupname FROM radusergroup WHERE username=%s ORDER BY priority ASC LIMIT 1",
+                            (rec.username,)
+                        )
+                        row = cur.fetchone()
+                        if row:
+                            cur_group = row.get('groupname') if isinstance(row, dict) else row[0]
+                except Exception as e:
+                    _logger.debug("Fetch current RADIUS group failed for %s: %s", rec.username, e)
+                finally:
+                    try:
+                        if conn:
+                            conn.close()
+                    except Exception:
+                        pass
+            rec.current_radius_group = cur_group or False
+
+    @api.depends('current_radius_group')
+    def _compute_is_suspended(self):
+        for rec in self:
+            grp = (rec.current_radius_group or '').upper()
+            # Match 'SUSPENDED' si grup i vetëm ose me prefix p.sh. ABISSNET:SUSPENDED
+            rec.is_suspended = bool(re.search(r'(^|:)SUSPENDED$', grp))
 
     # ---- RADIUS connection helpers ----
     def _get_radius_conn(self):
@@ -82,12 +131,12 @@ class AsrRadiusUser(models.Model):
 
     @staticmethod
     def _upsert_radusergroup(cursor, username, groupname):
-        sql = """
+        # Ensure exactly one group per user: delete any existing, then insert the new one
+        cursor.execute("DELETE FROM radusergroup WHERE username=%s", (username,))
+        cursor.execute("""
             INSERT INTO radusergroup (username, groupname, priority)
             VALUES (%s, %s, 1)
-            ON DUPLICATE KEY UPDATE groupname = VALUES(groupname), priority = VALUES(priority)
-        """
-        cursor.execute(sql, (username, groupname))
+        """, (username, groupname))
 
     # ---- Actions ----
     def action_sync_to_radius(self):
@@ -121,7 +170,7 @@ class AsrRadiusUser(models.Model):
                 # chatter note
                 try:
                     rec.message_post(
-                        body=_("Synchronized user %(u)s → group %(g)s", u=rec.username, g=rec.groupname),
+                        body=_("Synchronized user %(u)s → group %(g)s") % {'u': rec.username, 'g': rec.groupname},
                         subtype_xmlid='mail.mt_note'
                     )
                 except Exception:
@@ -140,7 +189,7 @@ class AsrRadiusUser(models.Model):
                 # chatter error
                 try:
                     rec.message_post(
-                        body=_("RADIUS sync FAILED for '%(u)s': %(err)s", u=rec.username, err=last_error),
+                        body=_("RADIUS sync FAILED for '%(u)s': %(err)s") % {'u': rec.username, 'err': last_error},
                         subtype_xmlid='mail.mt_note'
                     )
                 except Exception:
@@ -181,7 +230,7 @@ class AsrRadiusUser(models.Model):
             if not rec.username:
                 raise UserError(_("Missing RADIUS username."))
             comp = rec.company_id or self.env.company
-            suspended = f"{_slug_company(comp.name)}:SUSPENDED"
+            suspended = f"{_slug_company((getattr(comp, 'code', None) or comp.name))}:SUSPENDED"
             conn = rec._get_radius_conn()
             try:
                 with conn.cursor() as cur:
@@ -195,16 +244,24 @@ class AsrRadiusUser(models.Model):
                 rec.sudo().write({'radius_synced': True, 'last_sync_error': False, 'last_sync_date': fields.Datetime.now()})
                 ok += 1
                 try:
-                    rec.message_post(body=_("Suspended '%(u)s' → group %(g)s", u=rec.username, g=suspended), subtype_xmlid='mail.mt_note')
+                    rec.message_post(
+                        body=_("Suspended '%(u)s' → group %(g)s") % {'u': rec.username, 'g': suspended},
+                        subtype_xmlid='mail.mt_note'
+                    )
                 except Exception:
                     pass
             except Exception as e:
                 last_error = str(e)
-                try: conn.rollback()
-                except Exception: pass
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
                 rec.sudo().write({'radius_synced': False, 'last_sync_error': last_error})
                 try:
-                    rec.message_post(body=_("Suspend FAILED for '%(u)s': %(err)s", u=rec.username, err=last_error), subtype_xmlid='mail.mt_note')
+                    rec.message_post(
+                        body=_("Suspend FAILED for '%(u)s': %(err)s") % {'u': rec.username, 'err': last_error},
+                        subtype_xmlid='mail.mt_note'
+                    )
                 except Exception:
                     pass
             finally:
@@ -246,16 +303,24 @@ class AsrRadiusUser(models.Model):
                 rec.sudo().write({'radius_synced': True, 'last_sync_error': False, 'last_sync_date': fields.Datetime.now()})
                 ok += 1
                 try:
-                    rec.message_post(body=_("Reactivated '%(u)s' → group %(g)s", u=rec.username, g=rec.groupname), subtype_xmlid='mail.mt_note')
+                    rec.message_post(
+                        body=_("Reactivated '%(u)s' → group %(g)s") % {'u': rec.username, 'g': rec.groupname},
+                        subtype_xmlid='mail.mt_note'
+                    )
                 except Exception:
                     pass
             except Exception as e:
                 last_error = str(e)
-                try: conn.rollback()
-                except Exception: pass
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
                 rec.sudo().write({'radius_synced': False, 'last_sync_error': last_error})
                 try:
-                    rec.message_post(body=_("Reactivate FAILED for '%(u)s': %(err)s", u=rec.username, err=last_error), subtype_xmlid='mail.mt_note')
+                    rec.message_post(
+                        body=_("Reactivate FAILED for '%(u)s': %(err)s") % {'u': rec.username, 'err': last_error},
+                        subtype_xmlid='mail.mt_note'
+                    )
                 except Exception:
                     pass
             finally:
@@ -280,4 +345,77 @@ class AsrRadiusUser(models.Model):
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
                 'params': {'title': _('RADIUS Reactivation (Partial/Failed)'), 'message': msg, 'type': 'warning', 'sticky': False}
+            }
+
+    def action_remove_from_radius(self):
+        """Fshi user-in nga RADIUS: radreply, radcheck, radusergroup. Nuk prek radacct."""
+        ok = 0
+        last_error = None
+        for rec in self:
+            if not rec.username:
+                raise UserError(_("Missing RADIUS username."))
+            conn = None
+            try:
+                conn = rec._get_radius_conn()
+                with conn.cursor() as cur:
+                    # RadReply (overrides per-user)
+                    cur.execute("DELETE FROM radreply WHERE username=%s", (rec.username,))
+                    # RadCheck (credentials)
+                    cur.execute("DELETE FROM radcheck WHERE username=%s", (rec.username,))
+                    # RadUserGroup (group membership)
+                    cur.execute("DELETE FROM radusergroup WHERE username=%s", (rec.username,))
+                conn.commit()
+
+                rec.sudo().write({
+                    'radius_synced': False,
+                    'last_sync_error': False,
+                    'last_sync_date': fields.Datetime.now(),
+                })
+                try:
+                    rec.message_post(
+                        body=_("Removed user '%(u)s' from RADIUS") % {'u': rec.username},
+                        subtype_xmlid='mail.mt_note'
+                    )
+                except Exception:
+                    pass
+                ok += 1
+            except Exception as e:
+                last_error = str(e)
+                if conn:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                rec.sudo().write({'last_sync_error': last_error})
+                try:
+                    rec.message_post(
+                        body=_("Remove from RADIUS FAILED for '%(u)s': %(err)s") % {'u': rec.username, 'err': last_error},
+                        subtype_xmlid='mail.mt_note'
+                    )
+                except Exception:
+                    pass
+            finally:
+                try:
+                    if conn:
+                        conn.close()
+                except Exception:
+                    pass
+
+        # Popup
+        if ok == len(self):
+            msg = (_("User '%s' removed from RADIUS") % self.username) if len(self) == 1 else (_("%d user(s) removed") % ok)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {'title': _('RADIUS Removal'), 'message': msg, 'type': 'info', 'sticky': False}
+            }
+        else:
+            failed = len(self) - ok
+            msg = _('%d removed, %d failed') % (ok, failed)
+            if last_error:
+                msg = f"{msg}\n{last_error}"
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {'title': _('RADIUS Removal (Partial/Failed)'), 'message': msg, 'type': 'warning', 'sticky': False}
             }
