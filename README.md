@@ -17,11 +17,8 @@ Pajisjet (NAS) janë **rrjetet e pajisura për autentifikim dhe autorizim të p�
    - **Shared Secret**: Ky është një kod i përdorur për autentifikim midis RADIUS dhe pajisjes. Është i njëjtë në të dyja anët (RADIUS dhe pajisje).
    - **Lloji i Pajisjes**: Zgjidhni nga llojet si MikroTik, Cisco, ose të tjera.
    - **Ports**: Nëse pajisja përdor disa porte RADIUS (p.sh., 1812, 1813), mund të shtoni ato këtu.
-
-3. **Sistemi i Pajisjeve dhe Pool-i i IP-ve:**
-   - Pasi të krijoni një pajisje, mund të caktoni **pool të veçanta të IP-ve** për të menaxhuar përdoruesit që lidhen me këtë pajisje, duke u ndihmuar të menaxhojnë burimet e rrjetit.
    
-4. **Sync me RADIUS:**
+3. **Sync me RADIUS:**
    - Pas krijimit të pajisjes, mund të përdorni butonin **"Sync to RADIUS"** për të sinkronizuar të dhënat me **FreeRADIUS**.
 
 ---
