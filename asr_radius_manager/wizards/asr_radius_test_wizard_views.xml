@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <record id="view_asr_radius_test_wizard_form" model="ir.ui.view">
+    <field name="name">asr.radius.test.wizard.form</field>
+    <field name="model">asr.radius.test.wizard</field>
+    <field name="arch" type="xml">
+      <form string="RADIUS Test">
+        <sheet>
+          <group>
+            <field name="config_id" readonly="1"/>
+            <field name="username"/>
+            <field name="password" password="True"/>
+            <field name="method"/>
+          </group>
+          <group string="Result">
+            <field name="result_ok"/>
+            <field name="result_code"/>
+            <field name="result_message" nolabel="1" placeholder="Reply-Message / diagnostic..." height="150"/>
+          </group>
+        </sheet>
+        <footer>
+          <button name="action_run_test" type="object" class="btn-primary" string="Test"/>
+          <button name="action_close" special="cancel" string="Close"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+</odoo>

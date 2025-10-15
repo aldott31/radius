@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <!-- List View -->
+  <record id="view_asr_radius_session_list" model="ir.ui.view">
+    <field name="name">asr.radius.session.list</field>
+    <field name="model">asr.radius.session</field>
+    <field name="arch" type="xml">
+      <list string="RADIUS Sessions"
+            create="false"
+            edit="false"
+            delete="false"
+            decoration-success="is_active"
+            decoration-muted="not is_active">
+
+        <field name="username"/>
+        <field name="framedipaddress" string="IP Address"/>
+        <field name="nasipaddress" string="NAS"/>
+        <field name="nasporttype" string="Type"/>
+        <field name="acctstarttime"/>
+        <field name="duration_human" string="Duration"/>
+        <field name="download_mb" string="Download (MB)" widget="float" digits="[16,2]"/>
+        <field name="upload_mb" string="Upload (MB)" widget="float" digits="[16,2]"/>
+        <field name="total_mb" string="Total (MB)" widget="float" digits="[16,2]"/>
+        <field name="is_active" string="Active" widget="boolean_toggle"/>
+        <field name="acctterminatecause" string="Terminate Reason"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- Form View -->
+  <record id="view_asr_radius_session_form" model="ir.ui.view">
+    <field name="name">asr.radius.session.form</field>
+    <field name="model">asr.radius.session</field>
+    <field name="arch" type="xml">
+      <form string="Session Details" create="false" edit="false" delete="false">
+        <header>
+          <button name="action_disconnect_session"
+                  type="object"
+                  string="Disconnect"
+                  class="oe_highlight"
+                  invisible="not is_active"
+                  groups="ab_radius_connector.group_ab_radius_admin"/>
+          <field name="is_active" widget="badge"
+                 decoration-success="is_active"
+                 decoration-muted="not is_active"/>
+        </header>
+
+        <sheet>
+          <group>
+            <group string="User Info">
+              <field name="username"/>
+              <field name="radius_user_id" readonly="1"/>
+              <field name="framedipaddress"/>
+              <field name="framedipv6prefix"/>
+            </group>
+
+            <group string="NAS Info">
+              <field name="nasipaddress"/>
+              <field name="nasportid"/>
+              <field name="nasporttype"/>
+            </group>
+          </group>
+
+          <group>
+            <group string="Session Times">
+              <field name="acctstarttime"/>
+              <field name="acctupdatetime"/>
+              <field name="acctstoptime"/>
+              <field name="duration_human"/>
+              <field name="acctsessiontime" invisible="1"/>
+            </group>
+
+            <group string="Traffic">
+              <field name="download_mb" widget="float" digits="[16,2]"/>
+              <field name="upload_mb" widget="float" digits="[16,2]"/>
+              <field name="total_mb" widget="float" digits="[16,2]"/>
+            </group>
+          </group>
+
+          <group string="Session IDs">
+            <field name="radacctid"/>
+            <field name="acctsessionid"/>
+          </group>
+
+          <group string="Termination" invisible="is_active">
+            <field name="acctterminatecause"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- Search View -->
+  <record id="view_asr_radius_session_search" model="ir.ui.view">
+    <field name="name">asr.radius.session.search</field>
+    <field name="model">asr.radius.session</field>
+    <field name="arch" type="xml">
+      <search string="Search Sessions">
+        <field name="username"/>
+        <field name="framedipaddress"/>
+        <field name="nasipaddress"/>
+
+        <filter name="filter_active" string="Active Sessions"
+                domain="[('acctstoptime', '=', False)]"/>
+        <filter name="filter_terminated" string="Terminated"
+                domain="[('acctstoptime', '!=', False)]"/>
+
+        <separator/>
+
+        <filter name="filter_today" string="Today"
+                domain="[('acctstarttime', '&gt;=', (context_today() - datetime.timedelta(days=0)).strftime('%Y-%m-%d 00:00:00'))]"/>
+        <filter name="filter_week" string="This Week"
+                domain="[('acctstarttime', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+        <filter name="filter_month" string="This Month"
+                domain="[('acctstarttime', '&gt;=', (context_today().replace(day=1)).strftime('%Y-%m-%d'))]"/>
+
+        <separator/>
+
+        <filter name="filter_pppoe" string="PPPoE"
+                domain="[('nasporttype', '=', 'Async')]"/>
+        <filter name="filter_hotspot" string="HotSpot"
+                domain="[('nasporttype', '=', 'Wireless-802.11')]"/>
+
+        <group expand="0" string="Group By">
+          <filter name="group_username" string="Username"
+                  context="{'group_by': 'username'}"/>
+          <filter name="group_nas" string="NAS"
+                  context="{'group_by': 'nasipaddress'}"/>
+          <filter name="group_date" string="Start Date"
+                  context="{'group_by': 'acctstarttime:day'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- Pivot View (për statistika) -->
+  <record id="view_asr_radius_session_pivot" model="ir.ui.view">
+    <field name="name">asr.radius.session.pivot</field>
+    <field name="model">asr.radius.session</field>
+    <field name="arch" type="xml">
+      <pivot string="Session Statistics">
+        <field name="username" type="row"/>
+        <field name="acctstarttime" interval="day" type="col"/>
+        <field name="acctsessiontime" type="measure"/>
+        <field name="total_mb" type="measure"/>
+      </pivot>
+    </field>
+  </record>
+
+  <!-- Graph View -->
+  <record id="view_asr_radius_session_graph" model="ir.ui.view">
+    <field name="name">asr.radius.session.graph</field>
+    <field name="model">asr.radius.session</field>
+    <field name="arch" type="xml">
+      <graph string="Session Traffic" type="bar">
+        <field name="username"/>
+        <field name="total_mb" type="measure"/>
+      </graph>
+    </field>
+  </record>
+
+  <!-- Action -->
+  <record id="action_asr_radius_session" model="ir.actions.act_window">
+    <field name="name">Sessions</field>
+    <field name="res_model">asr.radius.session</field>
+    <field name="view_mode">list,form,pivot,graph</field>
+    <field name="context">{
+      'search_default_filter_active': 1,
+    }</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        No RADIUS sessions found
+      </p>
+      <p>
+        Sessions appear here when users authenticate via PPPoE, HotSpot, etc.<br/>
+        Data is read from FreeRADIUS <code>radacct</code> table.
+      </p>
+    </field>
+  </record>
+
+  <!-- Menu -->
+  <menuitem id="menu_asr_radius_sessions"
+            name="Sessions"
+            parent="asr_radius_manager.menu_asr_radius_root"
+            action="action_asr_radius_session"
+            sequence="25"/>
+
+  <!-- Dashboard Action (Active Sessions Only) -->
+  <record id="action_asr_radius_session_active" model="ir.actions.act_window">
+    <field name="name">Active Sessions</field>
+    <field name="res_model">asr.radius.session</field>
+    <field name="view_mode">list</field>
+    <field name="domain">[('acctstoptime', '=', False)]</field>
+    <field name="context">{}</field>
+  </record>
+
+  </odoo>

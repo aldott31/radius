@@ -38,9 +38,49 @@
                   class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"/>
           <button name="action_remove_from_radius" type="object" string="Remove from RADIUS"
                   class="oe_highlight" groups="ab_radius_connector.group_ab_radius_admin"/>
+
+          <!-- NEW: One-Click Provision & Test -->
+          <button name="action_provision_and_test" type="object" string="Provision &amp; Test"
+                  class="oe_highlight" groups="ab_radius_connector.group_ab_radius_admin"/>
         </header>
 
         <sheet>
+          <!-- Smart Buttons -->
+          <div class="oe_button_box" name="button_box">
+
+            <!-- Active Sessions Button -->
+            <button type="object"
+                    name="action_view_active_sessions"
+                    class="oe_stat_button"
+                    icon="fa-circle"
+                    invisible="active_sessions_count == 0">
+              <field name="active_sessions_count" widget="statinfo" string="Active"/>
+            </button>
+
+            <!-- Total Sessions Button -->
+            <button type="object"
+                    name="action_view_sessions"
+                    class="oe_stat_button"
+                    icon="fa-history">
+              <field name="total_sessions_count" widget="statinfo" string="Sessions"/>
+            </button>
+
+            <!-- Last Login Info -->
+            <button type="object"
+                    name="action_view_sessions"
+                    class="oe_stat_button"
+                    icon="fa-clock-o"
+                    invisible="not last_session_start">
+              <div class="o_field_widget o_stat_info">
+                <span class="o_stat_text">Last Login</span>
+                <span class="o_stat_value">
+                  <field name="last_session_start" widget="relative"/>
+                </span>
+              </div>
+            </button>
+
+          </div>
+
           <group>
             <group string="Credentials">
               <field name="username" required="1" placeholder="customer123"/>

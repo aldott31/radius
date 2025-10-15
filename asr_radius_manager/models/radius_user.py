@@ -3,6 +3,7 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import logging, re
+import subprocess, shlex  # NEW: për Provision & Test
 
 _logger = logging.getLogger(__name__)
 
@@ -419,3 +420,147 @@ class AsrRadiusUser(models.Model):
                 'tag': 'display_notification',
                 'params': {'title': _('RADIUS Removal (Partial/Failed)'), 'message': msg, 'type': 'warning', 'sticky': False}
             }
+
+
+# =========================
+# SHTESË: PPPoE status pa prekur klasën bazë
+# =========================
+class AsrRadiusUserExt(models.Model):
+    _inherit = 'asr.radius.user'
+
+    pppoe_status = fields.Selection(
+        [('down', 'Down'), ('up', 'Up')],
+        string="PPPoE Status",
+        compute='_compute_pppoe_status',
+        store=False
+    )
+    ppp_last_seen = fields.Datetime(string="Last Seen", compute='_compute_pppoe_status', store=False)
+    ppp_framed_ip = fields.Char(string="Framed IP", compute='_compute_pppoe_status', store=False)
+
+    def _compute_pppoe_status(self):
+        # Përdor modelin asr.radius.session (lexon radacct) për të mos duplikuar connectora.
+        for rec in self:
+            rec.pppoe_status = 'down'
+            rec.ppp_last_seen = False
+            rec.ppp_framed_ip = False
+            if not rec.username:
+                continue
+            Sess = self.env['asr.radius.session'].sudo()
+            sessions = Sess.search([('username', '=', rec.username), ('acctstoptime', '=', False)], limit=1)
+            if sessions:
+                s = sessions[0]
+                rec.pppoe_status = 'up'
+                rec.ppp_last_seen = s.acctstarttime or s.calledstationid or False
+                rec.ppp_framed_ip = s.framedipaddress or False
+
+    def action_open_sessions(self):
+        self.ensure_one()
+        return {
+            'name': _("Sessions"),
+            'type': 'ir.actions.act_window',
+            'res_model': 'asr.radius.session',
+            'view_mode': 'list,form',
+            'domain': [('username', '=', self.username)],
+            'target': 'current',
+            'context': {'create': False, 'edit': False, 'delete': False},
+        }
+
+
+# =========================
+# SHTESË: One-Click Provision & Test (pa ndryshuar logjikën ekzistuese)
+# =========================
+class AsrRadiusUserProvision(models.Model):
+    _inherit = 'asr.radius.user'
+
+    def _db_readiness_checks(self):
+        """Verifikon që radcheck/radusergroup/radgroupreply janë gati për login."""
+        self.ensure_one()
+        conn = self._get_radius_conn()
+        ready = {'radcheck': False, 'radusergroup': False, 'group_attrs': 0}
+        groupname = self.groupname
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM radcheck WHERE username=%s AND attribute='Cleartext-Password' LIMIT 1", (self.username,))
+                ready['radcheck'] = bool(cur.fetchone())
+                cur.execute("SELECT 1 FROM radusergroup WHERE username=%s LIMIT 1", (self.username,))
+                ready['radusergroup'] = bool(cur.fetchone())
+                cur.execute("SELECT COUNT(*) FROM radgroupreply WHERE groupname=%s", (groupname,))
+                row = cur.fetchone()
+                ready['group_attrs'] = int(row[0] if isinstance(row, tuple) else (row.get('COUNT(*)') or row.get('count') or 0))
+        finally:
+            try: conn.close()
+            except Exception: pass
+        return ready
+
+    # ← ZËVENDËSUAR: përdor klientin e ri, jo subprocess
+    def _try_access_request(self, password, method='pap'):
+        self.ensure_one()
+        cfg = self.env['asr.radius.config'].search([('company_id', '=', self.env.company.id)], limit=1)
+        if not cfg:
+            return {'ran': False, 'ok': False, 'out': 'RADIUS Config mungon.'}
+        client = cfg._make_radius_client()
+
+        m = (method or 'pap').lower()
+        try:
+            if m == 'chap':
+                res = client.access_request_chap(self.username, password)
+            else:
+                res = client.access_request_pap(self.username, password)
+            out = res.get('reply_message') or res.get('code') or ''
+            return {'ran': True, 'ok': bool(res.get('ok')), 'out': out}
+        except Exception as e:
+            return {'ran': True, 'ok': False, 'out': 'Error: %s' % e}
+
+    def action_provision_and_test(self):
+        """
+        One-click:
+          1) Sync plan attributes në radgroupreply
+          2) Sync user (radcheck + radusergroup)
+          3) DB checks
+          4) (opsionale) Access-Request test
+        """
+        self.ensure_one()
+        if not self.subscription_id:
+            raise UserError(_("Select a Subscription first."))
+
+        # 1) Plan sync
+        try:
+            self.subscription_id.action_sync_attributes_to_radius()
+        except Exception as e:
+            raise UserError(_("Plan sync failed: %s") % e)
+
+        # 2) User sync
+        self.action_sync_to_radius()
+
+        # 3) DB readiness
+        ready = self._db_readiness_checks()
+        db_ok = ready['radcheck'] and ready['radusergroup'] and ready['group_attrs'] > 0
+
+        # 4) Optional auth test (PAP by default; nëse do CHAP, thirre me method='chap')
+        test = self._try_access_request(self.radius_password or '', method='pap')
+        color = 'success' if (db_ok and (not test['ran'] or test['ok'])) else 'warning'
+        msg = []
+        msg.append(f"radcheck: {'OK' if ready['radcheck'] else 'MISSING'}")
+        msg.append(f"radusergroup: {'OK' if ready['radusergroup'] else 'MISSING'}")
+        msg.append(f"radgroupreply attrs: {ready['group_attrs']}")
+        if test['ran']:
+            msg.append(f"Access-Request: {'ACCEPT' if test['ok'] else 'REJECT'}")
+        else:
+            msg.append(f"Access-Request: skipped ({test['out']})")
+
+        # chatter
+        try:
+            self.message_post(body="Provision & Test:<br/>" + "<br/>".join(msg), subtype_xmlid='mail.mt_note')
+        except Exception:
+            pass
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Provision & Test'),
+                'message': "\n".join(msg),
+                'type': color,
+                'sticky': False,
+            }
+        }
