@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+
   <!-- List -->
   <record id="view_asr_radius_user_list" model="ir.ui.view">
     <field name="name">asr.radius.user.list</field>
@@ -158,4 +159,10 @@
     <field name="res_model">asr.radius.user</field>
     <field name="view_mode">list,form</field>
   </record>
+
+  <menuitem id="menu_asr_radius_users"
+            name="Users"
+            parent="menu_asr_radius_root"
+            action="action_asr_radius_user"
+            sequence="30"/>
 </odoo>

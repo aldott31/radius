@@ -15,13 +15,15 @@
     'data': [
         'security/ir.model.access.csv',
         'data/ir_config_parameter.xml',
-        'views/asr_radius_config_views.xml',
-        'data/server_actions.xml',
+        # Load root menu first (no actions)
         'views/menu.xml',
+        # Load views with actions AND their menu items
         'views/asr_device_views.xml',
         'views/asr_subscription_views.xml',
         'views/asr_radius_user_views.xml',
-        'views/asr_radius_session_views.xml',  # NEW
+        'views/asr_radius_session_views.xml',
+        'views/asr_radius_config_views.xml',
+        'data/server_actions.xml',
         'views/pppoe_config_wizard_views.xml',
         'wizards/asr_radius_test_wizard_views.xml',
     ],

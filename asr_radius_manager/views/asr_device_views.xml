@@ -180,5 +180,12 @@
             </field>
         </record>
 
+                  <!-- Top-level items under ROOT -->
+        <menuitem id="menu_asr_device"
+            name="Devices"
+            parent="menu_asr_radius_root"
+            action="action_asr_device"
+            sequence="10"/>
+
     </data>
 </odoo>

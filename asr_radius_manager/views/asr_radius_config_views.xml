@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+
   <!-- Form View -->
   <record id="view_asr_radius_config_form" model="ir.ui.view">
     <field name="name">asr.radius.config.form</field>
@@ -24,12 +25,13 @@
               <group>
                 <field name="emit_mikrotik"/>
                 <field name="emit_cisco"/>
-                <field name="cisco_prefix_dl" placeholder="POLICY_DL_"/>
-                <field name="cisco_prefix_ul" placeholder="POLICY_UL_"/>
+                <!-- Legacy (nuk ndikojnë më te reply-t) -->
+                <field name="cisco_prefix_dl" placeholder="(deprecated)" invisible="1"/>
+                <field name="cisco_prefix_ul" placeholder="(deprecated)" invisible="1"/>
               </group>
             </page>
 
-            <page string="FreeRADIUS">
+            <page string="FreeRADIUS (SQL &amp; PPP)">
               <group>
                 <field name="freeradius_host" placeholder="10.0.0.1"/>
                 <field name="freeradius_auth_port"/>
@@ -53,7 +55,7 @@
     </field>
   </record>
 
-  <!-- Server Action që hap gjithmonë rekordin unik -->
+  <!-- Server Action që hap gjithmonë rekordin unik (singleton) -->
   <record id="action_open_asr_radius_config" model="ir.actions.server">
     <field name="name">RADIUS Config (Open)</field>
     <field name="model_id" ref="base.model_res_company"/>
@@ -63,10 +65,4 @@ action = env['asr.radius.config'].action_open_config()
     ]]></field>
   </record>
 
-  <!-- Menu te Settings -->
-  <menuitem id="menu_asr_radius_config"
-            name="RADIUS Config"
-            parent="base.menu_config"
-            action="action_open_asr_radius_config"
-            sequence="50"/>
 </odoo>

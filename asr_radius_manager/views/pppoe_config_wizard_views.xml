@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+
   <!-- Wizard form -->
   <record id="view_asr_pppoe_config_wizard" model="ir.ui.view">
     <field name="name">asr.pppoe.config.wizard.form</field>
@@ -9,14 +10,25 @@
         <group>
           <field name="device_id" readonly="1"/>
         </group>
+
         <notebook>
           <page string="MikroTik">
             <field name="output_mikrotik" nolabel="1" readonly="1" class="oe_inline"/>
           </page>
+
           <page string="Cisco">
+            <!-- Sqarim i qartë i formatit të ri -->
+            <group>
+              <div class="o_form_label">
+                RADIUS Reply (dinamik nga <b>rate_limit</b> UP/DOWN në Mbps):<br/>
+                Cisco-AVPair = "ip:sub-policy-in=&lt;UP&gt;M"<br/>
+                Cisco-AVPair = "ip:sub-policy-out=&lt;DOWN&gt;M"
+              </div>
+            </group>
             <field name="output_cisco" nolabel="1" readonly="1" class="oe_inline"/>
           </page>
         </notebook>
+
         <footer>
           <button string="Close" class="btn-secondary" special="cancel"/>
         </footer>
@@ -33,7 +45,7 @@
     <field name="context">{'active_id': active_id}</field>
   </record>
 
-  <!-- Buton në formën e asr.device; NDRYSHO inherit_id nëse ke ID tjetër -->
+  <!-- Buton në formën e asr.device (ndrysho inherit_id nëse ke ID tjetër të formës) -->
   <record id="view_asr_device_form_inherit_pppoe_btn" model="ir.ui.view">
     <field name="name">asr.device.form.inherit.pppoe</field>
     <field name="model">asr.device</field>
@@ -47,4 +59,5 @@
       </xpath>
     </field>
   </record>
+
 </odoo>

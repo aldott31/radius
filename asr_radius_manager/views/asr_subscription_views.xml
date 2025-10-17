@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-  <!-- LIST -->
-  <record id="view_asr_subscription_tree" model="ir.ui.view">
+  <!-- LIST (Odoo 17: <list/>) -->
+  <record id="view_asr_subscription_list" model="ir.ui.view">
     <field name="name">asr.subscription.list</field>
     <field name="model">asr.subscription</field>
     <field name="arch" type="xml">
@@ -34,62 +34,44 @@
           <button name="action_remove_from_radius"
                   type="object"
                   string="Remove from RADIUS"
-                  class="btn-secondary"
+                  class="oe_link"
                   groups="ab_radius_connector.group_ab_radius_admin"
                   invisible="not radius_synced"/>
           <button name="action_view_radius_info"
                   type="object"
                   string="Info"
-                  class="btn-secondary"/>
-          <!-- ishte attrs=..., tani expression boolean -->
-          <button name="action_apply_cisco_suggestions"
-                  type="object"
-                  string="Apply Cisco Suggestions"
-                  class="btn-secondary"
-                  invisible="(not show_cisco) or (not rate_limit)"/>
+                  class="oe_link"/>
         </header>
 
         <sheet>
           <group>
             <group>
-              <field name="name" placeholder="P.sh. Paketa 300/30"/>
+              <field name="name" placeholder="p.sh. Paketa 300/30"/>
               <field name="code" placeholder="Auto nga emri nëse bosh"/>
               <field name="company_id" groups="base.group_multi_company"/>
             </group>
             <group>
-              <field name="rate_limit" placeholder="p.sh. 300M/30M"/>
-              <field name="ip_pool_active" placeholder="p.sh. POOL_ACTIVE"/>
-              <field name="ip_pool_expired" placeholder="p.sh. POOL_EXPIRED"/>
+              <field name="rate_limit" placeholder="UP/DOWN (p.sh. 300/30)"/>
+              <field name="ip_pool_active" placeholder="p.sh. PPP-POOL"/>
             </group>
           </group>
 
           <notebook>
 
-            <!-- Cisco vetëm kur toggle është ON -->
-            <page string="Cisco (optional)" invisible="not show_cisco">
-              <group string="Policies">
-                <field name="cisco_policy_in"  placeholder="POLICY_UL_30"/>
-                <field name="cisco_policy_out" placeholder="POLICY_DL_300"/>
-              </group>
-              <group string="Address Pools">
-                <field name="cisco_pool_active"  placeholder="POOL_ACTIVE"/>
-                <field name="cisco_pool_expired" placeholder="POOL_EXPIRED"/>
+            <!-- Shpjegim i dinamikës (vetëm tekst) -->
+            <page string="Dynamic RADIUS Mapping">
+              <group col="1">
+                <div class="o_form_label">Derived at sync from <b>rate_limit</b> (UP/DOWN Mbps):</div>
+                <div class="o_form_label">Cisco-AVPair := ip:sub-policy-in = &lt;UP&gt;M</div>
+                <div class="o_form_label">Cisco-AVPair := ip:sub-policy-out = &lt;DOWN&gt;M</div>
+                <div class="o_form_label">WISPr-Bandwidth-Max-Up := &lt;UP × 1,000,000&gt;</div>
+                <div class="o_form_label">WISPr-Bandwidth-Max-Down := &lt;DOWN × 1,000,000&gt;</div>
+                <div class="o_form_label">Framed-Pool := &lt;ip_pool_active ose PPP-POOL&gt;</div>
+                <div class="o_form_label">Gjithmonë: Service-Type := Framed-User, Framed-Protocol := PPP</div>
               </group>
             </page>
 
-            <!-- Attributes (advanced) -->
-            <page string="RADIUS Attributes (advanced)">
-              <!-- hiqur context me active_id; Odoo e plotëson vetë subscription_id -->
-              <field name="attribute_ids">
-                <list editable="bottom" create="1" edit="1" delete="1">
-                  <field name="attribute" placeholder="Mikrotik-Rate-Limit / Cisco-AVPair / Session-Timeout..."/>
-                  <field name="op"/>
-                  <field name="value" placeholder="p.sh. 300M/30M, subscriber:service-policy-in POLICY_UL_30"/>
-                </list>
-              </field>
-            </page>
-
-            <!-- Advanced timers & billing -->
+            <!-- Advanced -->
             <page string="Advanced">
               <group string="Timers">
                 <field name="session_timeout" placeholder="sekonda (p.sh. 3600)"/>
@@ -143,10 +125,9 @@
       <search string="Search Subscriptions">
         <field name="name"/>
         <field name="code"/>
+        <field name="rate_limit"/>
         <filter string="Synced" name="f_synced" domain="[('radius_synced','=',True)]"/>
         <filter string="Not Synced" name="f_nsynced" domain="[('radius_synced','=',False)]"/>
-        <filter string="Missing Pools" name="f_misspool"
-                domain="['|',('ip_pool_active','=',False),('ip_pool_expired','=',False)]"/>
         <group expand="0" string="Group By">
           <filter string="Company" name="g_company" context="{'group_by':'company_id'}"/>
         </group>
@@ -161,9 +142,15 @@
     <field name="view_mode">list,form</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">
-        Create your RADIUS service plans here. Attributes sync to <code>radgroupreply</code>.
+        Create your RADIUS service plans here. Sync writes a dynamic set to <code>radgroupreply</code> based on <b>rate_limit</b>.
       </p>
     </field>
   </record>
+
+  <menuitem id="menu_asr_subscriptions"
+            name="Subscriptions"
+            parent="menu_asr_radius_root"
+            action="action_asr_subscription"
+            sequence="20"/>
 
 </odoo>
