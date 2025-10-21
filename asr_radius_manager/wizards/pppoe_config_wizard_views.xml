@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <!-- Wizard Form -->
+  <record id="view_asr_pppoe_config_wizard" model="ir.ui.view">
+    <field name="name">asr.pppoe.config.wizard.form</field>
+    <field name="model">asr.pppoe.config.wizard</field>
+    <field name="arch" type="xml">
+      <form string="Generate PPPoE NAS Config">
+        <sheet>
+          <group>
+            <field name="device_id" readonly="1"/>
+          </group>
+
+          <notebook>
+
+            <!-- MikroTik Tab -->
+            <page string="MikroTik">
+              <group col="1">
+                <div class="alert alert-info" role="alert">
+                  <strong>📋 MikroTik RouterOS Configuration</strong><br/>
+                  Copy-paste these commands into your MikroTik terminal.<br/>
+                  Adjust interface/VLAN as needed.
+                </div>
+              </group>
+              <field name="output_mikrotik" nolabel="1" readonly="1"
+                     widget="text" class="o_field_text"/>
+            </page>
+
+            <!-- Cisco Tab - UPDATED FORMAT -->
+            <page string="Cisco (ASR/IOS-XE)">
+              <group col="1">
+                <div class="alert alert-success" role="alert">
+                  <strong>✅ RADIUS Reply Format (from Subscription Plans)</strong><br/>
+                  Plans generate these attributes dynamically:
+                </div>
+              </group>
+
+              <group string="📌 Current Format (ASR9k/IOS-XE)">
+                <group col="1">
+                  <div class="o_form_label">
+                    <code>Cisco-AVPair := ip:interface-config=service-policy input [SPEED]M</code><br/>
+                    <code>Cisco-AVPair := ip:interface-config=service-policy output [SPEED]M</code>
+                  </div>
+                  <div class="text-muted mt-2">
+                    <strong>Example:</strong><br/>
+                    Subscription with <code>rate_limit = "49M/49M"</code> generates:<br/>
+                    • <code>ip:interface-config=service-policy input 49M</code><br/>
+                    • <code>ip:interface-config=service-policy output 49M</code>
+                  </div>
+                </group>
+              </group>
+
+              <group string="⚙️ NAS Configuration (Cisco)">
+                <group col="1">
+                  <div class="text-muted">
+                    The NAS config below sets up RADIUS authentication.<br/>
+                    Adjust loopback/pool as needed for your network.
+                  </div>
+                </group>
+              </group>
+
+              <field name="output_cisco" nolabel="1" readonly="1"
+                     widget="text" class="o_field_text"/>
+
+              <group col="1">
+                <div class="alert alert-warning" role="alert">
+                  <strong>⚠️ Important:</strong><br/>
+                  • Ensure service policies (49M, 300M, etc.) are pre-defined on your ASR<br/>
+                  • RADIUS attributes apply per-session via Virtual-Template<br/>
+                  • Test with a real PPPoE client after configuration
+                </div>
+              </group>
+            </page>
+
+          </notebook>
+        </sheet>
+
+        <footer>
+          <button string="Close" class="btn-primary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <!-- Action to Open Wizard -->
+  <record id="action_asr_pppoe_config_wizard" model="ir.actions.act_window">
+    <field name="name">Generate PPPoE Config</field>
+    <field name="res_model">asr.pppoe.config.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+    <field name="context">{'active_id': active_id}</field>
+  </record>
+
+  <!-- Button in Device Form -->
+  <record id="view_asr_device_form_inherit_pppoe_btn" model="ir.ui.view">
+    <field name="name">asr.device.form.inherit.pppoe</field>
+    <field name="model">asr.device</field>
+    <field name="inherit_id" ref="asr_radius_manager.view_asr_device_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//form/header" position="inside">
+        <button name="%(action_asr_pppoe_config_wizard)d"
+                type="action"
+                string="Generate PPPoE Config"
+                class="oe_highlight"
+                icon="fa-cog"/>
+      </xpath>
+    </field>
+  </record>
+
+</odoo>

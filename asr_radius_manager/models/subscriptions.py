@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError, ValidationError
-import logging, re
+import logging
+import re
 
 _logger = logging.getLogger(__name__)
 
@@ -17,12 +18,12 @@ class AsrSubscription(models.Model):
     _description = "RADIUS Service Plan (Subscription)"
     _order = "id desc"
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _check_company_auto = True  # <-- SHTUAR
+    _check_company_auto = True
 
     # ---- Basic Fields ----
     name = fields.Char(required=True, tracking=True)
     code = fields.Char(help="Group name in FreeRADIUS (radgroupreply.groupname). Auto-filled from name if empty.")
-    rate_limit = fields.Char(help="e.g. '10M/10M'. If set, we add Mikrotik-Rate-Limit unless already in lines.")
+    rate_limit = fields.Char(help="e.g. '49M/49M' or '300M/300M'. Generates Cisco service-policy dynamically.")
     session_timeout = fields.Integer(help="Optional Session-Timeout (seconds)")
     price = fields.Float(help="Default price per cycle (billing in Phase 4/5).")
     product_id = fields.Many2one('product.product', string='Product', help='Product for invoicing (Phase 4/5).')
@@ -33,7 +34,7 @@ class AsrSubscription(models.Model):
     # ---- IP Pool Management ----
     ip_pool_active = fields.Char(
         string='IP Pool (Active Users)',
-        help='MikroTik/Cisco pool for active/paying users',
+        help='Framed-Pool for active/paying users',
         tracking=True
     )
     ip_pool_expired = fields.Char(
@@ -45,19 +46,6 @@ class AsrSubscription(models.Model):
     # ---- UX / Stats ----
     user_count = fields.Integer(string='Users (RADIUS)', compute='_compute_user_count', store=False)
 
-    # ---- Cisco overrides (optional) ----
-    cisco_policy_in = fields.Char(string='Cisco Policy In', help='subscriber:service-policy-in POLICY_NAME')
-    cisco_policy_out = fields.Char(string='Cisco Policy Out', help='subscriber:service-policy-out POLICY_NAME')
-    cisco_pool_active = fields.Char(string='Cisco Pool (Active)', help='ip:addr-pool=POOL_ACTIVE')
-    cisco_pool_expired = fields.Char(string='Cisco Pool (Expired)', help='ip:addr-pool=POOL_EXPIRED')
-
-    # ---- Simple UI helpers for Cisco ----
-    show_cisco = fields.Boolean(string='Show Cisco UI', compute='_compute_vendor_toggles', store=False)
-    suggested_cisco_policy_in = fields.Char(string='Suggested Cisco Policy In',
-                                            compute='_compute_suggested_cisco_policies', store=False, readonly=True)
-    suggested_cisco_policy_out = fields.Char(string='Suggested Cisco Policy Out',
-                                             compute='_compute_suggested_cisco_policies', store=False, readonly=True)
-
     # Attributes
     attribute_ids = fields.One2many('asr.radius.attribute', 'subscription_id', string='RADIUS Attributes')
 
@@ -66,7 +54,14 @@ class AsrSubscription(models.Model):
     last_sync_date = fields.Datetime(readonly=True)
     last_sync_error = fields.Text(readonly=True)
 
-    # Code unik për kompani (tani që namespacojmë groupname me kompaninë)
+    # Accounting interval
+    acct_interim_interval = fields.Integer(
+        string="Acct Interim Interval (s)",
+        default=300,
+        help="How often NAS sends accounting interim updates."
+    )
+
+    # Code unique per company
     _sql_constraints = [
         ('code_company_unique', 'unique(code, company_id)', 'Code must be unique per company.'),
     ]
@@ -89,57 +84,6 @@ class AsrSubscription(models.Model):
     def _get_conf_str(self, key: str, default: str = '') -> str:
         return self.env['ir.config_parameter'].sudo().get_param(key, default) or default
 
-    def _compute_vendor_toggles(self):
-        """Show/hide Cisco block based on settings toggle."""
-        emit_cisco = self._get_conf_bool('asr_radius.emit_cisco', True)  # Cisco primary by default
-        for rec in self:
-            rec.show_cisco = emit_cisco
-
-    def _parse_rate_limit_pair(self, rl: str):
-        """
-        Returns (DL, UL) like ('200M','20M') or (None,None) if invalid.
-        Accepts 10M/10M, 100m/20m, 1000k/500k, 1G/1G, with spaces.
-        """
-        if not rl:
-            return (None, None)
-        m = re.match(r'^\s*([0-9]+[KMGkmg]?)\s*/\s*([0-9]+[KMGkmg]?)\s*$', rl)
-        return (m.group(1).upper(), m.group(2).upper()) if m else (None, None)
-
-    @api.depends('rate_limit')
-    def _compute_suggested_cisco_policies(self):
-        for rec in self:
-            dl, ul = rec._parse_rate_limit_pair(rec.rate_limit or '')
-            if not dl or not ul:
-                rec.suggested_cisco_policy_out = False
-                rec.suggested_cisco_policy_in = False
-                continue
-            pref_dl = rec._get_conf_str('asr_radius.cisco_prefix_dl', 'POLICY_DL_')
-            pref_ul = rec._get_conf_str('asr_radius.cisco_prefix_ul', 'POLICY_UL_')
-            rec.suggested_cisco_policy_out = f"{pref_dl}{dl}"   # OUT = Download
-            rec.suggested_cisco_policy_in = f"{pref_ul}{ul}"    # IN  = Upload
-
-    def action_apply_cisco_suggestions(self):
-        """Copy suggested policy names into real Cisco fields + (optional) auto-fill Cisco pools from IP pools."""
-        for rec in self:
-            # Policies from rate limit
-            if rec.suggested_cisco_policy_out:
-                rec.cisco_policy_out = rec.suggested_cisco_policy_out
-            if rec.suggested_cisco_policy_in:
-                rec.cisco_policy_in = rec.suggested_cisco_policy_in
-
-            # NEW: Optional auto-fill of Cisco pools from ip_pool_* when empty
-            if rec._get_conf_bool('asr_radius.autofill_cisco_pools', True):
-                if (not rec.cisco_pool_active) and rec.ip_pool_active:
-                    rec.cisco_pool_active = rec.ip_pool_active.strip()
-                if (not rec.cisco_pool_expired) and rec.ip_pool_expired:
-                    rec.cisco_pool_expired = rec.ip_pool_expired.strip()
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {'title': _('Cisco Policies'), 'message': _('Applied from Rate Limit.'), 'type': 'success'}
-        }
-
     def _compute_user_count(self):
         for rec in self:
             rec.user_count = 0
@@ -148,7 +92,6 @@ class AsrSubscription(models.Model):
             try:
                 conn = rec._get_radius_connection()
                 cur = conn.cursor()
-                # Use alias to support dict/tuple cursors
                 cur.execute("SELECT COUNT(*) AS cnt FROM radusergroup WHERE groupname=%s", (groupname,))
                 row = cur.fetchone()
                 if not row:
@@ -171,7 +114,7 @@ class AsrSubscription(models.Model):
     # -------------------------------------------------------------------------
     def action_view_radius_info(self):
         self.ensure_one()
-        grp = self._groupname()  # përdor realin me prefix kompanie
+        grp = self._groupname()
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -184,12 +127,12 @@ class AsrSubscription(models.Model):
                     'Last Sync: %s\n'
                     'Status: %s'
                 ) % (
-                    self.name,
-                    grp or '—',
-                    self.user_count,
-                    self.last_sync_date or 'Never',
-                    'Synced' if self.radius_synced else 'Not synced'
-                ),
+                               self.name,
+                               grp or '—',
+                               self.user_count,
+                               self.last_sync_date or 'Never',
+                               'Synced' if self.radius_synced else 'Not synced'
+                           ),
                 'type': 'info',
                 'sticky': False,
             }
@@ -237,7 +180,7 @@ class AsrSubscription(models.Model):
         }
 
     # -------------------------------------------------------------------------
-    # RADIUS connection — si te device: company._get_direct_conn()
+    # RADIUS connection
     # -------------------------------------------------------------------------
     def _get_radius_connection(self):
         self.ensure_one()
@@ -251,11 +194,11 @@ class AsrSubscription(models.Model):
     # -------------------------------------------------------------------------
     def _groupname(self):
         self.ensure_one()
-        # PLAN në formatin e unifikuar: UPPER + vetëm A–Z0–9
+        # PLAN format: UPPER + only A-Z0-9
         base = (self.code or self.name or '').upper()
         grp = re.sub(r'[^A-Z0-9]+', '', base) or 'PLAN'
 
-        # Prefix kompanie: përdor company.code NËSE ekziston, përndryshe name
+        # Company prefix
         comp = (self.company_id or self.env.company)
         comp_base = ((getattr(comp, 'code', None) or comp.name) or '').upper()
         comp_slug = re.sub(r'[^A-Z0-9]+', '', comp_base) or 'COMPANY'
@@ -263,72 +206,85 @@ class AsrSubscription(models.Model):
         return f"{comp_slug}:{grp}"
 
     # -------------------------------------------------------------------------
-    # Sync to radgroupreply (NO company_id; vetëm groupname/attribute/op/value)
+    # Sync to radgroupreply
     # -------------------------------------------------------------------------
     def action_sync_attributes_to_radius(self):
         """
-        Upsert plan attributes në radgroupreply:
-          - DELETE të gjitha rreshtat ekzistues për groupname
-          - INSERT rreshtat aktualë nga attribute_ids
-          - Shton automatikisht Mikrotik-Rate-Limit/Session-Timeout/IP-Pool nga fushat convenience nëse mungojnë
-          - Shton Cisco-AVPair kur toggli i Cisco është ON dhe fushat janë plotësuar
+        ✅ FIXED: Cisco AVPair format for ASR9k/IOS-XE
+        Format: ip:interface-config=service-policy input 49M
         """
         ok_count = 0
         names = []
         last_error = None
-
-        # Cisco primary by default
-        emit_mk = self._get_conf_bool('asr_radius.emit_mikrotik', False)
-        emit_cisco = self._get_conf_bool('asr_radius.emit_cisco', True)
 
         for rec in self:
             conn = None
             try:
                 conn = rec._get_radius_connection()
                 cur = conn.cursor()
-
                 groupname = rec._groupname()
 
-                # 1) Fshi ekzistueset për këtë grup
+                # 1) DELETE old attributes
                 cur.execute("DELETE FROM radgroupreply WHERE groupname = %s", (groupname,))
 
-                # 2) Mblidh rreshtat
-                rows, seen = [], set()
-                for line in rec.attribute_ids:
-                    attr = (line.attribute or '').strip()
-                    op = (line.op or ':=').strip()
-                    val = (line.value or '').strip()
-                    if not attr:
-                        continue
-                    seen.add(attr.lower())
-                    rows.append((groupname, attr, op, val))
+                # 2) Parse rate_limit → label (49M, 300M, etc.)
+                rate_label = None
+                if rec.rate_limit:
+                    # Parse "49M/49M" → "49M", "49/49" → "49M", "300M/300M" → "300M"
+                    rl = rec.rate_limit.strip()
 
-                # 3) Convenience fields (MikroTik + standard)
-                if rec.rate_limit and emit_mk and 'mikrotik-rate-limit' not in seen:
-                    rows.append((groupname, 'Mikrotik-Rate-Limit', ':=', rec.rate_limit.strip()))
-                if rec.session_timeout and 'session-timeout' not in seen:
-                    rows.append((groupname, 'Session-Timeout', ':=', str(int(rec.session_timeout))))
+                    # Try "X/Y" format
+                    m = re.match(r'^\s*([0-9]+)[mM]?\s*/\s*([0-9]+)[mM]?\s*$', rl)
+                    if m:
+                        # Use download speed (second number) as primary
+                        rate_label = f"{m.group(2)}M"
+                    else:
+                        # Try single number "49M" or "300M"
+                        m2 = re.match(r'^\s*([0-9]+)[mM]?\s*$', rl)
+                        if m2:
+                            rate_label = f"{m2.group(1)}M"
+                        else:
+                            _logger.warning('Invalid rate_limit format for plan %s: %s', rec.name, rl)
 
-                # IP Pool for Active Users (standard attr)
-                if rec.ip_pool_active and 'framed-pool' not in seen:
+                # 3) Build rows
+                rows = []
+
+                # ✅ CISCO AVPair - ABSOLUTE FORMAT
+                if rate_label:
+                    rows.append((
+                        groupname,
+                        'Cisco-AVPair',
+                        ':=',
+                        f'ip:interface-config=service-policy input {rate_label}'
+                    ))
+                    rows.append((
+                        groupname,
+                        'Cisco-AVPair',
+                        ':=',
+                        f'ip:interface-config=service-policy output {rate_label}'
+                    ))
+
+                # ✅ IP Pool (standard Framed-Pool)
+                if rec.ip_pool_active:
                     rows.append((groupname, 'Framed-Pool', ':=', rec.ip_pool_active.strip()))
 
-                # Defaults
-                if 'acct-interim-interval' not in seen:
-                    rows.append((groupname, 'Acct-Interim-Interval', ':=', '300'))
-                if 'idle-timeout' not in seen:
-                    rows.append((groupname, 'Idle-Timeout', ':=', '600'))
+                # ✅ Session Timeout (optional)
+                if rec.session_timeout:
+                    rows.append((groupname, 'Session-Timeout', ':=', str(int(rec.session_timeout))))
 
-                # 4) Cisco optional VSAs (only if toggled)
-                if emit_cisco:
-                    if rec.cisco_policy_in:
-                        rows.append((groupname, 'Cisco-AVPair', ':=', f"subscriber:service-policy-in {rec.cisco_policy_in.strip()}"))
-                    if rec.cisco_policy_out:
-                        rows.append((groupname, 'Cisco-AVPair', ':=', f"subscriber:service-policy-out {rec.cisco_policy_out.strip()}"))
-                    if rec.cisco_pool_active:
-                        rows.append((groupname, 'Cisco-AVPair', ':=', f"ip:addr-pool={rec.cisco_pool_active.strip()}"))
+                # ✅ Accounting & Idle defaults
+                rows.append((groupname, 'Acct-Interim-Interval', ':=', str(rec.acct_interim_interval or 300)))
+                rows.append((groupname, 'Idle-Timeout', ':=', '600'))
 
-                # 5) INSERT
+                # ✅ Custom attributes (if any)
+                seen = {'cisco-avpair', 'framed-pool', 'session-timeout', 'acct-interim-interval', 'idle-timeout'}
+                for line in rec.attribute_ids:
+                    attr = (line.attribute or '').strip()
+                    if not attr or attr.lower() in seen:
+                        continue
+                    rows.append((groupname, attr, line.op or ':=', (line.value or '').strip()))
+
+                # 4) INSERT
                 if rows:
                     cur.executemany(
                         "INSERT INTO radgroupreply (groupname, attribute, op, value) VALUES (%s,%s,%s,%s)",
@@ -337,11 +293,13 @@ class AsrSubscription(models.Model):
 
                 conn.commit()
 
+                # 5) Update Odoo record
                 rec.sudo().write({
                     'radius_synced': True,
                     'last_sync_error': False,
                     'last_sync_date': fields.Datetime.now(),
                 })
+
                 try:
                     rec.message_post(body=_('Synchronized plan %s (%s) to RADIUS.') % (rec.name, groupname))
                 except Exception:
@@ -370,7 +328,7 @@ class AsrSubscription(models.Model):
                     except Exception:
                         pass
 
-        # Notifikimi për UI
+        # Notification
         if ok_count == len(self):
             msg = _('Plan "%s" synced to radgroupreply') % (names[0]) if ok_count == 1 else _(
                 '%d subscription(s) synced successfully') % ok_count
@@ -471,7 +429,7 @@ class AsrSubscription(models.Model):
     # ORM Hooks (optional behaviours)
     # -------------------------------------------------------------------------
     def unlink(self):
-        # Hiqe nga RADIUS përpara se të fshihet nga Odoo
+        # Remove from RADIUS before deleting from Odoo
         for rec in self:
             if rec.radius_synced:
                 try:
@@ -485,9 +443,9 @@ class AsrRadiusAttribute(models.Model):
     _name = "asr.radius.attribute"
     _description = "RADIUS Attribute for Plan"
     _order = "id asc"
-    _check_company_auto = True  # <-- SHTUAR
+    _check_company_auto = True
 
-    attribute = fields.Char(required=True, help="e.g. Mikrotik-Rate-Limit, Session-Timeout, Idle-Timeout")
+    attribute = fields.Char(required=True, help="e.g. Session-Timeout, Idle-Timeout, custom RADIUS attribute")
     op = fields.Char(default=':=', help="Operator, e.g. :=, ==, +=, =")
     value = fields.Char(required=True)
     subscription_id = fields.Many2one('asr.subscription', required=True, ondelete='cascade')
@@ -499,7 +457,7 @@ class AsrRadiusAttribute(models.Model):
             if rec.op not in (':=', '==', '+=', '='):
                 raise ValidationError(_('Invalid operator: %s') % (rec.op or ''))
 
-    # Në çdo ndryshim të linjave → shëno planin si jo-sinkron
+    # Mark plan as not synced on any line change
     @api.model_create_multi
     def create(self, vals_list):
         recs = super().create(vals_list)

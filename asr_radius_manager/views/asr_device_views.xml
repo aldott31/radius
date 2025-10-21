@@ -18,7 +18,7 @@
                     <field name="company_id" groups="base.group_multi_company"/>
                     <field name="radius_synced" widget="boolean_toggle"/>
                     <field name="last_sync_date"/>
-                    <!-- removed Active column entirely -->
+                    <field name="active" column_invisible="1"/>
                     <field name="last_ping_ok" widget="boolean_toggle"/>
                     <field name="last_ping_at"/>
                     <field name="is_online"/>
@@ -45,12 +45,10 @@
                                 confirm="Are you sure you want to remove this device from RADIUS database?"
                                 invisible="not radius_synced"
                                 groups="ab_radius_connector.group_ab_radius_admin"/>
-                        <!-- Ping button -->
                         <button name="action_ping_device"
                                 type="object"
                                 string="Ping"
                                 class="oe_highlight"/>
-                        <!-- removed Active field from header -->
                     </header>
 
                     <sheet>
@@ -80,6 +78,7 @@
                                 <field name="ip_address" placeholder="192.168.1.1"/>
                                 <field name="type"/>
                                 <field name="shortname" placeholder="Optional short identifier"/>
+                                <field name="active"/>
                             </group>
 
                             <group string="RADIUS Configuration">
@@ -107,7 +106,6 @@
                                 <group string="Last Error" invisible="not last_sync_error">
                                     <field name="last_sync_error" nolabel="1" readonly="1" widget="text"/>
                                 </group>
-                                <!-- Ping / Online status -->
                                 <group string="Ping Status">
                                     <group>
                                         <field name="last_ping_ok" readonly="1"/>
@@ -141,7 +139,8 @@
                     <field name="type"/>
                     <field name="company_id" groups="base.group_multi_company"/>
 
-                    <!-- removed Active/Archived filters -->
+                    <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+                    <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
                     <separator/>
                     <filter string="Synced" name="synced" domain="[('radius_synced', '=', True)]"/>
                     <filter string="Not Synced" name="not_synced" domain="[('radius_synced', '=', False)]"/>
@@ -168,7 +167,7 @@
             <field name="name">Devices</field>
             <field name="res_model">asr.device</field>
             <field name="view_mode">list,form</field>
-            <!-- removed search_default_active so no Active chip appears -->
+            <field name="context">{'search_default_active': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
                     Create your first RADIUS device (NAS)
@@ -180,7 +179,6 @@
             </field>
         </record>
 
-                  <!-- Top-level items under ROOT -->
         <menuitem id="menu_asr_device"
             name="Devices"
             parent="menu_asr_radius_root"

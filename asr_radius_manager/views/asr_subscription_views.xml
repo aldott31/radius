@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-  <!-- LIST (Odoo 17: <list/>) -->
+  <!-- LIST -->
   <record id="view_asr_subscription_list" model="ir.ui.view">
     <field name="name">asr.subscription.list</field>
     <field name="model">asr.subscription</field>
     <field name="arch" type="xml">
-      <list string="Subscriptions">
+      <list string="Subscriptions"
+            decoration-success="radius_synced"
+            decoration-danger="not radius_synced">
         <field name="name"/>
         <field name="code"/>
         <field name="rate_limit"/>
         <field name="ip_pool_active"/>
         <field name="user_count"/>
-        <field name="radius_synced"/>
+        <field name="radius_synced" widget="boolean_toggle"/>
         <field name="last_sync_date"/>
         <field name="company_id" groups="base.group_multi_company"/>
       </list>
@@ -44,40 +46,101 @@
         </header>
 
         <sheet>
+          <!-- Smart Buttons -->
+          <div class="oe_button_box" name="button_box">
+            <button type="object"
+                    name="action_view_radius_users"
+                    class="oe_stat_button"
+                    icon="fa-users">
+              <field name="user_count" widget="statinfo" string="Users"/>
+            </button>
+          </div>
+
+          <widget name="web_ribbon" title="Not Synced" bg_color="text-bg-danger"
+                  invisible="radius_synced"/>
+          <widget name="web_ribbon" title="Synced" bg_color="text-bg-success"
+                  invisible="not radius_synced"/>
+
           <group>
-            <group>
-              <field name="name" placeholder="p.sh. Paketa 300/30"/>
-              <field name="code" placeholder="Auto nga emri nëse bosh"/>
+            <group string="Plan Details">
+              <field name="name" placeholder="e.g., 300M/300M Package"/>
+              <field name="code" placeholder="Auto-filled from name"/>
               <field name="company_id" groups="base.group_multi_company"/>
             </group>
-            <group>
-              <field name="rate_limit" placeholder="UP/DOWN (p.sh. 300/30)"/>
-              <field name="ip_pool_active" placeholder="p.sh. PPP-POOL"/>
+            <group string="Speed &amp; Pool">
+              <field name="rate_limit" placeholder="e.g., 49M/49M or 300M/300M"/>
+              <field name="ip_pool_active" placeholder="e.g., PPP-POOL-ACTIVE"/>
+              <field name="ip_pool_expired" placeholder="e.g., PPP-POOL-EXPIRED"/>
             </group>
           </group>
 
           <notebook>
 
-            <!-- Shpjegim i dinamikës (vetëm tekst) -->
-            <page string="Dynamic RADIUS Mapping">
+            <!-- ✅ UPDATED: Correct Cisco AVPair Format -->
+            <page string="RADIUS Attributes (Generated)">
               <group col="1">
-                <div class="o_form_label">Derived at sync from <b>rate_limit</b> (UP/DOWN Mbps):</div>
-                <div class="o_form_label">Cisco-AVPair := ip:sub-policy-in = &lt;UP&gt;M</div>
-                <div class="o_form_label">Cisco-AVPair := ip:sub-policy-out = &lt;DOWN&gt;M</div>
-                <div class="o_form_label">WISPr-Bandwidth-Max-Up := &lt;UP × 1,000,000&gt;</div>
-                <div class="o_form_label">WISPr-Bandwidth-Max-Down := &lt;DOWN × 1,000,000&gt;</div>
-                <div class="o_form_label">Framed-Pool := &lt;ip_pool_active ose PPP-POOL&gt;</div>
-                <div class="o_form_label">Gjithmonë: Service-Type := Framed-User, Framed-Protocol := PPP</div>
+                <div class="alert alert-info" role="alert">
+                  <strong>📋 Auto-Generated from <code>rate_limit</code>:</strong>
+                </div>
               </group>
+
+              <group string="✅ Current Format (ASR9k/IOS-XE Compatible)">
+                <group col="1">
+                  <div><strong>Cisco-AVPair</strong> := ip:interface-config=service-policy input [SPEED]M</div>
+                  <div><strong>Cisco-AVPair</strong> := ip:interface-config=service-policy output [SPEED]M</div>
+                  <div><strong>Framed-Pool</strong> := [ip_pool_active or PPP-POOL]</div>
+                  <div><strong>Acct-Interim-Interval</strong> := [acct_interim_interval or 300]</div>
+                  <div><strong>Idle-Timeout</strong> := 600</div>
+                </group>
+              </group>
+
+              <group string="📌 Example">
+                <group col="1">
+                  <div class="text-muted">
+                    <strong>Input:</strong> rate_limit = "49M/49M"<br/>
+                    <strong>Output:</strong><br/>
+                    • Cisco-AVPair := ip:interface-config=service-policy input 49M<br/>
+                    • Cisco-AVPair := ip:interface-config=service-policy output 49M
+                  </div>
+                </group>
+              </group>
+
+              <group string="ℹ️ Notes">
+                <group col="1">
+                  <div class="text-muted">
+                    <ul>
+                      <li>Format parses "49M/49M" → uses second value (download) as primary speed</li>
+                      <li>Single values like "300M" are also supported</li>
+                      <li>Session-Timeout is optional (set below if needed)</li>
+                      <li>Custom attributes can override these (see Advanced tab)</li>
+                    </ul>
+                  </div>
+                </group>
+              </group>
+            </page>
+
+            <!-- Custom Attributes -->
+            <page string="Custom Attributes">
+              <field name="attribute_ids" nolabel="1">
+                <list editable="bottom">
+                  <field name="attribute" placeholder="e.g., Session-Timeout"/>
+                  <field name="op" placeholder=":="/>
+                  <field name="value" placeholder="Value"/>
+                </list>
+              </field>
+              <div class="alert alert-warning" role="alert">
+                ⚠️ Custom attributes override auto-generated ones.<br/>
+                Use with caution.
+              </div>
             </page>
 
             <!-- Advanced -->
             <page string="Advanced">
               <group string="Timers">
-                <field name="session_timeout" placeholder="sekonda (p.sh. 3600)"/>
+                <field name="session_timeout" placeholder="seconds (e.g., 3600)"/>
                 <field name="acct_interim_interval" placeholder="default 300"/>
               </group>
-              <group string="Billing (optional)">
+              <group string="Billing (Future Phase)">
                 <field name="price"/>
                 <field name="product_id"/>
               </group>
@@ -86,34 +149,27 @@
             <!-- Status -->
             <page string="Sync Status">
               <group>
-                <field name="radius_synced" readonly="1"/>
-                <field name="last_sync_date" readonly="1"/>
-                <field name="last_sync_error" readonly="1" widget="text"/>
+                <group>
+                  <field name="radius_synced" readonly="1"/>
+                  <field name="last_sync_date" readonly="1"/>
+                </group>
+                <group>
+                  <field name="user_count" readonly="1"/>
+                </group>
+              </group>
+              <group string="Last Error" invisible="not last_sync_error">
+                <field name="last_sync_error" nolabel="1" readonly="1" widget="text"/>
               </group>
             </page>
 
           </notebook>
         </sheet>
-      </form>
-    </field>
-  </record>
 
-  <!-- Smart button -->
-  <record id="view_asr_subscription_form_inherit_buttons" model="ir.ui.view">
-    <field name="name">asr.subscription.form.buttons.inherit</field>
-    <field name="model">asr.subscription</field>
-    <field name="inherit_id" ref="view_asr_subscription_form"/>
-    <field name="arch" type="xml">
-      <xpath expr="//sheet" position="before">
-        <div class="oe_button_box" name="button_box">
-          <button type="object"
-                  name="action_view_radius_users"
-                  class="oe_stat_button"
-                  icon="fa-users">
-            <field name="user_count" widget="statinfo" string="Users"/>
-          </button>
+        <div class="oe_chatter">
+          <field name="message_follower_ids"/>
+          <field name="message_ids"/>
         </div>
-      </xpath>
+      </form>
     </field>
   </record>
 
@@ -126,10 +182,14 @@
         <field name="name"/>
         <field name="code"/>
         <field name="rate_limit"/>
+
         <filter string="Synced" name="f_synced" domain="[('radius_synced','=',True)]"/>
         <filter string="Not Synced" name="f_nsynced" domain="[('radius_synced','=',False)]"/>
+        <filter string="Has Errors" name="f_errors" domain="[('last_sync_error','!=',False)]"/>
+
         <group expand="0" string="Group By">
           <filter string="Company" name="g_company" context="{'group_by':'company_id'}"/>
+          <filter string="Sync Status" name="g_synced" context="{'group_by':'radius_synced'}"/>
         </group>
       </search>
     </field>
@@ -142,7 +202,11 @@
     <field name="view_mode">list,form</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">
-        Create your RADIUS service plans here. Sync writes a dynamic set to <code>radgroupreply</code> based on <b>rate_limit</b>.
+        Create your first RADIUS service plan
+      </p>
+      <p>
+        Define speed packages that sync to <code>radgroupreply</code>.<br/>
+        Each plan generates Cisco AVPair attributes dynamically from <strong>rate_limit</strong>.
       </p>
     </field>
   </record>

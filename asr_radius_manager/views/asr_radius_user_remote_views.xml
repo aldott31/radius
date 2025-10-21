@@ -63,48 +63,21 @@
     </field>
   </record>
 
-  <!-- ✅ Window Action direktisht nga MySQL (jo CSV) -->
+  <!-- Window Action -->
   <record id="action_asr_radius_user_remote" model="ir.actions.act_window">
     <field name="name">Users (MySQL)</field>
     <field name="res_model">asr.radius.user.remote</field>
     <field name="view_mode">list,form</field>
-    <field name="views">
-      [(ref('view_asr_radius_user_remote_list'),'list'),
-       (ref('view_asr_radius_user_remote_form'),'form')]
-    </field>
-    <field name="context">{'use_csv': False, 'fallback_csv': True}</field>
+    <field name="context">{}</field>
     <field name="domain">[]</field>
     <field name="limit">80</field>
   </record>
 
-  <!-- ✅ Menu direct në action (JO server action) -->
+  <!-- Menu -->
   <menuitem id="menu_asr_radius_user_remote"
             name="Users (MySQL)"
             parent="menu_asr_radius_root"
             action="action_asr_radius_user_remote"
             sequence="29"/>
-
-  <!-- ✅ Veprime alternative në gear menu -->
-  <record id="server_action_export_csv_remote_users" model="ir.actions.server">
-    <field name="name">Export to CSV</field>
-    <field name="model_id" ref="model_asr_radius_user_remote"/>
-    <field name="binding_model_id" ref="model_asr_radius_user_remote"/>
-    <field name="binding_type">action</field>
-    <field name="state">code</field>
-    <field name="code"><![CDATA[
-action = env['asr.radius.user.remote'].sudo().action_export_to_csv()
-    ]]></field>
-  </record>
-
-  <record id="server_action_open_from_csv" model="ir.actions.server">
-    <field name="name">View from CSV (fallback)</field>
-    <field name="model_id" ref="model_asr_radius_user_remote"/>
-    <field name="binding_model_id" ref="model_asr_radius_user_remote"/>
-    <field name="binding_type">action</field>
-    <field name="state">code</field>
-    <field name="code"><![CDATA[
-action = env['asr.radius.user.remote'].sudo().action_export_csv_and_open_from_csv()
-    ]]></field>
-  </record>
 
 </odoo>

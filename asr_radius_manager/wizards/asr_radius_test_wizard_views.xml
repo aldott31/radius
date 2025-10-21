@@ -8,19 +8,33 @@
         <sheet>
           <group>
             <field name="config_id" readonly="1"/>
-            <field name="username"/>
-            <field name="password" password="True"/>
+            <field name="username" placeholder="e.g., testuser"/>
+            <field name="password" password="True" placeholder="Enter password"/>
             <field name="method"/>
           </group>
-          <group string="Result">
-            <field name="result_ok"/>
-            <field name="result_code"/>
-            <field name="result_message" nolabel="1" placeholder="Reply-Message / diagnostic..." height="150"/>
+
+          <group string="Result" invisible="not result_code">
+            <field name="result_ok" readonly="1"/>
+            <field name="result_code" readonly="1"/>
+            <field name="result_message" nolabel="1" readonly="1"
+                   placeholder="Reply-Message / diagnostic..."
+                   widget="text"/>
           </group>
+
+          <div class="alert alert-info" role="alert" invisible="result_code">
+            <strong>ℹ️ How to test:</strong><br/>
+            1. Enter a valid RADIUS username and password<br/>
+            2. Select authentication method (PAP or CHAP)<br/>
+            3. Click <strong>Test</strong> to send Access-Request<br/>
+            4. Result will appear below
+          </div>
+
         </sheet>
         <footer>
-          <button name="action_run_test" type="object" class="btn-primary" string="Test"/>
-          <button name="action_close" special="cancel" string="Close"/>
+          <button name="action_run_test" type="object"
+                  class="btn-primary" string="Test"
+                  icon="fa-play-circle"/>
+          <button string="Close" special="cancel" class="btn-secondary"/>
         </footer>
       </form>
     </field>

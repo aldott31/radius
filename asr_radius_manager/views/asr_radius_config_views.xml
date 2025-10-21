@@ -21,13 +21,17 @@
           </group>
 
           <notebook>
-            <page string="Vendors &amp; Cisco">
+            <page string="Vendors">
               <group>
                 <field name="emit_mikrotik"/>
                 <field name="emit_cisco"/>
-                <!-- Legacy (nuk ndikojnë më te reply-t) -->
-                <field name="cisco_prefix_dl" placeholder="(deprecated)" invisible="1"/>
-                <field name="cisco_prefix_ul" placeholder="(deprecated)" invisible="1"/>
+              </group>
+              <group col="1">
+                <div class="alert alert-info" role="alert">
+                  <strong>ℹ️ Cisco AVPair Format:</strong><br/>
+                  Plans generate: <code>ip:interface-config=service-policy input/output [SPEED]M</code><br/>
+                  Example: 49M/49M → both input/output 49M
+                </div>
               </group>
             </page>
 

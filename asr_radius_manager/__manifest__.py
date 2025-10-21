@@ -26,7 +26,7 @@
         'views/asr_radius_config_views.xml',
         'views/asr_radius_status_views.xml',
         'data/server_actions.xml',
-        'views/pppoe_config_wizard_views.xml',
+        'wizards/pppoe_config_wizard_views.xml',
         'wizards/asr_radius_test_wizard_views.xml',
     ],
     'installable': True,

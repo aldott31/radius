@@ -8,23 +8,22 @@
     <field name="arch" type="xml">
       <list string="RADIUS Users"
             decoration-muted="not active"
-            decoration-success="radius_synced"
+            decoration-success="radius_synced and not is_suspended"
             decoration-danger="not radius_synced"
             decoration-warning="is_suspended or last_sync_error">
-        <field name="id" invisible="1"/>  <!-- safeguard -->
         <field name="username"/>
         <field name="name"/>
         <field name="groupname" string="Planned Group"/>
         <field name="current_radius_group" string="Current RADIUS Group"/>
-        <!-- LIVE -->
         <field name="current_framed_ip" string="IP (current)"/>
         <field name="current_interface" string="If (current)"/>
-        <!-- /LIVE -->
         <field name="subscription_id" options="{'no_open': False}"/>
         <field name="device_id"/>
-        <field name="company_id"/>
+        <field name="company_id" groups="base.group_multi_company"/>
         <field name="radius_synced" string="Synced"/>
         <field name="last_sync_date" string="Last Sync"/>
+        <field name="active" column_invisible="1"/>
+        <field name="is_suspended" column_invisible="1"/>
       </list>
     </field>
   </record>
@@ -39,9 +38,11 @@
           <button name="action_sync_to_radius" type="object" string="Sync to RADIUS"
                   class="btn-primary" groups="ab_radius_connector.group_ab_radius_admin"/>
           <button name="action_suspend" type="object" string="Suspend"
-                  class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"/>
+                  class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"
+                  invisible="is_suspended"/>
           <button name="action_reactivate" type="object" string="Reactivate"
-                  class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"/>
+                  class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"
+                  invisible="not is_suspended"/>
           <button name="action_remove_from_radius" type="object" string="Remove from RADIUS"
                   class="oe_highlight" groups="ab_radius_connector.group_ab_radius_admin"/>
           <button name="action_provision_and_test" type="object" string="Provision &amp; Test"
@@ -76,7 +77,6 @@
                 </span>
               </div>
             </button>
-            <!-- PPPoE Status (requires action_asr_radius_pppoe_status to exist) -->
             <button type="action"
                     name="%(action_asr_radius_pppoe_status)d"
                     class="oe_stat_button"
@@ -89,10 +89,18 @@
             </button>
           </div>
 
+          <widget name="web_ribbon" title="Not Synced" bg_color="text-bg-danger"
+                  invisible="radius_synced"/>
+          <widget name="web_ribbon" title="Synced" bg_color="text-bg-success"
+                  invisible="not radius_synced or is_suspended"/>
+          <widget name="web_ribbon" title="Suspended" bg_color="text-bg-warning"
+                  invisible="not is_suspended"/>
+
           <group>
             <group string="Credentials">
               <field name="username" required="1" placeholder="customer123"/>
               <field name="radius_password" password="True" placeholder="Cleartext-Password"/>
+              <field name="name" placeholder="Display name (optional)"/>
             </group>
 
             <group string="Plan &amp; Device">
@@ -109,42 +117,40 @@
             </group>
           </group>
 
-          <!-- LIVE block -->
+          <!-- LIVE Session Info -->
           <group string="Live Session (from radacct)">
             <group>
+              <field name="pppoe_status" readonly="1"/>
               <field name="current_framed_ip" readonly="1" string="IP (current)"/>
-              <field name="current_interface" readonly="1" string="Interface (current)"/>
             </group>
             <group>
+              <field name="current_interface" readonly="1" string="Interface (current)"/>
               <field name="last_session_start" readonly="1" string="Login Time"/>
             </group>
           </group>
 
           <notebook>
-            <page string="Overrides (optional)">
-              <group string="RADIUS Overrides">
-                <group>
-                  <field name="framed_ip" placeholder="Static IPv4, e.g. 10.10.10.10"/>
-                  <field name="framed_ipv6_prefix" placeholder="IPv6 prefix, e.g. 2001:db8::/56"/>
-                </group>
-                <group>
-                  <field name="custom_rate_limit" placeholder="e.g. 100M/20M (Mikrotik)"/>
-                  <field name="override_pool" placeholder="POOL_ACTIVE or POOL_BUSINESS"/>
-                </group>
-                <div class="o_form_label">These apply as radreply and override plan attributes.</div>
-              </group>
-            </page>
-
             <page string="Status">
               <group>
-                <field name="radius_synced" readonly="1"/>
-                <field name="last_sync_date" readonly="1"/>
-                <field name="last_sync_error" readonly="1"/>
-                <field name="active"/>
+                <group>
+                  <field name="radius_synced" readonly="1"/>
+                  <field name="last_sync_date" readonly="1"/>
+                  <field name="active"/>
+                  <field name="is_suspended" readonly="1"/>
+                </group>
+                <group>
+                  <field name="last_sync_error" readonly="1" widget="text"
+                         invisible="not last_sync_error"/>
+                </group>
               </group>
             </page>
           </notebook>
         </sheet>
+
+        <div class="oe_chatter">
+          <field name="message_follower_ids"/>
+          <field name="message_ids"/>
+        </div>
       </form>
     </field>
   </record>
@@ -156,38 +162,48 @@
     <field name="arch" type="xml">
       <search string="Search RADIUS Users">
         <field name="username"/>
+        <field name="name"/>
         <field name="subscription_id"/>
+
+        <filter name="active" string="Active" domain="[('active', '=', True)]"/>
+        <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+        <separator/>
         <filter name="f_synced" string="Synced" domain="[('radius_synced','=',True)]"/>
         <filter name="f_nsynced" string="Not Synced" domain="[('radius_synced','=',False)]"/>
-        <filter name="f_err" string="Errors" domain="[('last_sync_error','!=',False)]"/>
+        <filter name="f_err" string="Has Errors" domain="[('last_sync_error','!=',False)]"/>
+
         <group expand="0" string="Group By">
           <filter name="g_sub" string="Subscription" context="{'group_by':'subscription_id'}"/>
           <filter name="g_dev" string="Device" context="{'group_by':'device_id'}"/>
           <filter name="g_company" string="Company" context="{'group_by':'company_id'}"/>
+          <filter name="g_synced" string="Sync Status" context="{'group_by':'radius_synced'}"/>
         </group>
       </search>
     </field>
   </record>
 
-  <!-- Action (EXPLICIT views + clean context) -->
+  <!-- Action -->
   <record id="action_asr_radius_user" model="ir.actions.act_window">
     <field name="name">RADIUS Users</field>
     <field name="res_model">asr.radius.user</field>
     <field name="view_mode">list,form</field>
-    <field name="views">
-      [(ref('asr_radius_manager.view_asr_radius_user_list'), 'list'),
-       (ref('asr_radius_manager.view_asr_radius_user_form'), 'form')]
-    </field>
-    <field name="res_id" eval="False"/>
-    <field name="context">{}</field>
+    <field name="context">{'search_default_active': 1}</field>
     <field name="domain">[]</field>
-    <field name="target">current</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        Create your first RADIUS user
+      </p>
+      <p>
+        Users authenticate via PPPoE, HotSpot, or other RADIUS-enabled services.<br/>
+        Each user is linked to a subscription plan.
+      </p>
+    </field>
   </record>
 
   <menuitem id="menu_asr_radius_users"
             name="Users"
             parent="menu_asr_radius_root"
-            action="asr_radius_manager.action_asr_radius_user"
+            action="action_asr_radius_user"
             sequence="30"/>
 
 </odoo>

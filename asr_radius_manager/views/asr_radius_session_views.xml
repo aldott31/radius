@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
 
-  <!-- ✅ WORKING LIST VIEW -->
+  <!-- List View -->
   <record id="view_asr_radius_session_list" model="ir.ui.view">
     <field name="name">asr.radius.session.list</field>
     <field name="model">asr.radius.session</field>
