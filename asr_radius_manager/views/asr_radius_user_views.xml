@@ -11,10 +11,15 @@
             decoration-success="radius_synced"
             decoration-danger="not radius_synced"
             decoration-warning="is_suspended or last_sync_error">
+        <field name="id" invisible="1"/>  <!-- safeguard -->
         <field name="username"/>
         <field name="name"/>
         <field name="groupname" string="Planned Group"/>
         <field name="current_radius_group" string="Current RADIUS Group"/>
+        <!-- LIVE -->
+        <field name="current_framed_ip" string="IP (current)"/>
+        <field name="current_interface" string="If (current)"/>
+        <!-- /LIVE -->
         <field name="subscription_id" options="{'no_open': False}"/>
         <field name="device_id"/>
         <field name="company_id"/>
@@ -39,8 +44,6 @@
                   class="oe_secondary" groups="ab_radius_connector.group_ab_radius_admin"/>
           <button name="action_remove_from_radius" type="object" string="Remove from RADIUS"
                   class="oe_highlight" groups="ab_radius_connector.group_ab_radius_admin"/>
-
-          <!-- NEW: One-Click Provision & Test -->
           <button name="action_provision_and_test" type="object" string="Provision &amp; Test"
                   class="oe_highlight" groups="ab_radius_connector.group_ab_radius_admin"/>
         </header>
@@ -48,8 +51,6 @@
         <sheet>
           <!-- Smart Buttons -->
           <div class="oe_button_box" name="button_box">
-
-            <!-- Active Sessions Button -->
             <button type="object"
                     name="action_view_active_sessions"
                     class="oe_stat_button"
@@ -57,16 +58,12 @@
                     invisible="active_sessions_count == 0">
               <field name="active_sessions_count" widget="statinfo" string="Active"/>
             </button>
-
-            <!-- Total Sessions Button -->
             <button type="object"
                     name="action_view_sessions"
                     class="oe_stat_button"
                     icon="fa-history">
               <field name="total_sessions_count" widget="statinfo" string="Sessions"/>
             </button>
-
-            <!-- Last Login Info -->
             <button type="object"
                     name="action_view_sessions"
                     class="oe_stat_button"
@@ -79,7 +76,17 @@
                 </span>
               </div>
             </button>
-
+            <!-- PPPoE Status (requires action_asr_radius_pppoe_status to exist) -->
+            <button type="action"
+                    name="%(action_asr_radius_pppoe_status)d"
+                    class="oe_stat_button"
+                    icon="fa-signal"
+                    context="{'search_default_username': username}">
+              <div class="o_field_widget o_stat_info">
+                <span class="o_stat_text">PPPoE</span>
+                <span class="o_stat_value">Status</span>
+              </div>
+            </button>
           </div>
 
           <group>
@@ -99,6 +106,17 @@
                      options="{'no_create': True}"/>
               <field name="groupname" readonly="1" string="Planned Group"/>
               <field name="current_radius_group" readonly="1" string="Current RADIUS Group"/>
+            </group>
+          </group>
+
+          <!-- LIVE block -->
+          <group string="Live Session (from radacct)">
+            <group>
+              <field name="current_framed_ip" readonly="1" string="IP (current)"/>
+              <field name="current_interface" readonly="1" string="Interface (current)"/>
+            </group>
+            <group>
+              <field name="last_session_start" readonly="1" string="Login Time"/>
             </group>
           </group>
 
@@ -131,7 +149,7 @@
     </field>
   </record>
 
-  <!-- Search (pa Active filter / group-by) -->
+  <!-- Search -->
   <record id="view_asr_radius_user_search" model="ir.ui.view">
     <field name="name">asr.radius.user.search</field>
     <field name="model">asr.radius.user</field>
@@ -139,11 +157,9 @@
       <search string="Search RADIUS Users">
         <field name="username"/>
         <field name="subscription_id"/>
-
         <filter name="f_synced" string="Synced" domain="[('radius_synced','=',True)]"/>
         <filter name="f_nsynced" string="Not Synced" domain="[('radius_synced','=',False)]"/>
         <filter name="f_err" string="Errors" domain="[('last_sync_error','!=',False)]"/>
-
         <group expand="0" string="Group By">
           <filter name="g_sub" string="Subscription" context="{'group_by':'subscription_id'}"/>
           <filter name="g_dev" string="Device" context="{'group_by':'device_id'}"/>
@@ -153,16 +169,25 @@
     </field>
   </record>
 
-  <!-- Action (pa context default Active) -->
+  <!-- Action (EXPLICIT views + clean context) -->
   <record id="action_asr_radius_user" model="ir.actions.act_window">
     <field name="name">RADIUS Users</field>
     <field name="res_model">asr.radius.user</field>
     <field name="view_mode">list,form</field>
+    <field name="views">
+      [(ref('asr_radius_manager.view_asr_radius_user_list'), 'list'),
+       (ref('asr_radius_manager.view_asr_radius_user_form'), 'form')]
+    </field>
+    <field name="res_id" eval="False"/>
+    <field name="context">{}</field>
+    <field name="domain">[]</field>
+    <field name="target">current</field>
   </record>
 
   <menuitem id="menu_asr_radius_users"
             name="Users"
             parent="menu_asr_radius_root"
-            action="action_asr_radius_user"
+            action="asr_radius_manager.action_asr_radius_user"
             sequence="30"/>
+
 </odoo>

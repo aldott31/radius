@@ -1,14 +1,25 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_asr_device_admin,asr.device admin,model_asr_device,ab_radius_connector.group_ab_radius_admin,1,1,1,1
 access_asr_device_user,asr.device user,model_asr_device,base.group_user,1,0,0,0
+
 access_asr_subscription_admin,asr.subscription admin,model_asr_subscription,ab_radius_connector.group_ab_radius_admin,1,1,1,1
 access_asr_subscription_user,asr.subscription user,model_asr_subscription,base.group_user,1,0,0,0
+
 access_asr_radius_attribute_admin,asr.radius.attribute admin,model_asr_radius_attribute,ab_radius_connector.group_ab_radius_admin,1,1,1,1
 access_asr_radius_attribute_user,asr.radius.attribute user,model_asr_radius_attribute,base.group_user,1,0,0,0
+
 access_asr_radius_user_admin,asr.radius.user admin,model_asr_radius_user,ab_radius_connector.group_ab_radius_admin,1,1,1,1
 access_asr_radius_user_user,asr.radius.user user,model_asr_radius_user,base.group_user,1,0,0,0
+
 access_asr_radius_session_admin,asr.radius.session admin,model_asr_radius_session,ab_radius_connector.group_ab_radius_admin,1,0,0,0
 access_asr_radius_session_user,asr.radius.session user,model_asr_radius_session,base.group_user,1,0,0,0
+
+access_asr_radius_user_remote_admin,ASR RADIUS User Remote Admin,model_asr_radius_user_remote,ab_radius_connector.group_ab_radius_admin,1,1,0,0
+access_asr_radius_user_remote_user,ASR RADIUS User Remote Read,model_asr_radius_user_remote,base.group_user,1,0,0,0
+
+access_asr_radius_pppoe_status_admin,asr.radius.pppoe_status admin,model_asr_radius_pppoe_status,base.group_system,1,0,0,0
+
+access_asr_radius_config_manager,asr.radius.config manager,model_asr_radius_config,base.group_system,1,1,1,0
+
 access_asr_pppoe_config_wizard,asr.pppoe.config.wizard,model_asr_pppoe_config_wizard,base.group_system,1,1,1,1
-access_asr_radius_config_manager,access_asr_radius_config_manager,model_asr_radius_config,base.group_system,1,1,1,0
-access_asr_radius_test_wizard,access_asr_radius_test_wizard,model_asr_radius_test_wizard,base.group_system,1,1,1,1
+access_asr_radius_test_wizard,asr.radius.test.wizard,model_asr_radius_test_wizard,base.group_system,1,1,1,1

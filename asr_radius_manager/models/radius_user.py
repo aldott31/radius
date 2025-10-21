@@ -1,9 +1,7 @@
-# asr_radius_manager/models/radius_user.py
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import logging, re
-import subprocess, shlex  # NEW: për Provision & Test
 
 _logger = logging.getLogger(__name__)
 
@@ -23,7 +21,7 @@ class AsrRadiusUser(models.Model):
     _description = 'RADIUS User'
     _order = 'username'
     _check_company_auto = True
-    _inherit = ['mail.thread', 'mail.activity.mixin']  # për message_post dhe tracking
+    _inherit = ['mail.thread', 'mail.activity.mixin']
 
     active = fields.Boolean(default=True, tracking=True)
     name = fields.Char(string="Name", help="Optional display name")
@@ -39,7 +37,7 @@ class AsrRadiusUser(models.Model):
 
     groupname = fields.Char(string="Group Name", compute='_compute_groupname', store=False)
 
-    # --- LIVE from RADIUS (radusergroup) ---
+    # LIVE: radusergroup
     current_radius_group = fields.Char(
         string="Current RADIUS Group",
         compute="_compute_current_radius_group",
@@ -47,7 +45,7 @@ class AsrRadiusUser(models.Model):
         help="Lexohet live nga radusergroup për këtë username."
     )
 
-    # NEW: flag për dekorim në listë kur user-i është në grup SUSPENDED
+    # LIVE: dekorim suspended
     is_suspended = fields.Boolean(
         string="Suspended (live)",
         compute="_compute_is_suspended",
@@ -75,7 +73,6 @@ class AsrRadiusUser(models.Model):
                 try:
                     conn = rec._get_radius_conn()
                     with conn.cursor() as cur:
-                        # Merr grupin aktual (zakonisht 1 grup per user)
                         cur.execute(
                             "SELECT groupname FROM radusergroup WHERE username=%s ORDER BY priority ASC LIMIT 1",
                             (rec.username,)
@@ -97,12 +94,11 @@ class AsrRadiusUser(models.Model):
     def _compute_is_suspended(self):
         for rec in self:
             grp = (rec.current_radius_group or '').upper()
-            # Match 'SUSPENDED' si grup i vetëm ose me prefix p.sh. ABISSNET:SUSPENDED
             rec.is_suspended = bool(re.search(r'(^|:)SUSPENDED$', grp))
 
     # ---- RADIUS connection helpers ----
     def _get_radius_conn(self):
-        """Prefero company._get_direct_conn() nga ab_radius_connector; përndryshe përdor mysql.connector të kompanisë."""
+        """Prefero company._get_direct_conn() nga ab_radius_connector; përndryshe mysql.connector i kompanisë."""
         self.ensure_one()
         company = self.company_id or self.env.company
         if hasattr(company, "_get_direct_conn"):
@@ -132,7 +128,6 @@ class AsrRadiusUser(models.Model):
 
     @staticmethod
     def _upsert_radusergroup(cursor, username, groupname):
-        # Ensure exactly one group per user: delete any existing, then insert the new one
         cursor.execute("DELETE FROM radusergroup WHERE username=%s", (username,))
         cursor.execute("""
             INSERT INTO radusergroup (username, groupname, priority)
@@ -141,14 +136,9 @@ class AsrRadiusUser(models.Model):
 
     # ---- Actions ----
     def action_sync_to_radius(self):
-        """
-        Sync per-user: radcheck + radusergroup.
-        Kthen popup (display_notification) si te subscription-i dhe log në chatter.
-        """
         ok = 0
         last_error = None
         for rec in self:
-            # validime bazë
             if not rec.username:
                 raise UserError(_("Missing RADIUS username."))
             if not rec.radius_password:
@@ -168,7 +158,6 @@ class AsrRadiusUser(models.Model):
                     'last_sync_error': False,
                     'last_sync_date': fields.Datetime.now(),
                 })
-                # chatter note
                 try:
                     rec.message_post(
                         body=_("Synchronized user %(u)s → group %(g)s") % {'u': rec.username, 'g': rec.groupname},
@@ -187,7 +176,6 @@ class AsrRadiusUser(models.Model):
                         pass
                 rec.sudo().write({'radius_synced': False, 'last_sync_error': last_error})
                 _logger.exception("RADIUS sync failed for %s", rec.username)
-                # chatter error
                 try:
                     rec.message_post(
                         body=_("RADIUS sync FAILED for '%(u)s': %(err)s") % {'u': rec.username, 'err': last_error},
@@ -195,8 +183,6 @@ class AsrRadiusUser(models.Model):
                     )
                 except Exception:
                     pass
-                # vazhdo me të tjerët (si te subscription), mos e prish batch-in
-
             finally:
                 try:
                     if conn:
@@ -204,7 +190,6 @@ class AsrRadiusUser(models.Model):
                 except Exception:
                     pass
 
-        # Popup (si te subscription-i)
         if ok == len(self):
             msg = (_("User '%s' synced to RADIUS") % self.username) if len(self) == 1 else (_("%d user(s) synced") % ok)
             return {
@@ -224,7 +209,6 @@ class AsrRadiusUser(models.Model):
             }
 
     def action_suspend(self):
-        """Kalojeni në grup SUSPENDED:<COMP>. Pop-up + chatter, pa fshirë password-in."""
         ok = 0
         last_error = None
         for rec in self:
@@ -235,7 +219,6 @@ class AsrRadiusUser(models.Model):
             conn = rec._get_radius_conn()
             try:
                 with conn.cursor() as cur:
-                    # krijo një reply simbolik për grupin SUSPENDED (opsionale)
                     cur.execute("""
                         INSERT IGNORE INTO radgroupreply (groupname, attribute, op, value)
                         VALUES (%s, 'Reply-Message', ':=', 'Suspended')
@@ -290,7 +273,6 @@ class AsrRadiusUser(models.Model):
             }
 
     def action_reactivate(self):
-        """Rikthen në grupin e planit. Pop-up + chatter."""
         ok = 0
         last_error = None
         for rec in self:
@@ -349,7 +331,6 @@ class AsrRadiusUser(models.Model):
             }
 
     def action_remove_from_radius(self):
-        """Fshi user-in nga RADIUS: radreply, radcheck, radusergroup. Nuk prek radacct."""
         ok = 0
         last_error = None
         for rec in self:
@@ -359,11 +340,8 @@ class AsrRadiusUser(models.Model):
             try:
                 conn = rec._get_radius_conn()
                 with conn.cursor() as cur:
-                    # RadReply (overrides per-user)
                     cur.execute("DELETE FROM radreply WHERE username=%s", (rec.username,))
-                    # RadCheck (credentials)
                     cur.execute("DELETE FROM radcheck WHERE username=%s", (rec.username,))
-                    # RadUserGroup (group membership)
                     cur.execute("DELETE FROM radusergroup WHERE username=%s", (rec.username,))
                 conn.commit()
 
@@ -402,7 +380,6 @@ class AsrRadiusUser(models.Model):
                 except Exception:
                     pass
 
-        # Popup
         if ok == len(self):
             msg = (_("User '%s' removed from RADIUS") % self.username) if len(self) == 1 else (_("%d user(s) removed") % ok)
             return {
@@ -423,7 +400,7 @@ class AsrRadiusUser(models.Model):
 
 
 # =========================
-# SHTESË: PPPoE status pa prekur klasën bazë
+# SHTESË: PPPoE / Sessions live info
 # =========================
 class AsrRadiusUserExt(models.Model):
     _inherit = 'asr.radius.user'
@@ -434,46 +411,134 @@ class AsrRadiusUserExt(models.Model):
         compute='_compute_pppoe_status',
         store=False
     )
-    ppp_last_seen = fields.Datetime(string="Last Seen", compute='_compute_pppoe_status', store=False)
-    ppp_framed_ip = fields.Char(string="Framed IP", compute='_compute_pppoe_status', store=False)
+    last_session_start = fields.Datetime(string="Last Login", compute='_compute_pppoe_status', store=False)
+    current_framed_ip = fields.Char(string="IP (current)", compute='_compute_pppoe_status', store=False)
+    current_interface = fields.Char(string="Interface (current)", compute='_compute_pppoe_status', store=False)
+
+    active_sessions_count = fields.Integer(string="Active", compute='_compute_session_counts', store=False)
+    total_sessions_count = fields.Integer(string="Sessions", compute='_compute_session_counts', store=False)
 
     def _compute_pppoe_status(self):
-        # Përdor modelin asr.radius.session (lexon radacct) për të mos duplikuar connectora.
+        """
+        Lexon sesionin aktiv nga asr.radius.session.
+        Nëse fushat nuk janë të pranishme (p.sh. framedipaddress vs framed_ip_address),
+        bën fallback me SELECT direkt nga radacct.
+        """
+        Sess = self.env['asr.radius.session'].sudo()
+
         for rec in self:
             rec.pppoe_status = 'down'
-            rec.ppp_last_seen = False
-            rec.ppp_framed_ip = False
+            rec.last_session_start = False
+            rec.current_framed_ip = False
+            rec.current_interface = False
+
             if not rec.username:
                 continue
-            Sess = self.env['asr.radius.session'].sudo()
-            sessions = Sess.search([('username', '=', rec.username), ('acctstoptime', '=', False)], limit=1)
-            if sessions:
-                s = sessions[0]
-                rec.pppoe_status = 'up'
-                rec.ppp_last_seen = s.acctstarttime or s.calledstationid or False
-                rec.ppp_framed_ip = s.framedipaddress or False
 
-    def action_open_sessions(self):
+            ip = None
+            iface = None
+            start = None
+
+            # 1) Provo nga modeli asr.radius.session (aktif: acctstoptime IS NULL)
+            s = Sess.search(
+                [('username', '=', rec.username), ('acctstoptime', '=', False)],
+                limit=1,
+                order='acctstarttime desc'
+            )
+            if s:
+                # start time
+                start = getattr(s, 'acctstarttime', None) or getattr(s, 'acct_start_time', None)
+
+                # IP — provo disa variante emrash
+                for attr in ('framedipaddress', 'framed_ip_address', 'framed_ip'):
+                    v = getattr(s, attr, None)
+                    if v:
+                        ip = v
+                        break
+
+                # Interface — prefero NAS-Port-Id, përndryshe Called-Station-Id
+                for attr in ('nasportid', 'nas_port_id', 'nasport', 'calledstationid', 'called_station_id'):
+                    v = getattr(s, attr, None)
+                    if v:
+                        iface = v
+                        break
+
+            # 2) Fallback direkt nga radacct nëse mungon IP/Interface/Start
+            if not (ip and iface and start):
+                conn = None
+                try:
+                    conn = rec._get_radius_conn()
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                                    SELECT framedipaddress, nasportid, calledstationid, acctstarttime
+                                    FROM radacct
+                                    WHERE username = %s
+                                      AND acctstoptime IS NULL
+                                    ORDER BY acctstarttime DESC LIMIT 1
+                                    """, (rec.username,))
+                        row = cur.fetchone()
+                        if row:
+                            if isinstance(row, dict):
+                                ip = ip or row.get('framedipaddress') or row.get('framed_ip_address')
+                                iface = iface or row.get('nasportid') or row.get('calledstationid')
+                                start = start or row.get('acctstarttime')
+                            else:
+                                # row tuple order: framedipaddress, nasportid, calledstationid, acctstarttime
+                                ip = ip or row[0]
+                                iface = iface or row[1] or row[2]
+                                start = start or row[3]
+                except Exception as e:
+                    _logger.debug("Fallback radacct SQL failed for %s: %s", rec.username, e)
+                finally:
+                    try:
+                        if conn:
+                            conn.close()
+                    except Exception:
+                        pass
+
+            # 3) Vendos vlerat
+            if start or ip or iface:
+                rec.pppoe_status = 'up'
+                rec.last_session_start = start or False
+                rec.current_framed_ip = ip or False
+                rec.current_interface = iface or False
+
+    def _compute_session_counts(self):
+        Sess = self.env['asr.radius.session'].sudo()
+        for rec in self:
+            if not rec.username:
+                rec.active_sessions_count = 0
+                rec.total_sessions_count = 0
+                continue
+            rec.active_sessions_count = Sess.search_count([('username', '=', rec.username), ('acctstoptime', '=', False)])
+            rec.total_sessions_count = Sess.search_count([('username', '=', rec.username)])
+
+    def _sessions_action_base(self, domain):
         self.ensure_one()
         return {
             'name': _("Sessions"),
             'type': 'ir.actions.act_window',
             'res_model': 'asr.radius.session',
             'view_mode': 'list,form',
-            'domain': [('username', '=', self.username)],
+            'domain': domain,
             'target': 'current',
             'context': {'create': False, 'edit': False, 'delete': False},
         }
 
+    def action_view_active_sessions(self):
+        return self._sessions_action_base([('username', '=', self.username), ('acctstoptime', '=', False)])
+
+    def action_view_sessions(self):
+        return self._sessions_action_base([('username', '=', self.username)])
+
 
 # =========================
-# SHTESË: One-Click Provision & Test (pa ndryshuar logjikën ekzistuese)
+# SHTESË: One-Click Provision & Test (me RadiusClient)
 # =========================
 class AsrRadiusUserProvision(models.Model):
     _inherit = 'asr.radius.user'
 
     def _db_readiness_checks(self):
-        """Verifikon që radcheck/radusergroup/radgroupreply janë gati për login."""
         self.ensure_one()
         conn = self._get_radius_conn()
         ready = {'radcheck': False, 'radusergroup': False, 'group_attrs': 0}
@@ -488,11 +553,12 @@ class AsrRadiusUserProvision(models.Model):
                 row = cur.fetchone()
                 ready['group_attrs'] = int(row[0] if isinstance(row, tuple) else (row.get('COUNT(*)') or row.get('count') or 0))
         finally:
-            try: conn.close()
-            except Exception: pass
+            try:
+                conn.close()
+            except Exception:
+                pass
         return ready
 
-    # ← ZËVENDËSUAR: përdor klientin e ri, jo subprocess
     def _try_access_request(self, password, method='pap'):
         self.ensure_one()
         cfg = self.env['asr.radius.config'].search([('company_id', '=', self.env.company.id)], limit=1)
@@ -512,31 +578,20 @@ class AsrRadiusUserProvision(models.Model):
             return {'ran': True, 'ok': False, 'out': 'Error: %s' % e}
 
     def action_provision_and_test(self):
-        """
-        One-click:
-          1) Sync plan attributes në radgroupreply
-          2) Sync user (radcheck + radusergroup)
-          3) DB checks
-          4) (opsionale) Access-Request test
-        """
         self.ensure_one()
         if not self.subscription_id:
             raise UserError(_("Select a Subscription first."))
 
-        # 1) Plan sync
         try:
             self.subscription_id.action_sync_attributes_to_radius()
         except Exception as e:
             raise UserError(_("Plan sync failed: %s") % e)
 
-        # 2) User sync
         self.action_sync_to_radius()
 
-        # 3) DB readiness
         ready = self._db_readiness_checks()
         db_ok = ready['radcheck'] and ready['radusergroup'] and ready['group_attrs'] > 0
 
-        # 4) Optional auth test (PAP by default; nëse do CHAP, thirre me method='chap')
         test = self._try_access_request(self.radius_password or '', method='pap')
         color = 'success' if (db_ok and (not test['ran'] or test['ok'])) else 'warning'
         msg = []
@@ -548,7 +603,6 @@ class AsrRadiusUserProvision(models.Model):
         else:
             msg.append(f"Access-Request: skipped ({test['out']})")
 
-        # chatter
         try:
             self.message_post(body="Provision & Test:<br/>" + "<br/>".join(msg), subtype_xmlid='mail.mt_note')
         except Exception:

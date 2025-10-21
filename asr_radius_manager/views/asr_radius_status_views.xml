@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <!-- List -->
+  <record id="view_asr_radius_pppoe_status_list" model="ir.ui.view">
+    <field name="name">asr.radius.pppoe_status.list</field>
+    <field name="model">asr.radius.pppoe_status</field>
+    <field name="arch" type="xml">
+      <list string="PPPoE Status" create="0" edit="0" delete="0"
+            decoration-success="status == 'ONLINE'"
+            decoration-muted="status != 'ONLINE'">
+        <field name="status"/>
+        <field name="login_on"/>
+        <field name="username"/>
+        <field name="nas_ip" string="PPPoE Server"/>
+        <field name="ip_address"/>
+        <field name="attached_plans"/>
+        <field name="nas_port"/>
+        <field name="circuit_id_mac"/>
+        <field name="virtual_interface"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- Search -->
+  <record id="view_asr_radius_pppoe_status_search" model="ir.ui.view">
+    <field name="name">asr.radius.pppoe_status.search</field>
+    <field name="model">asr.radius.pppoe_status</field>
+    <field name="arch" type="xml">
+      <search string="Search PPPoE Status">
+        <field name="username"/>
+        <filter name="online" string="Online" domain="[('status','=','ONLINE')]"/>
+        <filter name="offline" string="Offline" domain="[('status','!=','ONLINE')]"/>
+        <group expand="0" string="Group By">
+          <filter name="g_server" string="Server" context="{'group_by': 'nas_ip'}"/>
+          <filter name="g_status" string="Status" context="{'group_by': 'status'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- Action & Menu -->
+  <record id="action_asr_radius_pppoe_status" model="ir.actions.act_window">
+    <field name="name">PPPoE Status</field>
+    <field name="res_model">asr.radius.pppoe_status</field>
+    <field name="view_mode">list</field>
+  </record>
+
+  <menuitem id="menu_asr_radius_pppoe_status"
+            name="PPPoE Status"
+            parent="menu_asr_radius_root"
+            action="action_asr_radius_pppoe_status"
+            sequence="26"/>
+
+</odoo>

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <!-- List (MySQL) -->
+  <record id="view_asr_radius_user_remote_list" model="ir.ui.view">
+    <field name="name">asr.radius.user.remote.list</field>
+    <field name="model">asr.radius.user.remote</field>
+    <field name="arch" type="xml">
+      <list string="RADIUS Users (MySQL)" create="0" edit="0" delete="0"
+            decoration-success="status == 'ONLINE'"
+            decoration-muted="status != 'ONLINE'">
+        <field name="status" string="PPPoE Status"/>
+        <field name="login_on"/>
+        <field name="username"/>
+        <field name="ip_address" string="IP (current)"/>
+        <field name="current_group" string="Current RADIUS Group"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- Form (readonly) -->
+  <record id="view_asr_radius_user_remote_form" model="ir.ui.view">
+    <field name="name">asr.radius.user.remote.form</field>
+    <field name="model">asr.radius.user.remote</field>
+    <field name="arch" type="xml">
+      <form string="RADIUS User (MySQL)" create="0" edit="0" delete="0">
+        <header>
+          <button name="action_open_odoo_user"
+                  type="object"
+                  string="Open in Odoo"
+                  class="oe_highlight"/>
+        </header>
+        <sheet>
+          <group>
+            <group>
+              <field name="username"/>
+              <field name="status" string="PPPoE Status"/>
+              <field name="login_on"/>
+            </group>
+            <group>
+              <field name="ip_address" string="IP (current)"/>
+              <field name="current_group" string="Current RADIUS Group"/>
+            </group>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- Search -->
+  <record id="view_asr_radius_user_remote_search" model="ir.ui.view">
+    <field name="name">asr.radius.user.remote.search</field>
+    <field name="model">asr.radius.user.remote</field>
+    <field name="arch" type="xml">
+      <search string="Search RADIUS Users (MySQL)">
+        <field name="username"/>
+        <filter name="online"  string="Online"  domain="[('status','=','ONLINE')]"/>
+        <filter name="offline" string="Offline" domain="[('status','!=','ONLINE')]"/>
+        <group expand="0" string="Group By">
+          <filter name="g_status" string="Status" context="{'group_by':'status'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ✅ Window Action direktisht nga MySQL (jo CSV) -->
+  <record id="action_asr_radius_user_remote" model="ir.actions.act_window">
+    <field name="name">Users (MySQL)</field>
+    <field name="res_model">asr.radius.user.remote</field>
+    <field name="view_mode">list,form</field>
+    <field name="views">
+      [(ref('view_asr_radius_user_remote_list'),'list'),
+       (ref('view_asr_radius_user_remote_form'),'form')]
+    </field>
+    <field name="context">{'use_csv': False, 'fallback_csv': True}</field>
+    <field name="domain">[]</field>
+    <field name="limit">80</field>
+  </record>
+
+  <!-- ✅ Menu direct në action (JO server action) -->
+  <menuitem id="menu_asr_radius_user_remote"
+            name="Users (MySQL)"
+            parent="menu_asr_radius_root"
+            action="action_asr_radius_user_remote"
+            sequence="29"/>
+
+  <!-- ✅ Veprime alternative në gear menu -->
+  <record id="server_action_export_csv_remote_users" model="ir.actions.server">
+    <field name="name">Export to CSV</field>
+    <field name="model_id" ref="model_asr_radius_user_remote"/>
+    <field name="binding_model_id" ref="model_asr_radius_user_remote"/>
+    <field name="binding_type">action</field>
+    <field name="state">code</field>
+    <field name="code"><![CDATA[
+action = env['asr.radius.user.remote'].sudo().action_export_to_csv()
+    ]]></field>
+  </record>
+
+  <record id="server_action_open_from_csv" model="ir.actions.server">
+    <field name="name">View from CSV (fallback)</field>
+    <field name="model_id" ref="model_asr_radius_user_remote"/>
+    <field name="binding_model_id" ref="model_asr_radius_user_remote"/>
+    <field name="binding_type">action</field>
+    <field name="state">code</field>
+    <field name="code"><![CDATA[
+action = env['asr.radius.user.remote'].sudo().action_export_csv_and_open_from_csv()
+    ]]></field>
+  </record>
+
+</odoo>
