@@ -67,17 +67,20 @@
               <field name="code" placeholder="Auto-filled from name"/>
               <field name="company_id" groups="base.group_multi_company"/>
             </group>
-            <group string="Billing (Future Phase)">
-                <field name="price"/>
-                <field name="product_id"/>
-            </group>
             <group string="Speed &amp; Pool">
               <field name="rate_limit" placeholder="e.g., 49M/49M or 300M/300M"/>
-              <field name="ip_pool_active" placeholder="e.g., PPP-POOL-ACTIVE"/>
-              <field name="ip_pool_expired" placeholder="e.g., PPP-POOL-EXPIRED"/>
+              <field name="ip_pool_active" context="{'no_create_edit': True}" />
+              <field name="ip_pool_expired" context="{'no_create_edit': True}"/>
+
             </group>
           </group>
 
+          <group>
+            <group string="Billing (Future Phase)">
+              <field name="price"/>
+              <field name="product_id"/>
+            </group>
+          </group>
 
           <notebook>
 
@@ -93,7 +96,7 @@
                 <group col="1">
                   <div><strong>Cisco-AVPair</strong> := ip:interface-config=service-policy input [SPEED]M</div>
                   <div><strong>Cisco-AVPair</strong> := ip:interface-config=service-policy output [SPEED]M</div>
-                  <div><strong>Framed-Pool</strong> := [ip_pool_active or PPP-POOL]</div>
+                  <div><strong>Framed-Pool</strong> := [ip_pool_active]</div>
                   <div><strong>Acct-Interim-Interval</strong> := [acct_interim_interval or 300]</div>
                   <div><strong>Idle-Timeout</strong> := 600</div>
                 </group>
@@ -102,10 +105,11 @@
               <group string="📌 Example">
                 <group col="1">
                   <div class="text-muted">
-                    <strong>Input:</strong> rate_limit = "49M/49M"<br/>
+                    <strong>Input:</strong> rate_limit = "49M/49M", ip_pool_active = "PPP-POOL"<br/>
                     <strong>Output:</strong><br/>
                     • Cisco-AVPair := ip:interface-config=service-policy input 49M<br/>
-                    • Cisco-AVPair := ip:interface-config=service-policy output 49M
+                    • Cisco-AVPair := ip:interface-config=service-policy output 49M<br/>
+                    • Framed-Pool := PPP-POOL
                   </div>
                 </group>
               </group>
@@ -116,6 +120,7 @@
                     <ul>
                       <li>Format parses "49M/49M" → uses second value (download) as primary speed</li>
                       <li>Single values like "300M" are also supported</li>
+                      <li>IP Pool dropdown shows pools from <code>radippool</code> table + defaults</li>
                       <li>Session-Timeout is optional (set below if needed)</li>
                       <li>Custom attributes can override these (see Advanced tab)</li>
                     </ul>
@@ -183,6 +188,7 @@
         <field name="name"/>
         <field name="code"/>
         <field name="rate_limit"/>
+        <field name="ip_pool_active"/>
 
         <filter string="Synced" name="f_synced" domain="[('radius_synced','=',True)]"/>
         <filter string="Not Synced" name="f_nsynced" domain="[('radius_synced','=',False)]"/>
@@ -190,6 +196,7 @@
 
         <group expand="0" string="Group By">
           <filter string="Company" name="g_company" context="{'group_by':'company_id'}"/>
+          <filter string="IP Pool" name="g_pool" context="{'group_by':'ip_pool_active'}"/>
           <filter string="Sync Status" name="g_synced" context="{'group_by':'radius_synced'}"/>
         </group>
       </search>

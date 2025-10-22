@@ -31,13 +31,15 @@ class AsrSubscription(models.Model):
     # Odoo-only multi-company
     company_id = fields.Many2one('res.company', default=lambda self: self.env.company, index=True)
 
-    # ---- IP Pool Management ----
-    ip_pool_active = fields.Char(
+    # ---- IP Pool Management (DROPDOWN) ----
+    ip_pool_active = fields.Selection(
+        selection='_get_ip_pool_selection',
         string='IP Pool (Active Users)',
-        help='Framed-Pool for active/paying users',
+        help='Framed-Pool for active/paying users. Select from list.',
         tracking=True
     )
-    ip_pool_expired = fields.Char(
+    ip_pool_expired = fields.Selection(
+        selection='_get_ip_pool_selection',
         string='Next Pool Expiry',
         help='Pool for expired users (no internet; only portal allowed by firewall/policy).',
         tracking=True
@@ -65,6 +67,55 @@ class AsrSubscription(models.Model):
     _sql_constraints = [
         ('code_company_unique', 'unique(code, company_id)', 'Code must be unique per company.'),
     ]
+
+    @api.model
+    def _get_ip_pool_list(self):
+        """
+        Return list of pool names for autocomplete.
+        Used by name_search for dropdown suggestions.
+        """
+        pools = self._get_ip_pool_selection()
+        return [p[0] for p in pools]
+
+    @api.model
+    def _get_ip_pool_selection(self):
+        """
+        Return list of available IP pools.
+
+        Returns:
+            list of tuples: [('POOL-NAME', 'POOL-NAME'), ...]
+        """
+        # Default pools (always available)
+        default_pools = [
+            'PPP-POOL',
+            'PPP-POOL-ACTIVE',
+            'PPP-POOL-EXPIRED',
+            'POOL-STANDARD',
+            'POOL-BUSINESS',
+            'POOL-VIP',
+        ]
+
+        pools_set = set(default_pools)
+
+        # Try to fetch from FreeRADIUS radippool table
+        try:
+            conn = self.env.company._get_direct_conn()
+            with conn.cursor() as cur:
+                cur.execute("SELECT DISTINCT pool_name FROM radippool ORDER BY pool_name")
+                rows = cur.fetchall()
+
+                if rows:
+                    for row in rows:
+                        pool_name = row.get('pool_name') if isinstance(row, dict) else row[0]
+                        if pool_name and pool_name.strip():
+                            pools_set.add(pool_name)
+            conn.close()
+        except Exception as e:
+            _logger.debug('Could not fetch IP pools from radippool: %s', e)
+
+        # Return as list of tuples for Selection compatibility
+        result = [(p, p) for p in sorted(pools_set)]
+        return result
 
     @api.onchange('name')
     def _onchange_name_set_code(self):
