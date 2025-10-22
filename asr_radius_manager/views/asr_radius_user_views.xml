@@ -18,7 +18,7 @@
         <field name="current_framed_ip" string="IP (current)"/>
         <field name="current_interface" string="If (current)"/>
         <field name="subscription_id" options="{'no_open': False}"/>
-        <field name="device_id"/>
+        <field name="device_id" column_invisible="1"/>
         <field name="company_id" groups="base.group_multi_company"/>
         <field name="radius_synced" string="Synced"/>
         <field name="last_sync_date" string="Last Sync"/>
@@ -111,7 +111,8 @@
                      placeholder="Select plan/package"/>
               <field name="device_id"
                      domain="[('company_id','=',company_id)]"
-                     options="{'no_create': True}"/>
+                     options="{'no_create': True}"
+                     invisible="1"/>
               <field name="groupname" readonly="1" string="Planned Group"/>
               <field name="current_radius_group" readonly="1" string="Current RADIUS Group"/>
             </group>

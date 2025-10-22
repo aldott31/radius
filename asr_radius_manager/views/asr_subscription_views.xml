@@ -67,12 +67,17 @@
               <field name="code" placeholder="Auto-filled from name"/>
               <field name="company_id" groups="base.group_multi_company"/>
             </group>
+            <group string="Billing (Future Phase)">
+                <field name="price"/>
+                <field name="product_id"/>
+            </group>
             <group string="Speed &amp; Pool">
               <field name="rate_limit" placeholder="e.g., 49M/49M or 300M/300M"/>
               <field name="ip_pool_active" placeholder="e.g., PPP-POOL-ACTIVE"/>
               <field name="ip_pool_expired" placeholder="e.g., PPP-POOL-EXPIRED"/>
             </group>
           </group>
+
 
           <notebook>
 
@@ -139,10 +144,6 @@
               <group string="Timers">
                 <field name="session_timeout" placeholder="seconds (e.g., 3600)"/>
                 <field name="acct_interim_interval" placeholder="default 300"/>
-              </group>
-              <group string="Billing (Future Phase)">
-                <field name="price"/>
-                <field name="product_id"/>
               </group>
             </page>
 
