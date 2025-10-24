@@ -1,20 +1,25 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
-import logging, re
+import logging
+import re
+import subprocess  # ← SHTUAR
 
 _logger = logging.getLogger(__name__)
 
 _SANITIZE_RE = re.compile(r"[^A-Z0-9]+")
+
 
 def _slug_company(name: str) -> str:
     if not name:
         return "COMPANY"
     return _SANITIZE_RE.sub("", name.upper())
 
+
 def _slug_plan(code: str, name: str) -> str:
     base = (code or name or "PLAN").upper()
     return _SANITIZE_RE.sub("", base)
+
 
 class AsrRadiusUser(models.Model):
     _name = 'asr.radius.user'
@@ -61,7 +66,8 @@ class AsrRadiusUser(models.Model):
         for rec in self:
             comp = rec.company_id or self.env.company
             comp_prefix = _slug_company(getattr(comp, 'code', None) or comp.name)
-            plan_code = _slug_plan(rec.subscription_id.code, rec.subscription_id.name) if rec.subscription_id else "NOPLAN"
+            plan_code = _slug_plan(rec.subscription_id.code,
+                                   rec.subscription_id.name) if rec.subscription_id else "NOPLAN"
             rec.groupname = f"{comp_prefix}:{plan_code}"
 
     @api.depends('username', 'company_id')
@@ -120,19 +126,20 @@ class AsrRadiusUser(models.Model):
     @staticmethod
     def _upsert_radcheck(cursor, username, cleartext_password):
         sql = """
-            INSERT INTO radcheck (username, attribute, op, value)
-            VALUES (%s, 'Cleartext-Password', ':=', %s)
-            ON DUPLICATE KEY UPDATE value = VALUES(value)
-        """
+              INSERT INTO radcheck (username, attribute, op, value)
+              VALUES (%s, 'Cleartext-Password', ':=', %s) ON DUPLICATE KEY \
+              UPDATE value = \
+              VALUES (value) \
+              """
         cursor.execute(sql, (username, cleartext_password))
 
     @staticmethod
     def _upsert_radusergroup(cursor, username, groupname):
         cursor.execute("DELETE FROM radusergroup WHERE username=%s", (username,))
         cursor.execute("""
-            INSERT INTO radusergroup (username, groupname, priority)
-            VALUES (%s, %s, 1)
-        """, (username, groupname))
+                       INSERT INTO radusergroup (username, groupname, priority)
+                       VALUES (%s, %s, 1)
+                       """, (username, groupname))
 
     # ---- Actions ----
     def action_sync_to_radius(self):
@@ -205,7 +212,8 @@ class AsrRadiusUser(models.Model):
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
-                'params': {'title': _('RADIUS Sync (Partial/Failed)'), 'message': msg, 'type': 'warning', 'sticky': False}
+                'params': {'title': _('RADIUS Sync (Partial/Failed)'), 'message': msg, 'type': 'warning',
+                           'sticky': False}
             }
 
     def action_suspend(self):
@@ -220,12 +228,19 @@ class AsrRadiusUser(models.Model):
             try:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT IGNORE INTO radgroupreply (groupname, attribute, op, value)
-                        VALUES (%s, 'Reply-Message', ':=', 'Suspended')
-                    """, (suspended,))
+                                INSERT
+                                IGNORE INTO radgroupreply (groupname, attribute, op, value)
+                        VALUES (
+                                %s,
+                                'Reply-Message',
+                                ':=',
+                                'Suspended'
+                                )
+                                """, (suspended,))
                     self._upsert_radusergroup(cur, rec.username, suspended)
                 conn.commit()
-                rec.sudo().write({'radius_synced': True, 'last_sync_error': False, 'last_sync_date': fields.Datetime.now()})
+                rec.sudo().write(
+                    {'radius_synced': True, 'last_sync_error': False, 'last_sync_date': fields.Datetime.now()})
                 ok += 1
                 try:
                     rec.message_post(
@@ -269,7 +284,8 @@ class AsrRadiusUser(models.Model):
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
-                'params': {'title': _('RADIUS Suspension (Partial/Failed)'), 'message': msg, 'type': 'warning', 'sticky': False}
+                'params': {'title': _('RADIUS Suspension (Partial/Failed)'), 'message': msg, 'type': 'warning',
+                           'sticky': False}
             }
 
     def action_reactivate(self):
@@ -283,7 +299,8 @@ class AsrRadiusUser(models.Model):
                 with conn.cursor() as cur:
                     self._upsert_radusergroup(cur, rec.username, rec.groupname)
                 conn.commit()
-                rec.sudo().write({'radius_synced': True, 'last_sync_error': False, 'last_sync_date': fields.Datetime.now()})
+                rec.sudo().write(
+                    {'radius_synced': True, 'last_sync_error': False, 'last_sync_date': fields.Datetime.now()})
                 ok += 1
                 try:
                     rec.message_post(
@@ -327,7 +344,8 @@ class AsrRadiusUser(models.Model):
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
-                'params': {'title': _('RADIUS Reactivation (Partial/Failed)'), 'message': msg, 'type': 'warning', 'sticky': False}
+                'params': {'title': _('RADIUS Reactivation (Partial/Failed)'), 'message': msg, 'type': 'warning',
+                           'sticky': False}
             }
 
     def action_remove_from_radius(self):
@@ -368,7 +386,8 @@ class AsrRadiusUser(models.Model):
                 rec.sudo().write({'last_sync_error': last_error})
                 try:
                     rec.message_post(
-                        body=_("Remove from RADIUS FAILED for '%(u)s': %(err)s") % {'u': rec.username, 'err': last_error},
+                        body=_("Remove from RADIUS FAILED for '%(u)s': %(err)s") % {'u': rec.username,
+                                                                                    'err': last_error},
                         subtype_xmlid='mail.mt_note'
                     )
                 except Exception:
@@ -381,7 +400,8 @@ class AsrRadiusUser(models.Model):
                     pass
 
         if ok == len(self):
-            msg = (_("User '%s' removed from RADIUS") % self.username) if len(self) == 1 else (_("%d user(s) removed") % ok)
+            msg = (_("User '%s' removed from RADIUS") % self.username) if len(self) == 1 else (
+                        _("%d user(s) removed") % ok)
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -395,7 +415,8 @@ class AsrRadiusUser(models.Model):
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
-                'params': {'title': _('RADIUS Removal (Partial/Failed)'), 'message': msg, 'type': 'warning', 'sticky': False}
+                'params': {'title': _('RADIUS Removal (Partial/Failed)'), 'message': msg, 'type': 'warning',
+                           'sticky': False}
             }
 
 
@@ -439,7 +460,7 @@ class AsrRadiusUserExt(models.Model):
             iface = None
             start = None
 
-            # 1) Provo nga modeli asr.radius.session (aktif: acctstoptime IS NULL)
+            # 1) Provo nga modeli asr.radius.session (aktiv: acctstoptime IS NULL)
             s = Sess.search(
                 [('username', '=', rec.username), ('acctstoptime', '=', False)],
                 limit=1,
@@ -510,7 +531,8 @@ class AsrRadiusUserExt(models.Model):
                 rec.active_sessions_count = 0
                 rec.total_sessions_count = 0
                 continue
-            rec.active_sessions_count = Sess.search_count([('username', '=', rec.username), ('acctstoptime', '=', False)])
+            rec.active_sessions_count = Sess.search_count(
+                [('username', '=', rec.username), ('acctstoptime', '=', False)])
             rec.total_sessions_count = Sess.search_count([('username', '=', rec.username)])
 
     def _sessions_action_base(self, domain):
@@ -545,13 +567,15 @@ class AsrRadiusUserProvision(models.Model):
         groupname = self.groupname
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT 1 FROM radcheck WHERE username=%s AND attribute='Cleartext-Password' LIMIT 1", (self.username,))
+                cur.execute("SELECT 1 FROM radcheck WHERE username=%s AND attribute='Cleartext-Password' LIMIT 1",
+                            (self.username,))
                 ready['radcheck'] = bool(cur.fetchone())
                 cur.execute("SELECT 1 FROM radusergroup WHERE username=%s LIMIT 1", (self.username,))
                 ready['radusergroup'] = bool(cur.fetchone())
                 cur.execute("SELECT COUNT(*) FROM radgroupreply WHERE groupname=%s", (groupname,))
                 row = cur.fetchone()
-                ready['group_attrs'] = int(row[0] if isinstance(row, tuple) else (row.get('COUNT(*)') or row.get('count') or 0))
+                ready['group_attrs'] = int(
+                    row[0] if isinstance(row, tuple) else (row.get('COUNT(*)') or row.get('count') or 0))
         finally:
             try:
                 conn.close()
@@ -618,3 +642,149 @@ class AsrRadiusUserProvision(models.Model):
                 'sticky': False,
             }
         }
+
+    # ==================== DISCONNECT ACTION ====================
+    def action_disconnect_user(self):
+        """Send RADIUS Disconnect-Request via SSH to FreeRADIUS server."""
+        self.ensure_one()
+
+        if not self.username:
+            raise UserError(_("Missing username."))
+
+        # Merr NAS IP dhe Acct-Session-Id nga sesioni aktiv
+        nas_ip = None
+        sess_id = None
+        framed_ip = None
+        nas_port_id = None
+        conn = None
+        try:
+            conn = self._get_radius_conn()
+            with conn.cursor() as cur:
+                cur.execute("""
+                            SELECT nasipaddress, acctsessionid, framedipaddress, nasportid
+                            FROM radacct
+                            WHERE username = %s
+                              AND acctstoptime IS NULL
+                            ORDER BY acctstarttime DESC LIMIT 1
+                            """, (self.username,))
+                row = cur.fetchone()
+                if row:
+                    if isinstance(row, dict):
+                        nas_ip = row.get('nasipaddress')
+                        sess_id = row.get('acctsessionid')
+                        framed_ip = row.get('framedipaddress')
+                        nas_port_id = row.get('nasportid')
+                    else:
+                        nas_ip = row[0]
+                        sess_id = row[1]
+                        framed_ip = row[2]
+                        nas_port_id = row[3]
+        except Exception as e:
+            _logger.warning("Failed to get NAS/session for %s: %s", self.username, e)
+        finally:
+            try:
+                if conn:
+                    conn.close()
+            except Exception:
+                pass
+
+        if not nas_ip:
+            raise UserError(_("No active session found for user '%s'.") % self.username)
+
+        # SSH settings
+        radius_server = '80.91.126.33'  # FreeRADIUS server
+        ssh_user = 'root'
+        secret = 'testing123'
+        disconnect_port = 1700
+
+        try:
+            # Ndërto payload: gjithmonë User-Name + NAS-IP-Address; nëse kemi Session-Id, shtoje (rekomandohet)
+            lines = [f"User-Name={self.username}", f"NAS-IP-Address={nas_ip}"]
+            if sess_id:
+                lines.insert(1, f"Acct-Session-Id={sess_id}")
+            if framed_ip:
+                lines.append(f"Framed-IP-Address={framed_ip}")
+            if nas_port_id:
+                lines.append(f"NAS-Port-Id={nas_port_id}")
+            payload = "\n".join(lines) + "\n"
+
+            # Përdor printf me quoting të sigurt në remote shell
+            remote_cmd = "printf %s | radclient -x %s:%d disconnect %s" % (
+                repr(payload), nas_ip, disconnect_port, secret
+            )
+
+            cmd = [
+                'ssh',
+                '-i', '/home/odoo/.ssh/id_rsa',
+                '-o', 'StrictHostKeyChecking=no',
+                '-o', 'UserKnownHostsFile=/dev/null',
+                '-o', 'ConnectTimeout=5',
+                f'{ssh_user}@{radius_server}',
+                remote_cmd
+            ]
+
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                timeout=10
+            )
+
+            output = result.stdout or ''
+
+            # Parse response
+            disconnect_ack = ('Disconnect-ACK' in output) or ('Received Disconnect-ACK' in output) or ('code 43' in output)
+            disconnect_nak = ('Disconnect-NAK' in output) or ('No reply from server' in output) or ('code 44' in output)
+
+            # Log në chatter
+            try:
+                self.message_post(
+                    body=_("Disconnect: %(u)s → NAS %(nas)s<br/><pre>%(out)s</pre>") % {
+                        'nas': nas_ip,
+                        'u': self.username,
+                        'out': output[:500]
+                    },
+                    subtype_xmlid='mail.mt_note'
+                )
+            except Exception:
+                pass
+
+            if disconnect_ack:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('✅ Disconnect Successful'),
+                        'message': _('User "%s" disconnected from NAS %s') % (self.username, nas_ip),
+                        'type': 'success',
+                        'sticky': False,
+                    }
+                }
+            elif disconnect_nak:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('⚠ Disconnect Failed'),
+                        'message': _('NAS did not respond or user "%s" not online.') % self.username,
+                        'type': 'warning',
+                        'sticky': True,
+                    }
+                }
+            else:
+                return {
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': _('⚠ Unknown Response'),
+                        'message': output[:200],
+                        'type': 'warning',
+                        'sticky': True,
+                    }
+                }
+
+        except subprocess.TimeoutExpired:
+            raise UserError(_("SSH connection timed out."))
+        except Exception as e:
+            raise UserError(_("Disconnect failed: %s") % str(e))

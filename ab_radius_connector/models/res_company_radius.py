@@ -18,6 +18,10 @@ class ResCompanyRadius(models.Model):
     fr_db_name = fields.Char(string='DB Name')
     fr_db_user = fields.Char(string='DB User')
     fr_db_password = fields.Char(string='DB Password')
+    # Shto fusha të reja:
+    fr_ssh_host = fields.Char(string='SSH Host', help='FreeRADIUS server SSH host (default: DB host)')
+    fr_ssh_user = fields.Char(string='SSH User', default='root')
+    fr_disconnect_secret = fields.Char(string='Disconnect Secret', default='testing123')
 
     fr_default_group = fields.Char(string='Default Group')
 

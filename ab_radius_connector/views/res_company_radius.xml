@@ -27,6 +27,11 @@
             <field name="fr_last_test_ok" readonly="1"/>
             <field name="fr_last_error" readonly="1" widget="text"/>
           </group>
+          <group>
+            <field name="fr_ssh_host" placeholder="Leave empty to use DB host"/>
+            <field name="fr_ssh_user"/>
+            <field name="fr_disconnect_secret" password="True"/>
+          </group>
           <button name="action_fr_test_connection"
                   type="object"
                   string="Test FreeRADIUS"

@@ -17,7 +17,7 @@
         <field name="attached_plans"/>
         <field name="nas_port"/>
         <field name="circuit_id_mac"/>
-        <field name="virtual_interface"/>
+        <field name="virtual_interface" column_invisible="1"/>
       </list>
     </field>
   </record>

@@ -47,6 +47,10 @@
                   class="oe_highlight" groups="ab_radius_connector.group_ab_radius_admin"/>
           <button name="action_provision_and_test" type="object" string="Provision &amp; Test"
                   class="oe_highlight" groups="ab_radius_connector.group_ab_radius_admin"/>
+          <!-- Në <header> section të form view-it: -->
+          <button name="action_disconnect_user" type="object" string="Disconnect"
+                  class="btn-warning" confirm="Send disconnect request to NAS for this user?" invisible="pppoe_status != 'up'"
+                  groups="ab_radius_connector.group_ab_radius_admin" icon="fa-plug"/>
         </header>
 
         <sheet>
