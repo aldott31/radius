@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <!-- ==================== LIST VIEW ==================== -->
+
+  <record id="view_crm_access_device_list" model="ir.ui.view">
+    <field name="name">crm.access.device.list</field>
+    <field name="model">crm.access.device</field>
+    <field name="arch" type="xml">
+      <list string="Access Devices"
+            decoration-muted="not active"
+            decoration-success="operational_status == 'online'"
+            decoration-danger="operational_status == 'faulty'"
+            decoration-warning="operational_status == 'maintenance'">
+        <field name="name"/>
+        <field name="code"/>
+        <field name="city_id"/>
+        <field name="pop_id"/>
+        <field name="device_type"/>
+        <field name="manufacturer"/>
+        <field name="model"/>
+        <field name="operational_status"/>
+        <field name="port_count"/>
+        <field name="ports_used"/>
+        <field name="ports_available"/>
+        <field name="capacity_percentage" widget="progressbar"/>
+        <field name="customer_count"/>
+        <field name="active" column_invisible="1"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- ==================== FORM VIEW ==================== -->
+
+  <record id="view_crm_access_device_form" model="ir.ui.view">
+    <field name="name">crm.access.device.form</field>
+    <field name="model">crm.access.device</field>
+    <field name="arch" type="xml">
+      <form string="Access Device">
+        <header>
+          <field name="operational_status" widget="statusbar"
+                 options="{'clickable': '1'}"/>
+        </header>
+
+        <sheet>
+
+          <!-- Smart Buttons -->
+          <div class="oe_button_box" name="button_box">
+            <button type="object"
+                    name="action_view_customers"
+                    class="oe_stat_button"
+                    icon="fa-users">
+              <field name="customer_count" widget="statinfo" string="Customers"/>
+            </button>
+
+            <button type="object"
+                    name="action_view_customers"
+                    class="oe_stat_button"
+                    icon="fa-plug">
+              <div class="o_field_widget o_stat_info">
+                <span class="o_stat_text">Ports</span>
+                <span class="o_stat_value">
+                  <field name="ports_used"/> / <field name="port_count"/>
+                </span>
+              </div>
+            </button>
+          </div>
+
+          <widget name="web_ribbon" title="Offline" bg_color="text-bg-danger"
+                  invisible="operational_status != 'offline'"/>
+          <widget name="web_ribbon" title="Faulty" bg_color="text-bg-danger"
+                  invisible="operational_status != 'faulty'"/>
+
+          <group>
+            <group string="Device Information">
+              <field name="name" placeholder="e.g., OLT-TIR-01"/>
+              <field name="code" placeholder="Serial number or identifier"/>
+              <field name="device_type"/>
+              <field name="pop_id" options="{'no_create': True}"/>
+              <field name="city_id" readonly="1"/>
+              <field name="active"/>
+            </group>
+
+            <group string="Technical Specs">
+              <field name="manufacturer" placeholder="e.g., Huawei, ZTE"/>
+              <field name="model" placeholder="e.g., MA5800-X7"/>
+              <field name="ip_address" placeholder="192.168.1.1"/>
+              <field name="mac_address" placeholder="AA:BB:CC:DD:EE:FF"/>
+              <field name="installation_date"/>
+            </group>
+          </group>
+
+          <group>
+            <group string="Port Capacity">
+              <field name="port_count" placeholder="e.g., 48"/>
+              <field name="ports_used" readonly="1"/>
+              <field name="ports_available" readonly="1"/>
+              <field name="capacity_percentage" widget="progressbar" readonly="1"/>
+            </group>
+
+            <group string="Integration">
+              <field name="nas_device_id"
+                     domain="[('company_id', '=', company_id)]"
+                     options="{'no_create': True}"
+                     help="Link to RADIUS NAS configuration"/>
+              <field name="company_id" groups="base.group_multi_company"/>
+            </group>
+          </group>
+
+        </sheet>
+
+        <div class="oe_chatter">
+          <field name="message_follower_ids"/>
+          <field name="message_ids"/>
+        </div>
+      </form>
+    </field>
+  </record>
+
+  <!-- ==================== SEARCH VIEW ==================== -->
+
+  <record id="view_crm_access_device_search" model="ir.ui.view">
+    <field name="name">crm.access.device.search</field>
+    <field name="model">crm.access.device</field>
+    <field name="arch" type="xml">
+      <search string="Search Access Devices">
+        <field name="name"/>
+        <field name="code"/>
+        <field name="city_id"/>
+        <field name="pop_id"/>
+        <field name="manufacturer"/>
+        <field name="model"/>
+        <field name="ip_address"/>
+
+        <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+        <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
+
+        <separator/>
+        <filter string="Online" name="online"
+                domain="[('operational_status', '=', 'online')]"/>
+        <filter string="Offline" name="offline"
+                domain="[('operational_status', '=', 'offline')]"/>
+        <filter string="Faulty" name="faulty"
+                domain="[('operational_status', '=', 'faulty')]"/>
+
+        <separator/>
+        <filter string="OLT" name="olt" domain="[('device_type', '=', 'olt')]"/>
+        <filter string="DSLAM" name="dslam" domain="[('device_type', '=', 'dslam')]"/>
+        <filter string="Switch" name="switch" domain="[('device_type', '=', 'switch')]"/>
+
+        <group expand="0" string="Group By">
+          <filter string="City" name="g_city" context="{'group_by': 'city_id'}"/>
+          <filter string="POP" name="g_pop" context="{'group_by': 'pop_id'}"/>
+          <filter string="Device Type" name="g_type" context="{'group_by': 'device_type'}"/>
+          <filter string="Status" name="g_status" context="{'group_by': 'operational_status'}"/>
+          <filter string="Manufacturer" name="g_manu" context="{'group_by': 'manufacturer'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ==================== ACTION ==================== -->
+
+  <record id="action_crm_access_device" model="ir.actions.act_window">
+    <field name="name">Access Devices</field>
+    <field name="res_model">crm.access.device</field>
+    <field name="view_mode">list,form</field>
+    <field name="context">{'search_default_active': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        Add your first access device
+      </p>
+      <p>
+        Access devices (OLTs, DSLAMs, Switches) are the physical equipment<br/>
+        that connect customers to your network at each POP location.
+      </p>
+    </field>
+  </record>
+
+  <!-- ==================== MENU ITEM ==================== -->
+
+  <menuitem id="menu_crm_access_devices"
+            name="Access Devices"
+            parent="menu_management"
+            action="action_crm_access_device"
+            sequence="30"/>
+
+</odoo>

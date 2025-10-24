@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_asr_radius_user_crm_user,asr.radius.user CRM User,asr_radius_manager.model_asr_radius_user,group_crm_user,1,1,1,0
+access_asr_radius_user_crm_manager,asr.radius.user CRM Manager,asr_radius_manager.model_asr_radius_user,group_crm_manager,1,1,1,1
+access_crm_city_user,crm.city user,model_crm_city,group_crm_user,1,0,0,0
+access_crm_city_manager,crm.city manager,model_crm_city,group_crm_manager,1,1,1,1
+access_crm_pop_user,crm.pop user,model_crm_pop,group_crm_user,1,0,0,0
+access_crm_pop_manager,crm.pop manager,model_crm_pop,group_crm_manager,1,1,1,1
+access_crm_access_device_user,crm.access.device user,model_crm_access_device,group_crm_user,1,0,0,0
+access_crm_access_device_manager,crm.access.device manager,model_crm_access_device,group_crm_manager,1,1,1,1

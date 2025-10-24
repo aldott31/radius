@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <!-- ==================== LIST VIEW ==================== -->
+
+  <record id="view_crm_pop_list" model="ir.ui.view">
+    <field name="name">crm.pop.list</field>
+    <field name="model">crm.pop</field>
+    <field name="arch" type="xml">
+      <list string="POPs"
+            decoration-muted="not active"
+            decoration-success="operational_status == 'active'"
+            decoration-warning="operational_status == 'maintenance'"
+            decoration-info="operational_status == 'planned'">
+        <field name="name"/>
+        <field name="code"/>
+        <field name="city_id"/>
+        <field name="pop_type"/>
+        <field name="operational_status"/>
+        <field name="device_count"/>
+        <field name="customer_count"/>
+        <field name="capacity"/>
+        <field name="active" column_invisible="1"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- ==================== FORM VIEW ==================== -->
+
+  <record id="view_crm_pop_form" model="ir.ui.view">
+    <field name="name">crm.pop.form</field>
+    <field name="model">crm.pop</field>
+    <field name="arch" type="xml">
+      <form string="Point of Presence">
+        <header>
+          <field name="operational_status" widget="statusbar"
+                 options="{'clickable': '1'}"/>
+        </header>
+
+        <sheet>
+
+          <!-- Smart Buttons -->
+          <div class="oe_button_box" name="button_box">
+            <button type="object"
+                    name="action_view_devices"
+                    class="oe_stat_button"
+                    icon="fa-server">
+              <field name="device_count" widget="statinfo" string="Devices"/>
+            </button>
+
+            <button type="object"
+                    name="action_open_map"
+                    class="oe_stat_button"
+                    icon="fa-map-marker"
+                    invisible="not latitude or not longitude">
+              <div class="o_field_widget o_stat_info">
+                <span class="o_stat_text">View on</span>
+                <span class="o_stat_value">Map</span>
+              </div>
+            </button>
+
+            <button type="object"
+                    name="action_view_devices"
+                    class="oe_stat_button"
+                    icon="fa-users">
+              <field name="customer_count" widget="statinfo" string="Customers"/>
+            </button>
+          </div>
+
+          <widget name="web_ribbon" title="Inactive" bg_color="text-bg-danger"
+                  invisible="active"/>
+
+          <group>
+            <group string="POP Information">
+              <field name="name" placeholder="e.g., Tirana Center POP"/>
+              <field name="code" placeholder="e.g., TIR-01"/>
+              <field name="city_id" options="{'no_create': True}"/>
+              <field name="pop_type"/>
+              <field name="active"/>
+            </group>
+
+            <group string="Capacity">
+              <field name="capacity" help="Maximum customers this POP can serve"/>
+              <field name="device_count" readonly="1"/>
+              <field name="customer_count" readonly="1"/>
+              <field name="company_id" groups="base.group_multi_company"/>
+            </group>
+          </group>
+
+          <group string="Location">
+            <field name="address" nolabel="1" placeholder="Physical address..."
+                   widget="text" colspan="2"/>
+            <field name="latitude" placeholder="41.3275"/>
+            <field name="longitude" placeholder="19.8187"/>
+          </group>
+
+          <notebook>
+            <page string="Access Devices">
+              <field name="device_ids" nolabel="1">
+                <list>
+                  <field name="name"/>
+                  <field name="device_type"/>
+                  <field name="manufacturer"/>
+                  <field name="model"/>
+                  <field name="operational_status"/>
+                  <field name="port_count"/>
+                  <field name="ports_used"/>
+                  <field name="capacity_percentage" widget="progressbar"/>
+                  <field name="customer_count"/>
+                </list>
+              </field>
+            </page>
+
+            <page string="Notes">
+              <field name="notes" nolabel="1" placeholder="Additional information..."/>
+            </page>
+          </notebook>
+
+        </sheet>
+
+        <div class="oe_chatter">
+          <field name="message_follower_ids"/>
+          <field name="message_ids"/>
+        </div>
+      </form>
+    </field>
+  </record>
+
+  <!-- ==================== SEARCH VIEW ==================== -->
+
+  <record id="view_crm_pop_search" model="ir.ui.view">
+    <field name="name">crm.pop.search</field>
+    <field name="model">crm.pop</field>
+    <field name="arch" type="xml">
+      <search string="Search POPs">
+        <field name="name"/>
+        <field name="code"/>
+        <field name="city_id"/>
+
+        <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+        <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
+
+        <separator/>
+        <filter string="Operational" name="operational"
+                domain="[('operational_status', '=', 'active')]"/>
+        <filter string="Planned" name="planned"
+                domain="[('operational_status', '=', 'planned')]"/>
+        <filter string="Maintenance" name="maintenance"
+                domain="[('operational_status', '=', 'maintenance')]"/>
+
+        <separator/>
+        <filter string="Fiber" name="fiber" domain="[('pop_type', '=', 'fiber')]"/>
+        <filter string="Wireless" name="wireless" domain="[('pop_type', '=', 'wireless')]"/>
+
+        <group expand="0" string="Group By">
+          <filter string="City" name="g_city" context="{'group_by': 'city_id'}"/>
+          <filter string="Type" name="g_type" context="{'group_by': 'pop_type'}"/>
+          <filter string="Status" name="g_status" context="{'group_by': 'operational_status'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ==================== ACTION ==================== -->
+
+  <record id="action_crm_pop" model="ir.actions.act_window">
+    <field name="name">POPs</field>
+    <field name="res_model">crm.pop</field>
+    <field name="view_mode">list,form</field>
+    <field name="context">{'search_default_active': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        Add your first POP
+      </p>
+      <p>
+        Points of Presence (POPs) are physical locations within cities<br/>
+        where network equipment is installed to serve customers.
+      </p>
+    </field>
+  </record>
+
+  <!-- ==================== MENU ITEM ==================== -->
+
+  <menuitem id="menu_crm_pops"
+            name="POPs"
+            parent="menu_management"
+            action="action_crm_pop"
+            sequence="20"/>
+
+</odoo>

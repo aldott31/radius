@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <!-- ==================== FORM VIEW (Inherit) ==================== -->
+  <record id="view_asr_radius_user_form_crm" model="ir.ui.view">
+    <field name="name">asr.radius.user.form.crm</field>
+    <field name="model">asr.radius.user</field>
+    <field name="inherit_id" ref="asr_radius_manager.view_asr_radius_user_form"/>
+    <field name="arch" type="xml">
+
+      <!-- SLA ribbon -->
+      <xpath expr="//form/sheet" position="before">
+        <widget name="web_ribbon" title="ENTERPRISE" bg_color="text-bg-success"
+                invisible="sla_level != '3'"/>
+      </xpath>
+
+      <!-- Butoni i hartës -->
+      <xpath expr="//div[@name='button_box']" position="inside">
+        <button type="object"
+                name="action_open_map"
+                class="oe_stat_button"
+                icon="fa-map-marker"
+                invisible="not partner_latitude or not partner_longitude">
+          <div class="o_field_widget o_stat_info">
+            <span class="o_stat_text">View on</span>
+            <span class="o_stat_value">Map</span>
+          </div>
+        </button>
+      </xpath>
+
+      <!-- Zëvendëso grupin e parë -->
+      <xpath expr="//sheet/group/group[1]" position="replace">
+        <group string="Customer Info">
+          <field name="name" placeholder="Customer name (optional)"/>
+          <field name="username" required="1" placeholder="username123"/>
+          <field name="radius_password" password="True" placeholder="password"/>
+          <field name="sla_level" widget="radio"/>
+        </group>
+      </xpath>
+
+      <!-- Shto pas grupit të dytë -->
+      <xpath expr="//sheet/group/group[2]" position="after">
+
+        <!-- Contact Info -->
+        <group string="Contact Information">
+          <field name="phone" widget="phone" placeholder="+355 69 123 4567"/>
+          <field name="phone_secondary" placeholder="Alternative phone"/>
+          <field name="email" widget="email"/>
+        </group>
+
+        <!-- Business Info (conditional) -->
+        <group string="Business Information" invisible="not is_business">
+          <field name="is_business" invisible="1"/>
+          <field name="company_name" placeholder="Business name" required="is_business"/>
+          <field name="nipt" placeholder="K12345678X" required="is_business"/>
+        </group>
+
+      </xpath>
+
+      <!-- Shto pas container-it kryesor -->
+      <xpath expr="//sheet/group" position="after">
+
+        <!-- Address -->
+        <group string="Installation Address" col="2">
+          <field name="street" placeholder="Street address" colspan="2"/>
+          <field name="street2" placeholder="Apartment, suite, etc." colspan="2"/>
+          <field name="city" placeholder="City"/>
+          <field name="zip" placeholder="Postal code"/>
+          <field name="country_id" options="{'no_create': True}"/>
+        </group>
+
+        <!-- Geolocation -->
+        <group string="Geolocation (for field service)">
+          <field name="partner_latitude" placeholder="41.3275"/>
+          <field name="partner_longitude" placeholder="19.8187"/>
+        </group>
+
+      </xpath>
+
+      <!-- Notebook Pages CRM -->
+      <xpath expr="//notebook" position="inside">
+
+        <!-- Infrastructure -->
+        <page string="Infrastructure">
+          <group>
+            <group string="Network Location">
+              <field name="access_device_id"
+                     domain="[('company_id', '=', company_id), ('operational_status', '=', 'online')]"
+                     options="{'no_create': True}"
+                     context="{'tree_view_ref': 'crm_abissnet.view_crm_access_device_list'}"/>
+              <field name="pop_id" readonly="1"/>
+              <field name="city_id" readonly="1"/>
+            </group>
+
+            <group string="Device Info" invisible="not access_device_id">
+              <field name="access_device_id" invisible="1"/>
+              <label for="access_device_id" string="Device Type" invisible="1"/>
+              <div invisible="not access_device_id">
+                <field name="access_device_id" readonly="1" options="{'no_open': False}"/>
+              </div>
+            </group>
+          </group>
+
+          <group string="Quick Info" invisible="not access_device_id">
+            <group>
+              <div class="o_form_label">Capacity Status</div>
+              <div>
+                <span>
+                  Ports:
+                  <field name="access_device_id" invisible="1"/>
+                  <!-- vendos këtu fusha related nëse i shton te modeli (p.sh. device_port_count) -->
+                </span>
+              </div>
+            </group>
+          </group>
+        </page>
+
+        <!-- Contract & Billing -->
+        <page string="Contract &amp; Billing">
+          <group>
+            <group string="Contract Period">
+              <field name="contract_start_date"/>
+              <field name="contract_end_date"/>
+              <field name="installation_date"/>
+              <field name="installation_technician_id"/>
+            </group>
+            <group string="Billing">
+              <field name="billing_day"
+                     help="Day of month to generate invoice (1-28)"/>
+            </group>
+          </group>
+        </page>
+
+        <!-- Notes -->
+        <page string="Notes">
+          <group>
+            <field name="internal_notes" nolabel="1"
+                   placeholder="Internal notes (not visible to customer)..."
+                   widget="text"/>
+          </group>
+          <separator string="Customer Notes (visible in portal)"/>
+          <group>
+            <field name="customer_notes" nolabel="1"
+                   placeholder="Customer-facing notes..."
+                   widget="text"/>
+          </group>
+        </page>
+
+      </xpath>
+
+    </field>
+  </record>
+
+  <!-- ==================== LIST VIEW (Inherit) ==================== -->
+  <record id="view_asr_radius_user_list_crm" model="ir.ui.view">
+    <field name="name">asr.radius.user.list.crm</field>
+    <field name="model">asr.radius.user</field>
+    <field name="inherit_id" ref="asr_radius_manager.view_asr_radius_user_list"/>
+    <field name="arch" type="xml">
+
+      <!-- Kolonat shtesë -->
+      <xpath expr="//field[@name='name']" position="after">
+        <field name="phone" optional="show"/>
+        <field name="email" optional="hide"/>
+        <field name="sla_level" optional="show"/>
+        <field name="city" optional="hide"/>
+        <field name="city_id" string="City (Infra)" optional="hide"/>
+        <field name="pop_id" optional="hide"/>
+        <field name="access_device_id" optional="hide"/>
+      </xpath>
+
+      <!-- Dekorimet standarde sipas SLA (Odoo 17: <list>) -->
+      <xpath expr="//list" position="attributes">
+        <attribute name="decoration-muted">sla_level == '1'</attribute>
+        <attribute name="decoration-warning">sla_level == '2'</attribute>
+        <attribute name="decoration-success">sla_level == '3'</attribute>
+      </xpath>
+
+    </field>
+  </record>
+
+  <!-- ==================== SEARCH VIEW (Inherit) ==================== -->
+  <record id="view_asr_radius_user_search_crm" model="ir.ui.view">
+    <field name="name">asr.radius.user.search.crm</field>
+    <field name="model">asr.radius.user</field>
+    <field name="inherit_id" ref="asr_radius_manager.view_asr_radius_user_search"/>
+    <field name="arch" type="xml">
+
+      <xpath expr="//search" position="inside">
+        <field name="phone"/>
+        <field name="email"/>
+        <field name="nipt"/>
+        <field name="city"/>
+        <field name="city_id" string="City (Infrastructure)"/>
+        <field name="pop_id"/>
+        <field name="access_device_id"/>
+
+        <separator/>
+        <filter string="Individual (SLA 1)" name="sla1" domain="[('sla_level','=','1')]"/>
+        <filter string="Small Business (SLA 2)" name="sla2" domain="[('sla_level','=','2')]"/>
+        <filter string="Enterprise (SLA 3)" name="sla3" domain="[('sla_level','=','3')]"/>
+
+        <separator/>
+        <filter string="Business Customers" name="is_biz" domain="[('is_business','=',True)]"/>
+        <filter string="Has Geolocation" name="has_geo"
+                domain="[('partner_latitude','!=',False),('partner_longitude','!=',False)]"/>
+        <filter string="Has Access Device" name="has_device" domain="[('access_device_id','!=',False)]"/>
+
+        <group expand="0" string="Group By">
+          <filter string="SLA Level" name="g_sla" context="{'group_by':'sla_level'}"/>
+          <filter string="City" name="g_city" context="{'group_by':'city'}"/>
+          <filter string="City (Infra)" name="g_city_infra" context="{'group_by':'city_id'}"/>
+          <filter string="POP" name="g_pop" context="{'group_by':'pop_id'}"/>
+          <filter string="Access Device" name="g_device" context="{'group_by':'access_device_id'}"/>
+          <filter string="Installation Month" name="g_install" context="{'group_by':'installation_date:month'}"/>
+        </group>
+      </xpath>
+
+    </field>
+  </record>
+
+  <!-- ==================== ACTION ==================== -->
+  <record id="action_asr_radius_user_crm" model="ir.actions.act_window">
+    <field name="name">Customers</field>
+    <field name="res_model">asr.radius.user</field>
+    <field name="view_mode">list,form</field> <!-- FIX: jo 'tree,form' -->
+    <field name="context">{'search_default_active': 1}</field>
+    <field name="domain">[]</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        Add your first customer
+      </p>
+      <p>
+        Customer records include contact info, SLA level, and geolocation.<br/>
+        Technical RADIUS details are in the "Status" tab.
+      </p>
+    </field>
+  </record>
+
+  <!-- ==================== MENU ITEM ==================== -->
+  <menuitem id="menu_crm_customers"
+            name="Customers"
+            parent="menu_crm_abissnet_root"
+            action="action_asr_radius_user_crm"
+            sequence="10"/>
+</odoo>
