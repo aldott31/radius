@@ -601,49 +601,9 @@ class AsrRadiusUserProvision(models.Model):
         except Exception as e:
             return {'ran': True, 'ok': False, 'out': 'Error: %s' % e}
 
-    def action_provision_and_test(self):
-        self.ensure_one()
-        if not self.subscription_id:
-            raise UserError(_("Select a Subscription first."))
-
-        try:
-            self.subscription_id.action_sync_attributes_to_radius()
-        except Exception as e:
-            raise UserError(_("Plan sync failed: %s") % e)
-
-        self.action_sync_to_radius()
-
-        ready = self._db_readiness_checks()
-        db_ok = ready['radcheck'] and ready['radusergroup'] and ready['group_attrs'] > 0
-
-        test = self._try_access_request(self.radius_password or '', method='pap')
-        color = 'success' if (db_ok and (not test['ran'] or test['ok'])) else 'warning'
-        msg = []
-        msg.append(f"radcheck: {'OK' if ready['radcheck'] else 'MISSING'}")
-        msg.append(f"radusergroup: {'OK' if ready['radusergroup'] else 'MISSING'}")
-        msg.append(f"radgroupreply attrs: {ready['group_attrs']}")
-        if test['ran']:
-            msg.append(f"Access-Request: {'ACCEPT' if test['ok'] else 'REJECT'}")
-        else:
-            msg.append(f"Access-Request: skipped ({test['out']})")
-
-        try:
-            self.message_post(body="Provision & Test:<br/>" + "<br/>".join(msg), subtype_xmlid='mail.mt_note')
-        except Exception:
-            pass
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Provision & Test'),
-                'message': "\n".join(msg),
-                'type': color,
-                'sticky': False,
-            }
-        }
-
     # ==================== DISCONNECT ACTION ====================
+
+
     def action_disconnect_user(self):
         """Send RADIUS Disconnect-Request via SSH to FreeRADIUS server."""
         self.ensure_one()
@@ -651,17 +611,14 @@ class AsrRadiusUserProvision(models.Model):
         if not self.username:
             raise UserError(_("Missing username."))
 
-        # Merr NAS IP dhe Acct-Session-Id nga sesioni aktiv
+        # Merr NAS IP nga sesioni aktiv
         nas_ip = None
-        sess_id = None
-        framed_ip = None
-        nas_port_id = None
         conn = None
         try:
             conn = self._get_radius_conn()
             with conn.cursor() as cur:
                 cur.execute("""
-                            SELECT nasipaddress, acctsessionid, framedipaddress, nasportid
+                            SELECT nasipaddress
                             FROM radacct
                             WHERE username = %s
                               AND acctstoptime IS NULL
@@ -669,18 +626,9 @@ class AsrRadiusUserProvision(models.Model):
                             """, (self.username,))
                 row = cur.fetchone()
                 if row:
-                    if isinstance(row, dict):
-                        nas_ip = row.get('nasipaddress')
-                        sess_id = row.get('acctsessionid')
-                        framed_ip = row.get('framedipaddress')
-                        nas_port_id = row.get('nasportid')
-                    else:
-                        nas_ip = row[0]
-                        sess_id = row[1]
-                        framed_ip = row[2]
-                        nas_port_id = row[3]
+                    nas_ip = row.get('nasipaddress') if isinstance(row, dict) else row[0]
         except Exception as e:
-            _logger.warning("Failed to get NAS/session for %s: %s", self.username, e)
+            _logger.warning("Failed to get NAS for %s: %s", self.username, e)
         finally:
             try:
                 if conn:
@@ -698,14 +646,9 @@ class AsrRadiusUserProvision(models.Model):
         disconnect_port = 1700
 
         try:
-            # Ndërto payload: gjithmonë User-Name + NAS-IP-Address; nëse kemi Session-Id, shtoje (rekomandohet)
+            # Ndërto payload: VETËM User-Name + NAS-IP-Address (pa Session-Id)
+            # Kjo është më e besueshme kur Session-Id në DB nuk përputhet me NAS-in
             lines = [f"User-Name={self.username}", f"NAS-IP-Address={nas_ip}"]
-            if sess_id:
-                lines.insert(1, f"Acct-Session-Id={sess_id}")
-            if framed_ip:
-                lines.append(f"Framed-IP-Address={framed_ip}")
-            if nas_port_id:
-                lines.append(f"NAS-Port-Id={nas_port_id}")
             payload = "\n".join(lines) + "\n"
 
             # Përdor printf me quoting të sigurt në remote shell
@@ -734,7 +677,8 @@ class AsrRadiusUserProvision(models.Model):
             output = result.stdout or ''
 
             # Parse response
-            disconnect_ack = ('Disconnect-ACK' in output) or ('Received Disconnect-ACK' in output) or ('code 43' in output)
+            disconnect_ack = ('Disconnect-ACK' in output) or ('Received Disconnect-ACK' in output) or (
+                        'code 43' in output)
             disconnect_nak = ('Disconnect-NAK' in output) or ('No reply from server' in output) or ('code 44' in output)
 
             # Log në chatter
