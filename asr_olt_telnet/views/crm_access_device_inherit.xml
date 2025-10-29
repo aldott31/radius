@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <record id="view_crm_access_device_form_olt_mac" model="ir.ui.view">
+    <field name="name">crm.access.device.form.olt.mac</field>
+    <field name="model">crm.access.device</field>
+    <field name="inherit_id" ref="crm_abissnet.view_crm_access_device_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//header" position="inside">
+        <button type="action"
+                name="%(asr_olt_telnet.action_open_olt_show_mac_wizard_from_device)d"
+                string="Show MAC on OLT"
+                class="oe_highlight"/>
+      </xpath>
+    </field>
+  </record>
+</odoo>

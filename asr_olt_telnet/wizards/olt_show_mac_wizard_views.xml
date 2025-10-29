@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <record id="action_open_olt_show_mac_wizard" model="ir.actions.act_window">
+    <field name="name">Show MAC on OLT</field>
+    <field name="res_model">olt.show.mac.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+  </record>
+  <record id="action_open_olt_show_mac_wizard_from_device" model="ir.actions.act_window">
+    <field name="name">Show MAC on OLT</field>
+    <field name="res_model">olt.show.mac.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+  </record>
+
+  <record id="view_olt_show_mac_wizard" model="ir.ui.view">
+    <field name="name">olt.show.mac.wizard.form</field>
+    <field name="model">olt.show.mac.wizard</field>
+    <field name="arch" type="xml">
+      <form string="Show MAC on OLT" create="false" edit="true">
+        <sheet>
+          <group>
+            <group>
+              <field name="user_id" options="{'no_open': True}"/>
+              <field name="olt_id" required="1"/>
+              <field name="mac_address" placeholder="AA:BB:CC:DD:EE:FF" required="1"/>
+              <field name="status" readonly="1"/>
+            </group>
+            <group>
+              <div class="o_form_label">How it works</div>
+              <div class="text-muted">
+                MAC is auto-converted to <b>xxxx.xxxx.xxxx</b> for the OLT command.
+                Uses company credentials (FreeRADIUS page) for OLT Telnet access; connects to the OLT
+                Management IP and runs <code>show mac &lt;MAC&gt;</code>.
+              </div>
+            </group>
+          </group>
+          <group>
+            <field name="result_text" nolabel="1"
+                   placeholder="Output will appear here after running the command."
+                   style="height: 420px; font-family: monospace; white-space: pre;"/>
+          </group>
+        </sheet>
+        <footer>
+          <button name="action_run" string="Run 'show mac'" type="object" class="btn-primary"/>
+          <button string="Close" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+</odoo>

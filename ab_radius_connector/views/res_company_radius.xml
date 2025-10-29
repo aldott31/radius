@@ -7,31 +7,40 @@
     <field name="arch" type="xml">
 
       <xpath expr="//div[@name='button_box']" position="inside">
-</xpath>
+      </xpath>
 
       <xpath expr="//notebook" position="inside">
         <page string="FreeRADIUS">
           <group>
-            <group>
+            <group string="Database Connection">
               <field name="fr_db_host"/>
               <field name="fr_db_port"/>
               <field name="fr_db_name"/>
-            </group>
-            <group>
               <field name="fr_db_user"/>
               <field name="fr_db_password" password="True"/>
               <field name="fr_default_group"/>
             </group>
+            <group string="SSH &amp; Disconnect">
+              <field name="fr_ssh_host" placeholder="Leave empty to use DB host"/>
+              <field name="fr_ssh_user"/>
+              <field name="fr_disconnect_secret" password="True"/>
+            </group>
           </group>
+
+          <separator string="OLT Telnet Access"/>
+          <group>
+            <group string="OLT Credentials">
+              <field name="olt_telnet_username"/>
+              <field name="olt_telnet_password" password="True"/>
+            </group>
+          </group>
+
+          <separator string="Connection Test"/>
           <group>
             <field name="fr_last_test_ok" readonly="1"/>
             <field name="fr_last_error" readonly="1" widget="text"/>
           </group>
-          <group>
-            <field name="fr_ssh_host" placeholder="Leave empty to use DB host"/>
-            <field name="fr_ssh_user"/>
-            <field name="fr_disconnect_secret" password="True"/>
-          </group>
+
           <button name="action_fr_test_connection"
                   type="object"
                   string="Test FreeRADIUS"

@@ -18,15 +18,23 @@ class ResCompanyRadius(models.Model):
     fr_db_name = fields.Char(string='DB Name')
     fr_db_user = fields.Char(string='DB User')
     fr_db_password = fields.Char(string='DB Password')
-    # Shto fusha të reja:
     fr_ssh_host = fields.Char(string='SSH Host', help='FreeRADIUS server SSH host (default: DB host)')
     fr_ssh_user = fields.Char(string='SSH User', default='root')
     fr_disconnect_secret = fields.Char(string='Disconnect Secret', default='testing123')
-
     fr_default_group = fields.Char(string='Default Group')
-
     fr_last_test_ok = fields.Boolean(string='Last Test OK', readonly=True)
     fr_last_error = fields.Text(string='Last Error', readonly=True)
+
+    # 🆕 OLT Telnet Credentials (VETËM username/password)
+    olt_telnet_username = fields.Char(
+        string='OLT Username',
+        default='bbone',
+        help='Username for OLT Telnet access'
+    )
+    olt_telnet_password = fields.Char(
+        string='OLT Password',
+        help='Password for OLT Telnet access'
+    )
 
     def _check_radius_admin(self):
         if not self.env.user.has_group('ab_radius_connector.group_ab_radius_admin'):
@@ -70,20 +78,18 @@ class ResCompanyRadius(models.Model):
                 except Exception:
                     pass
             self.sudo().write({'fr_last_test_ok': True, 'fr_last_error': False})
-            # Toast popup në sukses
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
                 'params': {
                     'title': _('FreeRADIUS'),
                     'message': _('Connection successful.'),
-                    'type': 'success',  # success | warning | danger
+                    'type': 'success',
                     'sticky': False,
                 }
             }
         except Exception as e:
             self.sudo().write({'fr_last_test_ok': False, 'fr_last_error': str(e)})
-            # Modal me gabimin
             raise UserError(_('FreeRADIUS connection failed:\n%s') % (str(e),))
 
     def fr_get_mysql_params(self):
