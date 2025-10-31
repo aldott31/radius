@@ -11,6 +11,7 @@
         'security/ir.model.access.csv',
         'views/olt_show_mac_wizard_views.xml',
         'views/olt_onu_uncfg_wizard_views.xml',
+        'views/olt_quick_register_wizard_views.xml',
         'views/asr_radius_user_inherit.xml',
         'views/crm_access_device_inherit.xml',
     ],

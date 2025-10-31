@@ -41,6 +41,11 @@
                   <field name="mac"/>
                   <field name="sn"/>
                   <field name="raw"/>
+                  <!-- ✅ Butoni Register për çdo rresht -->
+                  <button name="action_open_register"
+                          type="object"
+                          string="Register"
+                          class="btn-primary"/>
                 </list>
               </field>
             </page>
