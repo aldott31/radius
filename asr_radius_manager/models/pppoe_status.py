@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-✅ FIXED: PPPoE Status model që funksionon në UI për Odoo 18.
-"""
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 import logging
@@ -31,6 +27,8 @@ class AsrRadiusPPPoeStatus(models.Model):
     nas_port = fields.Char(readonly=True)
     circuit_id_mac = fields.Char(readonly=True)
     virtual_interface = fields.Char(readonly=True)
+    # NEW: kolonë e re për portën e loginit (pa prekur 'circuit_id_mac')
+    login_port = fields.Char(readonly=True)
 
     def _get_radius_conn(self):
         try:
@@ -147,6 +145,7 @@ class AsrRadiusPPPoeStatus(models.Model):
                         'nas_port': row.get('nas_port') or '',
                         'circuit_id_mac': row.get('circuit_id_mac') or '',
                         'virtual_interface': row.get('virtual_interface') or '',
+                        'login_port': '',  # NEW
                     }
                 else:
                     # Tuple: (_id, status, login_on, username, nas_ip, ip_address, plans, port, circuit, iface)
@@ -161,8 +160,20 @@ class AsrRadiusPPPoeStatus(models.Model):
                         'nas_port': row[7] or '',
                         'circuit_id_mac': row[8] or '',
                         'virtual_interface': row[9] or '',
+                        'login_port': '',  # NEW
                     }
                 results.append(r)
+
+            # NEW: injekto "Login Port" nga user-at (ruajtur nga wizard-i Show MAC)
+            usernames = [r.get('username') for r in results if r.get('username')]
+            if usernames:
+                users = self.env['asr.radius.user'].sudo().search([('username', 'in', usernames)])
+                map_login = {u.username: (u.olt_login_port or '') for u in users if u.olt_login_port}
+                if map_login:
+                    for r in results:
+                        v = map_login.get(r.get('username'))
+                        if v:
+                            r['login_port'] = v
 
             _logger.info("PPPoE Status returned %d rows", len(results))
             return results

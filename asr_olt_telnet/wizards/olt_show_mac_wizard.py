@@ -24,6 +24,29 @@ def _mac_to_dot4(mac):
     s = ''.join(h.lower() for h in hexes)  # 12 hex chars
     return '.'.join([s[0:4], s[4:8], s[8:12]])
 
+# --- NEW: parser për "show mac" → (pon_path, vlan) ---
+_P_PORT = re.compile(r'vport-(\d+)/(\d+)/(\d+)\.(\d+):(\d+)', re.I)
+_P_ROW  = re.compile(r'(?i)^\s*[0-9a-f:.\-]{12,}\s+(\d+)\s+\S+\s+([a-z\-0-9/.:]+)', re.M)
+
+def _extract_vlan_pon_path(output_text: str):
+    """
+    Kthen (pon_path, vlan) p.sh. ('1/2/2/27','1662') ose (None,None)
+    nga rreshta të tipit:
+    909a.4a92.35fc   1662   Dynamic   vport-1/2/2.27:1
+    """
+    if not output_text:
+        return None, None
+    m = _P_ROW.search(output_text or "")
+    if not m:
+        return None, None
+    vlan = m.group(1)
+    port = m.group(2)  # p.sh. vport-1/2/2.27:1
+    m2 = _P_PORT.search(port)
+    if not m2:
+        return None, vlan
+    pon_path = f"{m2.group(1)}/{m2.group(2)}/{m2.group(3)}/{m2.group(4)}"  # 1/2/2/27
+    return pon_path, vlan
+
 class OltShowMacWizard(models.TransientModel):
     _name = 'olt.show.mac.wizard'
     _description = 'Show MAC on OLT (Telnet)'
@@ -54,9 +77,15 @@ class OltShowMacWizard(models.TransientModel):
                 if not olt_id and getattr(user, 'access_device_id', False):
                     olt_id = user.access_device_id.id
                 if not mac and user and user.username:
-                    p = self.env['asr.radius.pppoe_status'].search([('username','=',user.username)], limit=1)
-                    if p and p.circuit_id_mac:
-                        parts = (p.circuit_id_mac or '').split('/')
+                    # NOTE: PPPoE Status backend përdor search_read/web_search_read
+                    rows = self.env['asr.radius.pppoe_status'].search_read(
+                        domain=[('username', '=', user.username)],
+                        fields=['circuit_id_mac'],
+                        limit=1
+                    )
+                    if rows:
+                        raw = (rows[0].get('circuit_id_mac') or '').strip()
+                        parts = raw.split('/')
                         mac = (parts[-1] if parts else '').strip()
             except Exception:
                 pass
@@ -68,6 +97,28 @@ class OltShowMacWizard(models.TransientModel):
         if user_id:
             vals['user_id'] = user_id
         return vals
+
+    @api.onchange('user_id')
+    def _onchange_user_id(self):
+        # rifresko OLT & MAC kur ndryshohet user-i
+        for wiz in self:
+            wiz.mac_address = False
+            wiz.olt_id = False
+            user = wiz.user_id
+            if not user:
+                continue
+            if getattr(user, 'access_device_id', False):
+                wiz.olt_id = user.access_device_id.id
+            if user.username:
+                rows = self.env['asr.radius.pppoe_status'].search_read(
+                    domain=[('username', '=', user.username)],
+                    fields=['circuit_id_mac'],
+                    limit=1
+                )
+                if rows:
+                    raw = (rows[0].get('circuit_id_mac') or '').strip()
+                    mac = (raw.split('/')[-1] or '').strip()
+                    wiz.mac_address = _sanitize_mac(mac)
 
     def _telnet_run(self, host, username, password, command, timeout=8):
         if not host:
@@ -142,11 +193,23 @@ class OltShowMacWizard(models.TransientModel):
             'result_text': output or _('(No output)'),
             'status': status,
         })
+
+        # --- NEW: Nxirr "Login Port" dhe ruaje te user-i (p.sh. 10.50.60.103 pon 1/2/2/27:1662)
+        if self.user_id and output:
+            pon_path, vlan = _extract_vlan_pon_path(output)
+            if pon_path and vlan and device.ip_address:
+                login_port = f"{device.ip_address.strip()} pon {pon_path}:{vlan}"
+                try:
+                    self.user_id.write({'olt_login_port': login_port})
+                    self.user_id.message_post(body=_('Updated Login Port: %s') % login_port)
+                except Exception:
+                    pass
+
         try:
             if self.user_id:
-                self.user_id.message_post(body=_('Ran \"show mac %(mac)s\" (dot4: %(macdot)s) on %(olt)s (%(ip)s).',
+                self.user_id.message_post(body=_('Ran "show mac %(mac)s" (dot4: %(macdot)s) on %(olt)s (%(ip)s).',
                                                  mac=mac_norm, macdot=mac_cmd, olt=device.name, ip=device.ip_address))
-            device.message_post(body=_('Ran \"show mac %(mac)s\" (dot4: %(macdot)s). Initiator: %(user)s',
+            device.message_post(body=_('Ran "show mac %(mac)s" (dot4: %(macdot)s). Initiator: %(user)s',
                                        mac=mac_norm, macdot=mac_cmd, user=self.env.user.display_name))
         except Exception:
             pass

@@ -63,6 +63,9 @@ class AsrRadiusUserCRM(models.Model):
     city_id = fields.Many2one('crm.city', string="City",
                               related='access_device_id.city_id', store=True, readonly=True)
 
+    # NEW: Login Port i fundit i gjetur nga OLT (p.sh. '10.50.60.103 pon 1/2/2/27:1662')
+    olt_login_port = fields.Char(string="Login Port (OLT)", tracking=True)
+
     # ==================== Computed Fields ====================
 
     @api.depends('sla_level')
