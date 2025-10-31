@@ -1,2 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_olt_show_mac_wizard,access.olt.show.mac.wizard,model_olt_show_mac_wizard,base.group_user,1,1,1,0
+access_olt_onu_uncfg_wizard,access.olt.onu.uncfg.wizard,model_olt_onu_uncfg_wizard,base.group_user,1,1,1,1
+access_olt_onu_uncfg_line,access.olt.onu.uncfg.line,model_olt_onu_uncfg_line,base.group_user,1,1,1,1

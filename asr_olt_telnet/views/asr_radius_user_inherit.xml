@@ -1,18 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-  <record id="view_asr_radius_user_form_olt_mac" model="ir.ui.view">
-    <field name="name">asr.radius.user.form.olt.mac</field>
+
+  <!-- Inherit forma e asr.radius.user dhe shto stat-buttons në button_box -->
+  <record id="view_asr_radius_user_form_olt_tools" model="ir.ui.view">
+    <field name="name">asr.radius.user.form.olt.tools</field>
     <field name="model">asr.radius.user</field>
     <field name="inherit_id" ref="asr_radius_manager.view_asr_radius_user_form"/>
     <field name="arch" type="xml">
       <xpath expr="//sheet/div[@name='button_box']" position="inside">
+
+        <!-- Show on OLT (wizard-i yt ekzistues) -->
         <button type="action"
                 class="oe_stat_button"
                 icon="fa-search"
-                name="%(asr_olt_telnet.action_open_olt_show_mac_wizard)d">
+                name="%(asr_olt_telnet.action_open_olt_show_mac_wizard)d"
+                context="{
+                  'default_olt_id': access_device_id
+                }"
+                invisible="not access_device_id">
           <span class="o_stat_text">Show on OLT</span>
         </button>
+
+        <!-- Unregistered ONUs (wizard-i i ri) -->
+        <button type="action"
+                class="oe_stat_button"
+                icon="fa-plug"
+                name="%(asr_olt_telnet.action_open_onu_uncfg_wizard)d"
+                context="{
+                  'default_olt_id': access_device_id
+                }"
+                invisible="not access_device_id">
+          <span class="o_stat_text">Unregistered ONUs</span>
+        </button>
+
       </xpath>
     </field>
   </record>
+
 </odoo>

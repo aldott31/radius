@@ -9,7 +9,8 @@
     'depends': ['ab_radius_connector','asr_radius_manager','crm_abissnet'],
     'data': [
         'security/ir.model.access.csv',
-        'wizards/olt_show_mac_wizard_views.xml',
+        'views/olt_show_mac_wizard_views.xml',
+        'views/olt_onu_uncfg_wizard_views.xml',
         'views/asr_radius_user_inherit.xml',
         'views/crm_access_device_inherit.xml',
     ],
