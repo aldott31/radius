@@ -115,6 +115,50 @@
           </group>
         </page>
 
+        <!-- Fiber Installation -->
+        <page string="Fiber Installation">
+          <group>
+            <group string="Fiber Path">
+              <field name="fiber_closure_id"
+                     domain="[('access_device_id', '=', access_device_id), ('operational_status', '=', 'active')]"
+                     options="{'no_create': True}"/>
+              <field name="fiber_core_number" readonly="1"/>
+              <field name="fiber_color" readonly="1" widget="badge"/>
+            </group>
+
+            <group string="ONU Details">
+              <field name="ont_serial" placeholder="HWTC12345678" string="ONU Serial Nr."/>
+              <field name="olt_pon_port" placeholder="Auto-filled from OLT"/>
+              <field name="olt_ont_id" placeholder="e.g., 1, 2, 3..."/>
+            </group>
+          </group>
+
+          <group>
+            <group string="Fiber Quality">
+              <field name="fiber_splice_loss_db"/>
+              <field name="fiber_total_loss_db"/>
+            </group>
+          </group>
+
+          <group>
+            <button name="action_open_closure" type="object"
+                    string="Open Fiber Closure" class="btn-link"
+                    invisible="not fiber_closure_id" icon="fa-external-link"/>
+            <button name="action_release_fiber" type="object"
+                    string="Release Fiber Core" class="btn-warning"
+                    invisible="not fiber_closure_id"
+                    confirm="Are you sure you want to release this fiber core?"/>
+          </group>
+
+          <div class="alert alert-info" role="alert" invisible="not fiber_closure_id">
+            <strong>📍 Installation Path:</strong><br/>
+            OLT: <field name="access_device_id" readonly="1" nolabel="1"/>
+            → Kaseta: <field name="fiber_closure_id" readonly="1" nolabel="1"/>
+            → Core #<field name="fiber_core_number" readonly="1" nolabel="1"/>
+            (<field name="fiber_color" readonly="1" nolabel="1" widget="badge"/>)
+          </div>
+        </page>
+
         <!-- Contract & Billing -->
         <page string="Contract &amp; Billing">
           <group>

@@ -21,9 +21,14 @@
         'views/crm_city_views.xml',
         'views/crm_pop_views.xml',
         'views/crm_access_device_views.xml',
+        'views/crm_fiber_closure_views.xml',
+        'views/crm_onu_views.xml',
 
-        # 4️⃣ CUSTOMERS (extends asr.radius.user)
+        # 4️⃣ CUSTOMERS (extends asr.radius.user) – DUHET PËRPARA wizard-in që e inherit-on
         'views/asr_radius_user_crm_views.xml',
+
+        # 5️⃣ ONU Register (wizard + queue views)
+        'views/onu_register_views.xml',
     ],
     'installable': True,
     'application': False,

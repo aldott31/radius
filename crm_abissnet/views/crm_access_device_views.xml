@@ -2,7 +2,6 @@
 <odoo>
 
   <!-- ==================== LIST VIEW ==================== -->
-
   <record id="view_crm_access_device_list" model="ir.ui.view">
     <field name="name">crm.access.device.list</field>
     <field name="model">crm.access.device</field>
@@ -31,32 +30,24 @@
   </record>
 
   <!-- ==================== FORM VIEW ==================== -->
-
   <record id="view_crm_access_device_form" model="ir.ui.view">
     <field name="name">crm.access.device.form</field>
     <field name="model">crm.access.device</field>
     <field name="arch" type="xml">
       <form string="Access Device">
         <header>
-          <field name="operational_status" widget="statusbar"
-                 options="{'clickable': '1'}"/>
+          <field name="operational_status" widget="statusbar" options="{'clickable': '1'}"/>
         </header>
 
         <sheet>
 
           <!-- Smart Buttons -->
           <div class="oe_button_box" name="button_box">
-            <button type="object"
-                    name="action_view_customers"
-                    class="oe_stat_button"
-                    icon="fa-users">
+            <button type="object" name="action_view_customers" class="oe_stat_button" icon="fa-users">
               <field name="customer_count" widget="statinfo" string="Customers"/>
             </button>
 
-            <button type="object"
-                    name="action_view_customers"
-                    class="oe_stat_button"
-                    icon="fa-plug">
+            <button type="object" name="action_view_customers" class="oe_stat_button" icon="fa-plug">
               <div class="o_field_widget o_stat_info">
                 <span class="o_stat_text">Ports</span>
                 <span class="o_stat_value">
@@ -105,6 +96,13 @@
                      help="Link to RADIUS NAS configuration"/>
               <field name="company_id" groups="base.group_multi_company"/>
             </group>
+
+            <!-- ✅ Default VLANs (për wizard-in e ONU, prefilled nga OLT) -->
+            <group string="Default VLANs">
+              <field name="internet_vlan"/>
+              <field name="tv_vlan"/>
+              <field name="voice_vlan"/>
+            </group>
           </group>
 
         </sheet>
@@ -118,7 +116,6 @@
   </record>
 
   <!-- ==================== SEARCH VIEW ==================== -->
-
   <record id="view_crm_access_device_search" model="ir.ui.view">
     <field name="name">crm.access.device.search</field>
     <field name="model">crm.access.device</field>
@@ -136,12 +133,9 @@
         <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
 
         <separator/>
-        <filter string="Online" name="online"
-                domain="[('operational_status', '=', 'online')]"/>
-        <filter string="Offline" name="offline"
-                domain="[('operational_status', '=', 'offline')]"/>
-        <filter string="Faulty" name="faulty"
-                domain="[('operational_status', '=', 'faulty')]"/>
+        <filter string="Online" name="online" domain="[('operational_status', '=', 'online')]"/>
+        <filter string="Offline" name="offline" domain="[('operational_status', '=', 'offline')]"/>
+        <filter string="Faulty" name="faulty" domain="[('operational_status', '=', 'faulty')]"/>
 
         <separator/>
         <filter string="OLT" name="olt" domain="[('device_type', '=', 'olt')]"/>
@@ -160,29 +154,21 @@
   </record>
 
   <!-- ==================== ACTION ==================== -->
-
   <record id="action_crm_access_device" model="ir.actions.act_window">
     <field name="name">Access Devices</field>
     <field name="res_model">crm.access.device</field>
     <field name="view_mode">list,form</field>
     <field name="context">{'search_default_active': 1}</field>
     <field name="help" type="html">
-      <p class="o_view_nocontent_smiling_face">
-        Add your first access device
-      </p>
-      <p>
-        Access devices (OLTs, DSLAMs, Switches) are the physical equipment<br/>
-        that connect customers to your network at each POP location.
-      </p>
+      <p class="o_view_nocontent_smiling_face">Add your first access device</p>
+      <p>Access devices (OLTs, DSLAMs, Switches) are the physical equipment<br/>that connect customers to your network at each POP location.</p>
     </field>
   </record>
 
   <!-- ==================== MENU ITEM ==================== -->
-
   <menuitem id="menu_crm_access_devices"
             name="Access Devices"
             parent="menu_management"
             action="action_crm_access_device"
             sequence="30"/>
-
 </odoo>

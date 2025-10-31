@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- Wizard Form -->
+  <record id="view_crm_onu_register_wizard" model="ir.ui.view">
+    <field name="name">crm.onu.register.wizard.form</field>
+    <field name="model">crm.onu.register.wizard</field>
+    <field name="arch" type="xml">
+      <form string="Register ONU">
+        <sheet>
+          <group>
+            <group>
+              <field name="access_device_id" options="{'no_create': True}" required="1"/>
+              <field name="interface" required="1"/>
+              <field name="serial" required="1"/>
+              <field name="name"/>
+            </group>
+            <group>
+              <field name="onu_model" required="1"/>
+              <field name="function_mode" required="1"/>
+              <field name="customer_id" options="{'no_create': True}" required="1"/>
+            </group>
+          </group>
+
+          <group string="Shërbimet">
+            <group string="Internet">
+              <field name="svc_internet"/>
+              <field name="vlan_internet" invisible="not svc_internet"/>
+              <field name="profile" invisible="not svc_internet" placeholder="p.sh. 500/50"/>
+              <field name="lan_selection" invisible="not svc_internet"/>
+              <field name="dhcp_option82" invisible="not svc_internet"/>
+            </group>
+            <group string="TV">
+              <field name="svc_tv"/>
+              <field name="vlan_tv" invisible="not svc_tv"/>
+            </group>
+            <group string="Voice">
+              <field name="svc_voice"/>
+              <field name="vlan_voice" invisible="not svc_voice"/>
+            </group>
+          </group>
+        </sheet>
+        <footer>
+          <button name="action_register" string="Register" type="object" class="btn-primary"/>
+          <button string="Cancel" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <!-- Action: Wizard -->
+  <record id="action_crm_onu_register_wizard" model="ir.actions.act_window">
+    <field name="name">Register ONU</field>
+    <field name="res_model">crm.onu.register.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+  </record>
+
+  <!-- Butoni te forma e klientit (asr.radius.user) -->
+  <record id="view_asr_radius_user_register_onu_button" model="ir.ui.view">
+    <field name="name">asr.radius.user.register.onu.button</field>
+    <field name="model">asr.radius.user</field>
+    <field name="inherit_id" ref="crm_abissnet.view_asr_radius_user_form_crm"/>
+    <field name="arch" type="xml">
+      <!-- Targeto faqen që përmban fiber_closure_id (mos përdor @string) -->
+      <xpath expr="//page[.//field[@name='fiber_closure_id']]" position="inside">
+        <group>
+          <button type="action"
+                  name="%(action_crm_onu_register_wizard)d"
+                  class="btn-primary"
+                  string="Register ONU"
+                  context="{
+                    'default_access_device_id': access_device_id,
+                    'default_interface': olt_pon_port,
+                    'default_serial': ont_serial,
+                    'default_name': name
+                  }"
+                  invisible="not access_device_id"/>
+        </group>
+      </xpath>
+    </field>
+  </record>
+
+  <!-- Provision Queue: list view + action + menu nën Management -->
+  <record id="view_crm_onu_provision_list" model="ir.ui.view">
+    <field name="name">crm.onu.provision.list</field>
+    <field name="model">crm.onu.provision</field>
+    <field name="arch" type="xml">
+      <list string="ONU Provision Queue"
+            decoration-warning="state == 'pending'"
+            decoration-danger="state == 'failed'"
+            decoration-success="state == 'done'">
+        <field name="create_date"/>
+        <field name="customer_id"/>
+        <field name="access_device_id"/>
+        <field name="interface"/>
+        <field name="serial"/>
+        <field name="onu_model"/>
+        <field name="function_mode"/>
+        <field name="svc_internet"/>
+        <field name="vlan_internet"/>
+        <field name="profile"/>
+        <field name="lan_selection"/>
+        <field name="svc_tv"/>
+        <field name="vlan_tv"/>
+        <field name="svc_voice"/>
+        <field name="vlan_voice"/>
+        <field name="state"/>
+      </list>
+    </field>
+  </record>
+
+  <record id="action_crm_onu_provision" model="ir.actions.act_window">
+    <field name="name">ONU Provision Queue</field>
+    <field name="res_model">crm.onu.provision</field>
+    <field name="view_mode">list,form</field>
+  </record>
+
+  <menuitem id="menu_crm_onu_provision"
+            name="ONU Provision Queue"
+            parent="crm_abissnet.menu_management"
+            action="action_crm_onu_provision"
+            sequence="38"/>
+
+</odoo>

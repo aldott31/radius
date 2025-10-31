@@ -108,3 +108,29 @@ class CrmAccessDevice(models.Model):
                     _('Device %s has exceeded port capacity! Used: %d, Total: %d')
                     % (rec.name, count, rec.port_count)
                 )
+
+    # --- Default VLANs on the OLT (allow CSV) ---
+    internet_vlan = fields.Char(string="Internet VLAN(s)", tracking=True,
+                                help="CSV p.sh. 1604,1614,1606")
+    tv_vlan = fields.Char(string="TV VLAN(s)", tracking=True,
+                          help="CSV ose një vlerë p.sh. 2020")
+    voice_vlan = fields.Char(string="Voice VLAN(s)", tracking=True,
+                             help="CSV ose një vlerë p.sh. 444")
+
+    @api.constrains('internet_vlan', 'tv_vlan', 'voice_vlan')
+    def _check_vlans_csv(self):
+        import re
+        for rec in self:
+            for fname, label in [('internet_vlan', 'Internet VLAN(s)'),
+                                 ('tv_vlan', 'TV VLAN(s)'),
+                                 ('voice_vlan', 'Voice VLAN(s)')]:
+                raw = (getattr(rec, fname) or '').strip()
+                if not raw:
+                    continue
+                tokens = [t for t in re.split(r'[,\s;]+', raw) if t]
+                for t in tokens:
+                    if not t.isdigit():
+                        raise ValidationError(_("%s: '%s' nuk është numër.") % (label, t))
+                    n = int(t)
+                    if n < 1 or n > 4094:
+                        raise ValidationError(_("%s: VLAN %s jashtë intervalit 1–4094.") % (label, n))

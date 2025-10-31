@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <!-- ==================== LIST VIEW ==================== -->
+
+  <record id="view_crm_fiber_closure_list" model="ir.ui.view">
+    <field name="name">crm.fiber.closure.list</field>
+    <field name="model">crm.fiber.closure</field>
+    <field name="arch" type="xml">
+      <list string="Fiber Closures (Kaseta)"
+            decoration-muted="not active"
+            decoration-success="operational_status == 'active'"
+            decoration-danger="operational_status == 'faulty'">
+        <field name="name"/>
+        <field name="code"/>
+        <field name="city_id"/>
+        <field name="pop_id"/>
+        <field name="access_device_id"/>
+        <field name="olt_port"/>
+        <field name="closure_type"/>
+        <field name="fiber_count"/>
+        <field name="cores_used"/>
+        <field name="cores_available"/>
+        <field name="capacity_percentage" widget="progressbar"/>
+        <field name="operational_status"/>
+        <field name="active" column_invisible="1"/>
+      </list>
+    </field>
+  </record>
+
+  <!-- ==================== FORM VIEW ==================== -->
+
+  <record id="view_crm_fiber_closure_form" model="ir.ui.view">
+    <field name="name">crm.fiber.closure.form</field>
+    <field name="model">crm.fiber.closure</field>
+    <field name="arch" type="xml">
+      <form string="Fiber Closure">
+        <header>
+          <button name="action_initialize_cores" type="object"
+                  string="Initialize Cores" class="btn-primary"
+                  invisible="fiber_cores_json != '[]'"/>
+          <button name="action_assign_customer_wizard" type="object"
+                  string="Assign Customer" class="btn-primary"
+                  invisible="fiber_cores_json == '[]'"/>
+          <button name="action_open_map" type="object"
+                  string="Show on Map" class="btn-secondary"
+                  invisible="not latitude or not longitude"/>
+          <field name="operational_status" widget="statusbar"
+                 options="{'clickable': '1'}"/>
+        </header>
+
+        <sheet>
+
+          <!-- Smart Buttons -->
+          <div class="oe_button_box" name="button_box">
+            <button type="object" name="action_view_customers"
+                    class="oe_stat_button" icon="fa-users">
+              <field name="cores_used" widget="statinfo" string="Customers"/>
+            </button>
+
+            <button type="object" name="action_open_map"
+                    class="oe_stat_button" icon="fa-map-marker"
+                    invisible="not latitude or not longitude">
+              <div class="o_field_widget o_stat_info">
+                <span class="o_stat_text">View on</span>
+                <span class="o_stat_value">Map</span>
+              </div>
+            </button>
+          </div>
+
+          <widget name="web_ribbon" title="Faulty" bg_color="text-bg-danger"
+                  invisible="operational_status != 'faulty'"/>
+
+          <group>
+            <group string="Identification">
+              <field name="name" placeholder="KASETA-TIR-001"/>
+              <field name="code" placeholder="Scan QR code here"/>
+              <field name="closure_type"/>
+              <field name="active"/>
+            </group>
+
+            <group string="Network Connection">
+              <field name="access_device_id" options="{'no_create': True}"/>
+              <field name="olt_port" placeholder="GPON 0/1/0"/>
+              <field name="pop_id" readonly="1"/>
+              <field name="city_id" readonly="1"/>
+            </group>
+          </group>
+
+          <group>
+            <group string="Fiber Capacity">
+              <field name="fiber_count"/>
+              <field name="cores_used" readonly="1"/>
+              <field name="cores_available" readonly="1"/>
+              <field name="capacity_percentage" widget="progressbar" readonly="1"/>
+            </group>
+
+            <group string="Installation">
+              <field name="installation_date"/>
+              <field name="last_maintenance_date"/>
+              <field name="installer_id"/>
+              <field name="company_id" groups="base.group_multi_company"/>
+            </group>
+          </group>
+
+          <group string="Physical Location">
+            <field name="address" placeholder="Full address..." widget="text" colspan="2"/>
+            <field name="latitude" placeholder="41.3275"/>
+            <field name="longitude" placeholder="19.8187"/>
+          </group>
+
+          <notebook>
+
+            <!-- Fiber Cores Tab -->
+            <page string="Fiber Cores">
+              <field name="fiber_cores_html" nolabel="1" widget="html"/>
+              <div class="alert alert-info" role="alert" invisible="fiber_cores_json != '[]'">
+                <strong>ℹ️ No cores initialized yet.</strong><br/>
+                Click the <strong>"Initialize Cores"</strong> button in the header to create fiber cores
+                based on the "Total Fiber Cores" value above.
+              </div>
+            </page>
+
+            <!-- Location Tab -->
+            <page string="Location Details">
+              <group>
+                <field name="address" nolabel="1" widget="text" placeholder="Detailed address..."/>
+              </group>
+              <group>
+                <group>
+                  <field name="latitude"/>
+                  <field name="longitude"/>
+                </group>
+                <group>
+                  <field name="closure_type"/>
+                </group>
+              </group>
+
+              <div class="alert alert-success" role="alert" invisible="not latitude or not longitude">
+                <strong>📍 Coordinates Set</strong><br/>
+                Click "Show on Map" button to view this location in Google Maps.
+              </div>
+            </page>
+
+            <!-- Notes Tab -->
+            <page string="Notes">
+              <field name="notes" nolabel="1" placeholder="Installation notes, access instructions, etc."/>
+            </page>
+
+            <!-- Raw Data Tab (for debugging) -->
+            <page string="Raw Data (Debug)" groups="base.group_no_one">
+              <field name="fiber_cores_json" widget="ace" options="{'mode': 'json'}"/>
+            </page>
+
+          </notebook>
+
+        </sheet>
+
+        <div class="oe_chatter">
+          <field name="message_follower_ids"/>
+          <field name="message_ids"/>
+        </div>
+      </form>
+    </field>
+  </record>
+
+  <!-- ==================== SEARCH VIEW ==================== -->
+
+  <record id="view_crm_fiber_closure_search" model="ir.ui.view">
+    <field name="name">crm.fiber.closure.search</field>
+    <field name="model">crm.fiber.closure</field>
+    <field name="arch" type="xml">
+      <search string="Search Fiber Closures">
+        <field name="name"/>
+        <field name="code"/>
+        <field name="city_id"/>
+        <field name="pop_id"/>
+        <field name="access_device_id"/>
+        <field name="olt_port"/>
+
+        <filter string="Active" name="active" domain="[('active', '=', True)]"/>
+        <filter string="Archived" name="archived" domain="[('active', '=', False)]"/>
+
+        <separator/>
+        <filter string="Operational" name="operational"
+                domain="[('operational_status', '=', 'active')]"/>
+        <filter string="Faulty" name="faulty"
+                domain="[('operational_status', '=', 'faulty')]"/>
+        <filter string="Has Available Cores" name="has_capacity"
+                domain="[('cores_available', '>', 0)]"/>
+        <filter string="Full Capacity" name="full"
+                domain="[('cores_available', '=', 0)]"/>
+
+        <separator/>
+        <filter string="Aerial" name="aerial" domain="[('closure_type', '=', 'aerial')]"/>
+        <filter string="Underground" name="underground" domain="[('closure_type', '=', 'underground')]"/>
+
+        <group expand="0" string="Group By">
+          <filter string="City" name="g_city" context="{'group_by': 'city_id'}"/>
+          <filter string="POP" name="g_pop" context="{'group_by': 'pop_id'}"/>
+          <filter string="OLT" name="g_olt" context="{'group_by': 'access_device_id'}"/>
+          <filter string="Type" name="g_type" context="{'group_by': 'closure_type'}"/>
+          <filter string="Status" name="g_status" context="{'group_by': 'operational_status'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ==================== ACTION ==================== -->
+
+  <record id="action_crm_fiber_closure" model="ir.actions.act_window">
+    <field name="name">Fiber Closures (Kaseta)</field>
+    <field name="res_model">crm.fiber.closure</field>
+    <field name="view_mode">list,form</field>
+    <field name="context">{'search_default_active': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        Add your first fiber closure (kaseta)
+      </p>
+      <p>
+        Fiber closures are distribution points where backbone fiber<br/>
+        is split into individual cores for customer connections.
+      </p>
+    </field>
+  </record>
+
+  <!-- ==================== MENU ==================== -->
+
+  <menuitem id="menu_crm_fiber_closures"
+            name="Fiber Closures"
+            parent="crm_abissnet.menu_management"
+            action="action_crm_fiber_closure"
+            sequence="35"/>
+
+  <!-- ==================== WIZARD VIEW ==================== -->
+
+  <record id="view_crm_fiber_assignment_wizard" model="ir.ui.view">
+    <field name="name">crm.fiber.assignment.wizard.form</field>
+    <field name="model">crm.fiber.assignment.wizard</field>
+    <field name="arch" type="xml">
+      <form string="Assign Customer to Fiber Core">
+        <sheet>
+          <group>
+            <field name="closure_id" readonly="1"/>
+          </group>
+
+          <group string="Available Cores">
+            <field name="available_cores_html" nolabel="1" widget="html"/>
+          </group>
+
+          <group>
+            <group string="Assignment">
+              <field name="core_number" placeholder="Enter core number"/>
+              <field name="customer_id" options="{'no_create': True}"/>
+            </group>
+
+            <group string="Installation Quality">
+              <field name="splice_loss_db"/>
+              <field name="notes" placeholder="Installation notes..." widget="text"/>
+            </group>
+          </group>
+
+          <div class="alert alert-warning" role="alert">
+            <strong>⚠️ Before Assignment:</strong><br/>
+            • Verify physical fiber connection<br/>
+            • Test splice quality with OTDR<br/>
+            • Record ONU serial number on customer form
+          </div>
+
+        </sheet>
+        <footer>
+          <button name="action_assign" string="Assign" type="object" class="btn-primary"/>
+          <button string="Cancel" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+</odoo>
