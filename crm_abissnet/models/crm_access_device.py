@@ -134,3 +134,33 @@ class CrmAccessDevice(models.Model):
                     n = int(t)
                     if n < 1 or n > 4094:
                         raise ValidationError(_("%s: VLAN %s jashtë intervalit 1–4094.") % (label, n))
+
+        # --- Telnet Credentials (per OLT specifike) ---
+
+    telnet_username = fields.Char(string="Telnet Username", tracking=True,
+                                  help="Username për Telnet access (overrides company default)")
+    telnet_password = fields.Char(string="Telnet Password", tracking=True,
+                                  help="Password për Telnet access (overrides company default)")
+    use_custom_credentials = fields.Boolean(string="Use Custom Credentials", default=False,
+                                            tracking=True,
+                                            help="Nëse True, përdor credentials nga kjo OLT në vend të company defaults")
+
+    def get_telnet_credentials(self):
+        """
+        Kthen (username, password) për Telnet access.
+        Prioriteti: OLT-specific → Company defaults
+        """
+        self.ensure_one()
+
+        if self.use_custom_credentials and self.telnet_username and self.telnet_password:
+            return self.telnet_username.strip(), self.telnet_password.strip()
+
+        # Fallback to company defaults
+        company = self.env.company.sudo()
+        user = (getattr(company, 'olt_telnet_username', '') or '').strip()
+        pwd = (getattr(company, 'olt_telnet_password', '') or '').strip()
+
+        if not user or not pwd:
+            raise UserError(_('Configure Telnet credentials on OLT form or Company settings (FreeRADIUS page).'))
+
+        return user, pwd

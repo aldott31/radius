@@ -105,6 +105,24 @@
             </group>
           </group>
 
+          <!-- ✅ Telnet Credentials (OLT-specific) -->
+        <group string="Telnet Access (Override Company Defaults)" col="1">
+          <field name="use_custom_credentials"/>
+           <group invisible="not use_custom_credentials">
+             <group>
+               <field name="telnet_username" placeholder="e.g., albi" required="use_custom_credentials"/>
+               <field name="telnet_password" password="True" required="use_custom_credentials"/>
+             </group>
+             <group>
+               <div class="alert alert-info" role="alert">
+                 <strong>ℹ️ OLT-Specific Credentials</strong><br/>
+                 Nëse enabled, këto credentials do përdoren në vend të company defaults
+                 (Company → FreeRADIUS page → OLT Telnet Username/Password).
+               </div>
+             </group>
+           </group>
+        </group>
+
         </sheet>
 
         <div class="oe_chatter">

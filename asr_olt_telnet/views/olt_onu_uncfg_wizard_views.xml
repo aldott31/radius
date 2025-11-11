@@ -1,87 +1,65 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-  <!-- Action për wizard-in (Unregistered ONUs) -->
-  <record id="action_open_onu_uncfg_wizard" model="ir.actions.act_window">
-    <field name="name">Unregistered ONUs</field>
-    <field name="res_model">olt.onu.uncfg.wizard</field>
-    <field name="view_mode">form</field>
-    <field name="target">new</field>
+  <!-- LIST VIEW për rreshtat (olt.onu.uncfg.line) -->
+  <record id="view_olt_onu_uncfg_line_list" model="ir.ui.view">
+    <field name="name">olt.onu.uncfg.line.list</field>
+    <field name="model">olt.onu.uncfg.line</field>
+    <field name="arch" type="xml">
+      <list string="Unregistered ONUs">
+        <field name="technology"/>
+        <field name="olt_index"/>
+        <field name="model"/>
+        <field name="mac"/>
+        <field name="sn"/>
+        <field name="raw"/>
+        <button name="action_open_register"
+                type="object"
+                string="Register"
+                class="btn-primary"/>
+      </list>
+    </field>
   </record>
 
-  <!-- Form e wizard-it -->
-  <record id="view_onu_uncfg_wizard_form" model="ir.ui.view">
+  <!-- FORM VIEW për wizard-in (olt.onu.uncfg.wizard) -->
+  <record id="view_olt_onu_uncfg_wizard_form" model="ir.ui.view">
     <field name="name">olt.onu.uncfg.wizard.form</field>
     <field name="model">olt.onu.uncfg.wizard</field>
     <field name="arch" type="xml">
-      <form string="Unregistered ONUs" create="false" edit="true">
+      <form string="Unregistered ONUs" create="false" edit="false">
+        <header>
+          <button name="action_fetch" type="object" string="Fetch from OLT" class="btn-primary"/>
+        </header>
         <sheet>
           <group>
-            <group>
-              <field name="user_id" options="{'no_open': True}"/>
-              <field name="olt_id" required="1"/>
-              <field name="tech" required="1"/>
-            </group>
-            <group>
-              <div class="o_form_label">How it works</div>
-              <div class="text-muted">
-                Runs <code>show pon onu uncfg</code> (GPON) dhe
-                <code>show onu unauthentication</code> (EPON) në OLT-in e zgjedhur.
-              </div>
-            </group>
+            <field name="user_id" options="{'no_open': True}"/>
+            <field name="olt_id" required="1" options="{'no_open': True}"/>
+            <field name="tech"/>
           </group>
-
           <notebook>
             <page string="Unregistered ONUs">
-              <field name="line_ids" nolabel="1">
-                <list string="Unregistered ONUs">
-                  <field name="technology"/>
-                  <field name="olt_index"/>
-                  <field name="model"/>
-                  <field name="mac"/>
-                  <field name="sn"/>
-                  <field name="raw"/>
-                  <!-- ✅ Butoni Register për çdo rresht -->
-                  <button name="action_open_register"
-                          type="object"
-                          string="Register"
-                          class="btn-primary"/>
-                </list>
-              </field>
+              <!-- Përdor list_view_ref për Odoo 17/18 -->
+              <field name="line_ids" nolabel="1"
+                     context="{'list_view_ref': 'asr_olt_telnet.view_olt_onu_uncfg_line_list'}"/>
             </page>
             <page string="Raw Output">
-              <field name="result_text" nolabel="1"
-                     style="height: 420px; font-family: monospace; white-space: pre;"/>
+              <field name="result_text" readonly="1" widget="text"/>
             </page>
           </notebook>
         </sheet>
         <footer>
-          <button name="action_fetch" string="Fetch from OLT" type="object" class="btn-primary"/>
-          <button string="Close" class="btn-secondary" special="cancel"/>
+          <button string="Close" special="cancel" class="btn-secondary"/>
         </footer>
       </form>
     </field>
   </record>
 
-  <!-- Butoni te forma e asr.radius.user (button_box), i lidhur me OLT-in e atij user-i -->
-  <record id="view_asr_radius_user_form_onu_uncfg" model="ir.ui.view">
-    <field name="name">asr.radius.user.form.onu.uncfg</field>
-    <field name="model">asr.radius.user</field>
-    <field name="inherit_id" ref="asr_radius_manager.view_asr_radius_user_form"/>
-    <field name="arch" type="xml">
-      <xpath expr="//sheet/div[@name='button_box']" position="inside">
-        <button type="action"
-                class="oe_stat_button"
-                icon="fa-plug"
-                name="%(asr_olt_telnet.action_open_onu_uncfg_wizard)d"
-                context="{
-                  'default_olt_id': access_device_id
-                }"
-                invisible="not access_device_id">
-          <span class="o_stat_text">Unregistered ONUs</span>
-        </button>
-      </xpath>
-    </field>
+  <!-- ACTION: hap wizard-in në modal -->
+  <record id="action_open_onu_uncfg_wizard" model="ir.actions.act_window">
+    <field name="name">Unregistered ONUs</field>
+    <field name="res_model">olt.onu.uncfg.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
   </record>
 
 </odoo>

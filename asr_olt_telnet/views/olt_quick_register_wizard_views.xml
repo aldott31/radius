@@ -4,47 +4,59 @@
     <field name="name">olt.onu.register.quick.form</field>
     <field name="model">olt.onu.register.quick</field>
     <field name="arch" type="xml">
-      <form string="Register ONU:" create="false">
+      <form string="Register ONU" create="false">
         <sheet>
+          <div class="alert alert-info" role="alert">
+            <strong>📡 Auto Registration</strong><br/>
+            Free slot detected and ready to register on OLT.
+          </div>
+
           <group>
-            <group>
+            <group string="OLT Configuration (Auto-detected)">
+              <field name="access_device_id" readonly="1" options="{'no_open': False}"/>
               <field name="interface" readonly="1"/>
+              <field name="onu_slot" readonly="1"/>
               <field name="serial" readonly="1"/>
-              <field name="name"/>
             </group>
-            <group>
+            <group string="ONU Details">
+              <field name="name" placeholder="Customer name or description"/>
               <field name="onu_type" required="1"/>
               <field name="function_mode" required="1"/>
               <field name="customer_id" options="{'no_create': True}" required="1"/>
-              <field name="access_device_id" required="1"/>
             </group>
           </group>
 
           <group string="Shërbimet">
             <group string="Internet">
               <field name="svc_internet"/>
-              <field name="internet_vlan" invisible="not svc_internet"/>
-              <field name="profile" invisible="not svc_internet"/>
+              <field name="internet_vlan" invisible="not svc_internet" placeholder="e.g., 1604"/>
+              <field name="profile" invisible="not svc_internet" placeholder="e.g., 500/50"/>
               <field name="lan_selection" invisible="not svc_internet"/>
               <field name="dhcp_option82" invisible="not svc_internet"/>
             </group>
             <group string="TV">
               <field name="svc_tv"/>
-              <field name="tv_vlan" invisible="not svc_tv"/>
+              <field name="tv_vlan" invisible="not svc_tv" placeholder="e.g., 2020"/>
             </group>
             <group string="Telefoni">
               <field name="svc_voice"/>
-              <field name="voice_vlan" invisible="not svc_voice"/>
+              <field name="voice_vlan" invisible="not svc_voice" placeholder="e.g., 444"/>
             </group>
             <group string="Data">
               <field name="svc_data"/>
               <field name="data_vlan" invisible="not svc_data"/>
             </group>
           </group>
+
+          <div class="alert alert-warning" role="alert">
+            <strong>⚠️ Registration Command:</strong><br/>
+            <code>interface <field name="interface" readonly="1" nolabel="1" class="d-inline"/></code><br/>
+            <code>onu <field name="onu_slot" readonly="1" nolabel="1" class="d-inline"/> type <field name="onu_type" readonly="1" nolabel="1" class="d-inline"/> sn <field name="serial" readonly="1" nolabel="1" class="d-inline"/></code>
+          </div>
         </sheet>
         <footer>
-          <button name="action_register" type="object" string="Register" class="btn-primary"/>
-          <button string="Close" class="btn-secondary" special="cancel"/>
+          <button name="action_register" type="object" string="Register Now" class="btn-primary" icon="fa-play-circle"/>
+          <button string="Cancel" class="btn-secondary" special="cancel"/>
         </footer>
       </form>
     </field>

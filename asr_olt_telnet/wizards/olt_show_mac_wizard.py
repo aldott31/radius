@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
-import re, time, telnetlib
+import re, time, telnetlib, logging
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError, ValidationError
 
+_logger = logging.getLogger(__name__)
+
+# --- MAC helpers ---
 _MAC_RE = re.compile(r'[0-9A-Fa-f]{2}([:\-\.]?[0-9A-Fa-f]{2}){5}')
 
 def _sanitize_mac(mac):
@@ -15,24 +18,23 @@ def _sanitize_mac(mac):
     return mac.upper()
 
 def _mac_to_dot4(mac):
-    """Convert any MAC into xxxx.xxxx.xxxx (lower-case) expected by your OLT."""
+    """AA:BB:CC:DD:EE:FF -> xxxx.xxxx.xxxx (lower)"""
     if not mac:
         return ''
     hexes = re.findall(r'[0-9A-Fa-f]{2}', mac)
     if len(hexes) != 6:
         return mac
-    s = ''.join(h.lower() for h in hexes)  # 12 hex chars
+    s = ''.join(h.lower() for h in hexes)
     return '.'.join([s[0:4], s[4:8], s[8:12]])
 
-# --- NEW: parser për "show mac" → (pon_path, vlan) ---
+# --- (opsionale) parse i output-it të 'show mac' për login port ---
 _P_PORT = re.compile(r'vport-(\d+)/(\d+)/(\d+)\.(\d+):(\d+)', re.I)
 _P_ROW  = re.compile(r'(?i)^\s*[0-9a-f:.\-]{12,}\s+(\d+)\s+\S+\s+([a-z\-0-9/.:]+)', re.M)
 
 def _extract_vlan_pon_path(output_text: str):
     """
-    Kthen (pon_path, vlan) p.sh. ('1/2/2/27','1662') ose (None,None)
-    nga rreshta të tipit:
-    909a.4a92.35fc   1662   Dynamic   vport-1/2/2.27:1
+    Kthen (pon_path, vlan), p.sh. ('1/2/2/27','1662') ose (None,None)
+      909a.4a92.35fc   1662   Dynamic   vport-1/2/2.27:1
     """
     if not output_text:
         return None, None
@@ -40,11 +42,11 @@ def _extract_vlan_pon_path(output_text: str):
     if not m:
         return None, None
     vlan = m.group(1)
-    port = m.group(2)  # p.sh. vport-1/2/2.27:1
+    port = m.group(2)
     m2 = _P_PORT.search(port)
     if not m2:
         return None, vlan
-    pon_path = f"{m2.group(1)}/{m2.group(2)}/{m2.group(3)}/{m2.group(4)}"  # 1/2/2/27
+    pon_path = f"{m2.group(1)}/{m2.group(2)}/{m2.group(3)}/{m2.group(4)}"
     return pon_path, vlan
 
 class OltShowMacWizard(models.TransientModel):
@@ -57,38 +59,66 @@ class OltShowMacWizard(models.TransientModel):
     result_text = fields.Text(string='Command Output', readonly=True)
     status = fields.Selection([('draft','Draft'),('ok','OK'),('error','Error')], default='draft', readonly=True)
 
+    # ---------------------------
+    # AUTOFILL MAC & OLT on open
+    # ---------------------------
     @api.model
     def default_get(self, fields_list):
         vals = super().default_get(fields_list)
-        user_id = self.env.context.get('default_user_id')
-        olt_id = self.env.context.get('default_olt_id')
-        mac = self.env.context.get('default_mac_address')
+        ctx = self.env.context or {}
 
-        active_model = self.env.context.get('active_model')
-        active_id = self.env.context.get('active_id')
-        if not user_id and active_model == 'asr.radius.user' and active_id:
-            user_id = active_id
-        if not olt_id and active_model == 'crm.access.device' and active_id:
-            olt_id = active_id
+        user_id = ctx.get('default_user_id')
+        olt_id  = ctx.get('default_olt_id')
+        mac     = ctx.get('default_mac_address')
 
+        # Merr active model/id kur hapet nga forma e user-it
+        am, aid = ctx.get('active_model'), ctx.get('active_id')
+        if not user_id and am == 'asr.radius.user' and aid:
+            user_id = aid
+        if not olt_id and am == 'crm.access.device' and aid:
+            olt_id = aid
+
+        # Vendos OLT nga user-i nëse mungon
+        user = None
         if user_id:
             try:
                 user = self.env['asr.radius.user'].browse(user_id)
-                if not olt_id and getattr(user, 'access_device_id', False):
-                    olt_id = user.access_device_id.id
-                if not mac and user and user.username:
-                    # NOTE: PPPoE Status backend përdor search_read/web_search_read
-                    rows = self.env['asr.radius.pppoe_status'].search_read(
-                        domain=[('username', '=', user.username)],
-                        fields=['circuit_id_mac'],
-                        limit=1
-                    )
-                    if rows:
-                        raw = (rows[0].get('circuit_id_mac') or '').strip()
-                        parts = raw.split('/')
-                        mac = (parts[-1] if parts else '').strip()
             except Exception:
-                pass
+                user = None
+
+        if user and not olt_id and getattr(user, 'access_device_id', False):
+            olt_id = user.access_device_id.id
+
+        # PRIORITET 1: PPPoE status (si te versioni yt që "e merrte")
+        if (not mac) and user and getattr(user, 'username', False):
+            try:
+                rows = self.env['asr.radius.pppoe_status'].search_read(
+                    domain=[('username', '=', user.username)],
+                    fields=['circuit_id_mac'],
+                    limit=1
+                )
+                if rows:
+                    raw = (rows[0].get('circuit_id_mac') or '').strip()
+                    mac = (raw.split('/')[-1] or '').strip()
+            except Exception as e:
+                _logger.debug("PPPoE status read failed: %s", e)
+
+        # PRIORITET 2: Sesioni i fundit (calling-station-id) në asr.radius.session
+        if (not mac) and user and getattr(user, 'username', False):
+            try:
+                Session = self.env['asr.radius.session'].sudo()
+                last = Session.search([('username', '=', user.username)],
+                                      order='acctstarttime desc, id desc', limit=1)
+                if last:
+                    mac_val = ''
+                    # provoj disa emra fushash që hasen zakonisht
+                    for cand in ('callingstationid', 'calling_station_id', 'mac', 'calling_station', 'calling_station_mac'):
+                        if cand in last._fields:
+                            mac_val = getattr(last, cand) or mac_val
+                    if mac_val:
+                        mac = mac_val
+            except Exception as e:
+                _logger.debug("Session lookup failed: %s", e)
 
         if mac:
             vals['mac_address'] = _sanitize_mac(mac)
@@ -100,7 +130,7 @@ class OltShowMacWizard(models.TransientModel):
 
     @api.onchange('user_id')
     def _onchange_user_id(self):
-        # rifresko OLT & MAC kur ndryshohet user-i
+        """Rifresko OLT & MAC kur ndryshohet user-i (si te versioni yt i vjetër)"""
         for wiz in self:
             wiz.mac_address = False
             wiz.olt_id = False
@@ -109,22 +139,28 @@ class OltShowMacWizard(models.TransientModel):
                 continue
             if getattr(user, 'access_device_id', False):
                 wiz.olt_id = user.access_device_id.id
-            if user.username:
-                rows = self.env['asr.radius.pppoe_status'].search_read(
-                    domain=[('username', '=', user.username)],
-                    fields=['circuit_id_mac'],
-                    limit=1
-                )
-                if rows:
-                    raw = (rows[0].get('circuit_id_mac') or '').strip()
-                    mac = (raw.split('/')[-1] or '').strip()
-                    wiz.mac_address = _sanitize_mac(mac)
+            if getattr(user, 'username', False):
+                try:
+                    rows = self.env['asr.radius.pppoe_status'].search_read(
+                        domain=[('username', '=', user.username)],
+                        fields=['circuit_id_mac'],
+                        limit=1
+                    )
+                    if rows:
+                        raw = (rows[0].get('circuit_id_mac') or '').strip()
+                        mac = (raw.split('/')[-1] or '').strip()
+                        wiz.mac_address = _sanitize_mac(mac)
+                except Exception:
+                    pass
 
-    def _telnet_run(self, host, username, password, command, timeout=8):
+    # ---------------
+    # TELNET RUNNER
+    # ---------------
+    def _telnet_run(self, host, username, password, command, timeout=10):
         if not host:
             raise UserError(_('Missing OLT IP/host.'))
         if not username or not password:
-            raise UserError(_('Set OLT Username/Password on the Company form (FreeRADIUS page).'))
+            raise UserError(_('Set OLT credentials on the OLT form or Company settings.'))
 
         chunks = []
         try:
@@ -132,61 +168,73 @@ class OltShowMacWizard(models.TransientModel):
         except Exception as e:
             raise UserError(_('Telnet could not connect to %s: %s') % (host, str(e)))
         try:
-            try:
-                idx,_,_ = tn.expect([b'Username:', b'Login:'], timeout)
-                if idx != -1:
-                    tn.write((username + '\n').encode('ascii', errors='ignore'))
-            except Exception: pass
-            try:
-                idx,_,_ = tn.expect([b'Password:'], timeout)
-                if idx != -1:
-                    tn.write((password + '\n').encode('ascii', errors='ignore'))
-            except Exception: pass
+            idx,_,_ = tn.expect([b'Username:', b'Login:', b'login:'], timeout)
+            if idx == -1:
+                raise UserError(_('Did not receive Username prompt from %s') % host)
+            tn.write((username + '\n').encode('ascii', errors='ignore'))
+            time.sleep(0.3)
 
-            tn.expect([b'>', b'#', b'$'], timeout)
-            tn.write((command + '\n').encode('ascii', errors='ignore'))
+            idx,_,_ = tn.expect([b'Password:', b'password:'], timeout)
+            if idx == -1:
+                raise UserError(_('Did not receive Password prompt from %s') % host)
+            tn.write((password + '\n').encode('ascii', errors='ignore'))
             time.sleep(0.5)
-            buf = tn.read_very_eager()
 
+            idx,_,text = tn.expect([
+                b'>', b'#', b'$',            # success
+                b'Username:',                # auth failed
+                b'Authentication failed',
+                b'Login incorrect',
+                b'Access denied'
+            ], timeout)
+            if idx >= 3 or idx == -1:
+                raise UserError(_('Authentication FAILED for %s@%s.\nGot: %s') %
+                                (username, host, text.decode('utf-8', errors='ignore')[:300]))
+
+            tn.write((command + '\n').encode('ascii', errors='ignore'))
+            time.sleep(0.6)
+            buf = tn.read_very_eager()
             attempts = 0
-            while attempts < 15 and (b'More' in buf or b'--More--' in buf or b'---- More ----' in buf):
-                chunks.append(buf.replace(b'\x08', b''))
+            while attempts < 18 and (b'More' in buf or b'--More--' in buf or b'---- More ----' in buf):
                 tn.write(b' ')
-                time.sleep(0.35)
-                buf = tn.read_very_eager()
+                time.sleep(0.3)
+                buf += tn.read_very_eager()
                 attempts += 1
             chunks.append(buf)
-            try: tn.write(b'\nquit\n')
-            except Exception: pass
+            try:
+                tn.write(b'\nquit\n')
+            except Exception:
+                pass
         finally:
-            try: tn.close()
-            except Exception: pass
+            try:
+                tn.close()
+            except Exception:
+                pass
 
         data = b''.join(chunks) if chunks else b''
         return data.replace(b'\x00', b'').decode('utf-8', errors='ignore').strip()
 
+    # ---------------
+    # ACTION
+    # ---------------
     def action_run(self):
         self.ensure_one()
-        # 1) Accept any MAC input, normalize for validation purposes
+
         mac_ui = (self.mac_address or '').strip()
-        mac_norm = _sanitize_mac(mac_ui)  # AA:BB:...
+        mac_norm = _sanitize_mac(mac_ui)
         if not _MAC_RE.search(mac_norm):
             raise ValidationError(_('Invalid MAC format: %s') % mac_ui)
 
-        # 2) Convert to vendor format xxxx.xxxx.xxxx for the command
         mac_cmd = _mac_to_dot4(mac_norm)
 
         device = self.olt_id
         if not device or not getattr(device, 'ip_address', False):
-            raise UserError(_('OLT missing Management IP. Set it on the Access Device form.'))
+            raise UserError(_('OLT missing Management IP.'))
 
-        company = self.env.company.sudo()
-        user = (company.olt_telnet_username or '').strip()
-        pwd = (company.olt_telnet_password or '').strip()
-        if not user or not pwd:
-            raise UserError(_('Set OLT Username/Password on the Company form (FreeRADIUS page).'))
+        # ✅ Përdor cred-et e OLT-it (fallback te Company brenda helper-it)
+        user, pwd = device.get_telnet_credentials()
 
-        output = self._telnet_run(device.ip_address.strip(), user, pwd, f'show mac {mac_cmd}', timeout=8)
+        output = self._telnet_run(device.ip_address.strip(), user, pwd, f'show mac {mac_cmd}', timeout=10)
         status = 'ok' if output else 'error'
         self.write({
             'mac_address': mac_norm,
@@ -194,7 +242,7 @@ class OltShowMacWizard(models.TransientModel):
             'status': status,
         })
 
-        # --- NEW: Nxirr "Login Port" dhe ruaje te user-i (p.sh. 10.50.60.103 pon 1/2/2/27:1662)
+        # (opsionale) përditëso Login Port te user-i
         if self.user_id and output:
             pon_path, vlan = _extract_vlan_pon_path(output)
             if pon_path and vlan and device.ip_address:
