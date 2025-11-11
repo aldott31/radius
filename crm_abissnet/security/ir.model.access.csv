@@ -10,7 +10,3 @@ access_crm_access_device_manager,crm.access.device manager,model_crm_access_devi
 access_crm_fiber_closure_user,crm.fiber.closure user,model_crm_fiber_closure,group_crm_user,1,0,0,0
 access_crm_fiber_closure_manager,crm.fiber.closure manager,model_crm_fiber_closure,group_crm_manager,1,1,1,1
 access_crm_fiber_assignment_wizard,crm.fiber.assignment.wizard,model_crm_fiber_assignment_wizard,group_crm_manager,1,1,1,1
-access_crm_onu_user,access.crm.onu.user,model_crm_onu,base.group_user,1,1,1,1
-access_crm_onu_provision_user,access.crm.onu.provision.user,model_crm_onu_provision,base.group_user,1,1,1,1
-access_crm_onu_register_wizard_user,access.crm.onu.register.wizard.user,model_crm_onu_register_wizard,group_crm_user,1,1,1,1
-access_crm_onu_register_wizard_manager,access.crm.onu.register.wizard.manager,model_crm_onu_register_wizard,group_crm_manager,1,1,1,1
