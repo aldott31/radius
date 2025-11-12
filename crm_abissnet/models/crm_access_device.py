@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
 
 
 class CrmAccessDevice(models.Model):
@@ -28,9 +28,76 @@ class CrmAccessDevice(models.Model):
         ('other', 'Other'),
     ], string="Device Type", required=True, default='olt', tracking=True)
 
-    # Technical specs
-    manufacturer = fields.Char(string="Manufacturer", help="e.g., Huawei, ZTE, Cisco")
-    model = fields.Char(string="Model")
+    # ✅ UPDATED: Selection fields for better data quality
+    manufacturer = fields.Selection([
+        ('ZTE', 'ZTE'),
+        ('Huawei', 'Huawei'),
+        ('Cisco', 'Cisco'),
+        ('Nokia', 'Nokia'),
+        ('Fiberhome', 'Fiberhome'),
+        ('Alcatel', 'Alcatel-Lucent'),
+        ('other', 'Other'),
+    ], string="Manufacturer", tracking=True, help="Select device manufacturer")
+
+    manufacturer_other = fields.Char(string="Other Manufacturer",
+                                     help="Specify if 'Other' selected",
+                                     invisible="manufacturer != 'other'")
+
+    model = fields.Selection([
+        # ZTE OLT Models
+        ('C220', 'ZTE C220'),
+        ('C300', 'ZTE C300'),
+        ('C320', 'ZTE C320'),
+        ('C600', 'ZTE C600'),
+        ('C650', 'ZTE C650'),
+        ('C680', 'ZTE C680'),
+        # Huawei OLT Models
+        ('MA5800-X2', 'Huawei MA5800-X2'),
+        ('MA5800-X7', 'Huawei MA5800-X7'),
+        ('MA5800-X15', 'Huawei MA5800-X15'),
+        ('MA5800-X17', 'Huawei MA5800-X17'),
+        ('MA5600T', 'Huawei MA5600T'),
+        ('MA5683T', 'Huawei MA5683T'),
+        # Fiberhome
+        ('AN5516-01', 'Fiberhome AN5516-01'),
+        ('AN5516-04', 'Fiberhome AN5516-04'),
+        # Nokia
+        ('7360-ISAM-FX', 'Nokia 7360 ISAM FX'),
+        # Other
+        ('other', 'Other (specify below)'),
+    ], string="Model", tracking=True, help="Select device model")
+
+    model_custom = fields.Char(string="Custom Model",
+                               help="Specify model if not in list",
+                               invisible="model != 'other'")
+
+    # Model display name (computed for easy reference)
+    model_display = fields.Char(string="Model Name", compute='_compute_model_display', store=True)
+
+    @api.depends('manufacturer', 'manufacturer_other', 'model', 'model_custom')
+    def _compute_model_display(self):
+        """Create a readable model display name"""
+        for rec in self:
+            parts = []
+
+            if rec.manufacturer:
+                if rec.manufacturer == 'other' and rec.manufacturer_other:
+                    parts.append(rec.manufacturer_other)
+                elif rec.manufacturer != 'other':
+                    parts.append(rec.manufacturer)
+
+            if rec.model:
+                if rec.model == 'other' and rec.model_custom:
+                    parts.append(rec.model_custom)
+                elif rec.model != 'other':
+                    # Extract just model name (remove manufacturer prefix if exists)
+                    model_name = rec.model
+                    if ' ' in model_name:
+                        model_name = model_name.split(' ', 1)[1]
+                    parts.append(model_name)
+
+            rec.model_display = ' '.join(parts) if parts else ''
+
     ip_address = fields.Char(string="Management IP")
     mac_address = fields.Char(string="MAC Address")
 
@@ -60,6 +127,23 @@ class CrmAccessDevice(models.Model):
     company_id = fields.Many2one('res.company', default=lambda self: self.env.company)
     installation_date = fields.Date(string="Installation Date")
     notes = fields.Text(string="Notes")
+
+    # --- Default VLANs on the OLT (allow CSV) ---
+    internet_vlan = fields.Char(string="Internet VLAN(s)", tracking=True,
+                                help="CSV p.sh. 1604,1614,1606")
+    tv_vlan = fields.Char(string="TV VLAN(s)", tracking=True,
+                          help="CSV ose një vlerë p.sh. 2020")
+    voice_vlan = fields.Char(string="Voice VLAN(s)", tracking=True,
+                             help="CSV ose një vlerë p.sh. 444")
+
+    # --- Telnet Credentials (per OLT specifike) ---
+    telnet_username = fields.Char(string="Telnet Username", tracking=True,
+                                  help="Username për Telnet access (overrides company default)")
+    telnet_password = fields.Char(string="Telnet Password", tracking=True,
+                                  help="Password për Telnet access (overrides company default)")
+    use_custom_credentials = fields.Boolean(string="Use Custom Credentials", default=False,
+                                            tracking=True,
+                                            help="Nëse True, përdor credentials nga kjo OLT në vend të company defaults")
 
     def _compute_customer_count(self):
         """✅ FIX: Count via search instead of One2many"""
@@ -109,14 +193,6 @@ class CrmAccessDevice(models.Model):
                     % (rec.name, count, rec.port_count)
                 )
 
-    # --- Default VLANs on the OLT (allow CSV) ---
-    internet_vlan = fields.Char(string="Internet VLAN(s)", tracking=True,
-                                help="CSV p.sh. 1604,1614,1606")
-    tv_vlan = fields.Char(string="TV VLAN(s)", tracking=True,
-                          help="CSV ose një vlerë p.sh. 2020")
-    voice_vlan = fields.Char(string="Voice VLAN(s)", tracking=True,
-                             help="CSV ose një vlerë p.sh. 444")
-
     @api.constrains('internet_vlan', 'tv_vlan', 'voice_vlan')
     def _check_vlans_csv(self):
         import re
@@ -134,16 +210,6 @@ class CrmAccessDevice(models.Model):
                     n = int(t)
                     if n < 1 or n > 4094:
                         raise ValidationError(_("%s: VLAN %s jashtë intervalit 1–4094.") % (label, n))
-
-        # --- Telnet Credentials (per OLT specifike) ---
-
-    telnet_username = fields.Char(string="Telnet Username", tracking=True,
-                                  help="Username për Telnet access (overrides company default)")
-    telnet_password = fields.Char(string="Telnet Password", tracking=True,
-                                  help="Password për Telnet access (overrides company default)")
-    use_custom_credentials = fields.Boolean(string="Use Custom Credentials", default=False,
-                                            tracking=True,
-                                            help="Nëse True, përdor credentials nga kjo OLT në vend të company defaults")
 
     def get_telnet_credentials(self):
         """
@@ -164,3 +230,31 @@ class CrmAccessDevice(models.Model):
             raise UserError(_('Configure Telnet credentials on OLT form or Company settings (FreeRADIUS page).'))
 
         return user, pwd
+
+    def get_command_reference(self):
+        """
+        Kthen një dictionary me komanda të rekomanduara bazuar në modelin e OLT
+        """
+        self.ensure_one()
+
+        model = (self.model or '').upper()
+        manufacturer = (self.manufacturer or '').upper()
+
+        commands = {
+            'gpon_uncfg': 'show gpon onu uncfg',
+            'epon_uncfg': 'show onu unauthentication',
+            'config_save': 'write',
+        }
+
+        # ZTE C600/C650 series
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            commands['gpon_uncfg'] = 'show pon onu uncfg'
+            commands['config_save'] = 'write'
+
+        # Huawei
+        elif 'HUAWEI' in manufacturer or 'MA5800' in model or 'MA5600' in model:
+            commands['gpon_uncfg'] = 'display ont autofind all'
+            commands['config_save'] = 'save'
+            commands['epon_uncfg'] = 'N/A (GPON only)'
+
+        return commands

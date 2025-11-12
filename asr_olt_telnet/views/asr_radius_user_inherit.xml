@@ -14,7 +14,7 @@
                 name="%(asr_olt_telnet.action_open_olt_show_mac_wizard_from_device)d"
                 context="{'default_olt_id': access_device_id}"
                 invisible="not access_device_id">
-          <span class="o_stat_text">Show on OLT</span>
+          <span class="o_stat_text">Show Login Port</span>
         </button>
 
 

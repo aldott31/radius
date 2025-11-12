@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'ASR OLT Telnet Tools',
-    'summary': 'Telnet to OLT and run "show mac <MAC>" (auto formats MAC as xxxx.xxxx.xxxx)',
-    'version': '18.0.1.0.3',
+    'summary': 'Telnet to OLT and run commands (supports C300, C600, Huawei)',
+    'version': '18.0.1.0.4',
     'category': 'Network',
     'author': 'Abissnet',
     'license': 'LGPL-3',
@@ -12,6 +12,7 @@
         'views/olt_show_mac_wizard_views.xml',
         'views/olt_onu_uncfg_wizard_views.xml',
         'views/olt_quick_register_wizard_views.xml',
+        'views/olt_command_test_wizard_views.xml',  # ← NEW
         'views/asr_radius_user_inherit.xml',
         'views/crm_access_device_inherit.xml',
     ],

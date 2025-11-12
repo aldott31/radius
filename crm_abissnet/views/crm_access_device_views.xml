@@ -17,7 +17,7 @@
         <field name="pop_id"/>
         <field name="device_type"/>
         <field name="manufacturer"/>
-        <field name="model"/>
+        <field name="model_display"/>
         <field name="operational_status"/>
         <field name="port_count"/>
         <field name="ports_used"/>
@@ -25,6 +25,7 @@
         <field name="capacity_percentage" widget="progressbar"/>
         <field name="customer_count"/>
         <field name="active" column_invisible="1"/>
+        <field name="model" column_invisible="1"/>
       </list>
     </field>
   </record>
@@ -73,9 +74,19 @@
             </group>
 
             <group string="Technical Specs">
-              <field name="manufacturer" placeholder="e.g., Huawei, ZTE"/>
-              <field name="model" placeholder="e.g., MA5800-X7"/>
-              <field name="ip_address" placeholder="192.168.1.1"/>
+              <field name="manufacturer" required="1"/>
+              <field name="manufacturer_other" placeholder="Specify manufacturer"
+                     invisible="manufacturer != 'other'" required="manufacturer == 'other'"/>
+
+              <field name="model" required="1"/>
+              <field name="model_custom" placeholder="Specify model"
+                     invisible="model != 'other'" required="model == 'other'"/>
+
+              <field name="model_display" readonly="1"
+                     invisible="not model_display"
+                     class="text-muted"/>
+
+              <field name="ip_address" placeholder="192.168.1.1" required="1"/>
               <field name="mac_address" placeholder="AA:BB:CC:DD:EE:FF"/>
               <field name="installation_date"/>
             </group>
@@ -96,32 +107,131 @@
                      help="Link to RADIUS NAS configuration"/>
               <field name="company_id" groups="base.group_multi_company"/>
             </group>
-
-            <!-- ✅ Default VLANs (për wizard-in e ONU, prefilled nga OLT) -->
-            <group string="Default VLANs">
-              <field name="internet_vlan"/>
-              <field name="tv_vlan"/>
-              <field name="voice_vlan"/>
-            </group>
           </group>
 
-          <!-- ✅ Telnet Credentials (OLT-specific) -->
-        <group string="Telnet Access (Override Company Defaults)" col="1">
-          <field name="use_custom_credentials"/>
-           <group invisible="not use_custom_credentials">
-             <group>
-               <field name="telnet_username" placeholder="e.g., albi" required="use_custom_credentials"/>
-               <field name="telnet_password" password="True" required="use_custom_credentials"/>
-             </group>
-             <group>
-               <div class="alert alert-info" role="alert">
-                 <strong>ℹ️ OLT-Specific Credentials</strong><br/>
-                 Nëse enabled, këto credentials do përdoren në vend të company defaults
-                 (Company → FreeRADIUS page → OLT Telnet Username/Password).
-               </div>
-             </group>
-           </group>
-        </group>
+          <!-- Notebook -->
+          <notebook>
+
+            <!-- ✅ NEW: Command Reference Page -->
+            <page string="Command Reference">
+              <group col="1">
+                <div class="alert alert-info" role="alert">
+                  <h4>📖 OLT Command Reference</h4>
+                  <p>Commands for <strong><field name="model_display" nolabel="1" readonly="1" class="d-inline"/></strong></p>
+                </div>
+              </group>
+
+              <group string="Standard Commands">
+                <table class="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>Function</th>
+                      <th>Command</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- ZTE C300 Series -->
+                    <tr invisible="model not in ['C220', 'C300', 'C320']">
+                      <td><strong>GPON Unconfigured</strong></td>
+                      <td><code>show gpon onu uncfg</code></td>
+                      <td>C220/C300/C320 standard</td>
+                    </tr>
+
+                    <!-- ZTE C600 Series -->
+                    <tr invisible="model not in ['C600', 'C650', 'C680']">
+                      <td><strong>GPON Unconfigured</strong></td>
+                      <td><code>show pon onu uncfg</code></td>
+                      <td class="text-success">✅ C600+ unified command</td>
+                    </tr>
+
+                    <!-- Huawei -->
+                    <tr invisible="manufacturer != 'Huawei'">
+                      <td><strong>GPON Autofind</strong></td>
+                      <td><code>display ont autofind all</code></td>
+                      <td>Huawei MA series</td>
+                    </tr>
+
+                    <!-- EPON (all ZTE) -->
+                    <tr invisible="manufacturer != 'ZTE'">
+                      <td><strong>EPON Unconfigured</strong></td>
+                      <td><code>show onu unauthentication</code></td>
+                      <td>All ZTE models</td>
+                    </tr>
+
+                    <!-- Config Save -->
+                    <tr>
+                      <td><strong>Save Config</strong></td>
+                      <td>
+                        <code invisible="manufacturer != 'Huawei'">save</code>
+                        <code invisible="manufacturer == 'Huawei'">write</code>
+                      </td>
+                      <td>Persist configuration</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </group>
+
+              <group string="Interface Commands" col="1">
+                <div class="text-muted">
+                  <strong>Access interface configuration:</strong><br/>
+                  ZTE: <code>interface gpon-olt_1/1/1</code> or <code>interface pon-olt_1/1/1</code> (C600+)<br/>
+                  Huawei: <code>interface gpon 0/1</code><br/><br/>
+
+                  <strong>Register ONU:</strong><br/>
+                  ZTE: <code>onu 1 type ZTE-F612 sn ZTEGC1234567</code><br/>
+                  Huawei: <code>ont add 0 sn-auth HWTC12345678 ont-lineprofile-id 5 ont-srvprofile-id 5</code>
+                </div>
+              </group>
+            </page>
+
+            <!-- Default VLANs -->
+            <page string="Default VLANs">
+              <group string="VLAN Configuration (CSV format supported)">
+                <field name="internet_vlan" placeholder="e.g., 1604,1614,1606"/>
+                <field name="tv_vlan" placeholder="e.g., 2020"/>
+                <field name="voice_vlan" placeholder="e.g., 444"/>
+              </group>
+
+              <div class="alert alert-warning" role="alert">
+                <strong>ℹ️ VLAN Format:</strong><br/>
+                • Single value: <code>1604</code><br/>
+                • Multiple values (CSV): <code>1604,1614,1606</code><br/>
+                • Valid range: 1-4094
+              </div>
+            </page>
+
+            <!-- Telnet Access -->
+            <page string="Telnet Access">
+              <group string="Custom Credentials (Optional)">
+                <field name="use_custom_credentials"/>
+              </group>
+
+              <group invisible="not use_custom_credentials">
+                <group>
+                  <field name="telnet_username" placeholder="e.g., admin"
+                         required="use_custom_credentials"/>
+                  <field name="telnet_password" password="True"
+                         required="use_custom_credentials"/>
+                </group>
+                <group>
+                  <div class="alert alert-info" role="alert">
+                    <strong>ℹ️ Credential Priority:</strong><br/>
+                    1. OLT-specific credentials (if enabled)<br/>
+                    2. Company defaults (from FreeRADIUS settings)<br/><br/>
+                    If disabled, system uses company-wide credentials from:<br/>
+                    <strong>Company → FreeRADIUS → OLT Telnet Username/Password</strong>
+                  </div>
+                </group>
+              </group>
+            </page>
+
+            <!-- Notes -->
+            <page string="Notes">
+              <field name="notes" nolabel="1" placeholder="Installation notes, configuration details, etc."/>
+            </page>
+
+          </notebook>
 
         </sheet>
 
@@ -145,6 +255,7 @@
         <field name="pop_id"/>
         <field name="manufacturer"/>
         <field name="model"/>
+        <field name="model_display"/>
         <field name="ip_address"/>
 
         <filter string="Active" name="active" domain="[('active', '=', True)]"/>
@@ -160,12 +271,21 @@
         <filter string="DSLAM" name="dslam" domain="[('device_type', '=', 'dslam')]"/>
         <filter string="Switch" name="switch" domain="[('device_type', '=', 'switch')]"/>
 
+        <separator/>
+        <filter string="ZTE" name="zte" domain="[('manufacturer', '=', 'ZTE')]"/>
+        <filter string="Huawei" name="huawei" domain="[('manufacturer', '=', 'Huawei')]"/>
+
+        <separator/>
+        <filter string="C300 Series" name="c300" domain="[('model', 'in', ['C220', 'C300', 'C320'])]"/>
+        <filter string="C600 Series" name="c600" domain="[('model', 'in', ['C600', 'C650', 'C680'])]"/>
+
         <group expand="0" string="Group By">
           <filter string="City" name="g_city" context="{'group_by': 'city_id'}"/>
           <filter string="POP" name="g_pop" context="{'group_by': 'pop_id'}"/>
           <filter string="Device Type" name="g_type" context="{'group_by': 'device_type'}"/>
-          <filter string="Status" name="g_status" context="{'group_by': 'operational_status'}"/>
           <filter string="Manufacturer" name="g_manu" context="{'group_by': 'manufacturer'}"/>
+          <filter string="Model" name="g_model" context="{'group_by': 'model'}"/>
+          <filter string="Status" name="g_status" context="{'group_by': 'operational_status'}"/>
         </group>
       </search>
     </field>
@@ -176,10 +296,17 @@
     <field name="name">Access Devices</field>
     <field name="res_model">crm.access.device</field>
     <field name="view_mode">list,form</field>
-    <field name="context">{'search_default_active': 1}</field>
+    <field name="context">{'search_default_active': 1, 'search_default_olt': 1}</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">Add your first access device</p>
-      <p>Access devices (OLTs, DSLAMs, Switches) are the physical equipment<br/>that connect customers to your network at each POP location.</p>
+      <p>
+        Access devices (OLTs, DSLAMs, Switches) are the physical equipment<br/>
+        that connect customers to your network at each POP location.<br/><br/>
+        <strong>Supported OLT Models:</strong><br/>
+        • ZTE C220/C300/C320 (uses <code>show gpon onu uncfg</code>)<br/>
+        • ZTE C600/C650/C680 (uses <code>show pon onu uncfg</code>)<br/>
+        • Huawei MA5800/MA5600 (uses <code>display ont autofind all</code>)
+      </p>
     </field>
   </record>
 

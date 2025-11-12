@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+  <!-- Form View -->
+  <record id="view_olt_command_test_wizard_form" model="ir.ui.view">
+    <field name="name">olt.command.test.wizard.form</field>
+    <field name="model">olt.command.test.wizard</field>
+    <field name="arch" type="xml">
+      <form string="OLT Command Test" create="false">
+        <header>
+          <button name="action_run_test" type="object"
+                  string="Run Test" class="btn-primary"
+                  icon="fa-play-circle"/>
+          <field name="status" widget="statusbar"
+                 statusbar_visible="draft,success,error"/>
+        </header>
+
+        <sheet>
+
+          <!-- Device Info -->
+          <group string="OLT Device">
+            <field name="olt_id" options="{'no_create': True}" required="1"/>
+          </group>
+
+          <!-- Device Details (read-only) -->
+          <group invisible="not olt_id">
+            <group>
+              <label for="olt_id" string="Model"/>
+              <div>
+                <field name="olt_id" invisible="1"/>
+                <span class="text-muted">
+                  <field name="olt_id" readonly="1"
+                         options="{'always_reload': True}"
+                         context="{'show_model_display': True}"/>
+                </span>
+              </div>
+            </group>
+          </group>
+
+          <!-- Command Selection -->
+          <group string="Command Configuration">
+            <group>
+              <field name="command_type" widget="radio"/>
+              <field name="custom_command" placeholder="Enter command..."
+                     invisible="command_type != 'custom'"
+                     required="command_type == 'custom'"/>
+            </group>
+            <group>
+              <field name="timeout"/>
+            </group>
+          </group>
+
+          <!-- Command Preview -->
+          <group string="Command Preview" invisible="status != 'draft'">
+            <div class="alert alert-info" role="alert">
+              <strong>📋 Command to Execute:</strong><br/>
+
+              <!-- GPON -->
+              <code invisible="command_type != 'gpon_uncfg'">
+                Auto-detected based on OLT model:<br/>
+                • C300 series: show gpon onu uncfg<br/>
+                • C600 series: show pon onu uncfg<br/>
+                • Huawei: display ont autofind all
+              </code>
+
+              <!-- EPON -->
+              <code invisible="command_type != 'epon_uncfg'">
+                show onu unauthentication
+              </code>
+
+              <!-- Show Version -->
+              <code invisible="command_type != 'show_version'">
+                show version
+              </code>
+
+              <!-- Show Running -->
+              <code invisible="command_type != 'show_running'">
+                show running-config
+              </code>
+
+              <!-- Custom -->
+              <code invisible="command_type != 'custom'">
+                <field name="custom_command" readonly="1" nolabel="1"
+                       placeholder="(enter command above)" class="d-inline"/>
+              </code>
+            </div>
+          </group>
+
+          <!-- Results -->
+          <group string="Execution Results" invisible="status == 'draft'">
+            <group>
+              <field name="execution_time" widget="float_time"/>
+              <field name="status" invisible="1"/>
+            </group>
+          </group>
+
+          <!-- Success Output -->
+          <group string="Command Output" invisible="status != 'success'">
+            <field name="result_text" nolabel="1" readonly="1"
+                   widget="text" class="o_field_text"/>
+          </group>
+
+          <!-- Error Output -->
+          <group string="Error Details" invisible="status != 'error'">
+            <field name="error_message" nolabel="1" readonly="1"
+                   widget="text" class="text-danger"/>
+            <field name="result_text" nolabel="1" readonly="1"
+                   widget="text" class="text-muted"/>
+          </group>
+
+          <!-- Help Section -->
+          <group col="1" invisible="status != 'draft'">
+            <div class="alert alert-warning" role="alert">
+              <strong>⚠️ Testing Tips:</strong><br/>
+              • Ensure OLT is online and accessible<br/>
+              • Verify Telnet credentials are configured<br/>
+              • Start with simple commands (e.g., Show Version)<br/>
+              • Use Custom command for debugging specific issues
+            </div>
+          </group>
+
+        </sheet>
+
+        <footer>
+          <button string="Close" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <!-- Action -->
+  <record id="action_olt_command_test_wizard" model="ir.actions.act_window">
+    <field name="name">Test OLT Commands</field>
+    <field name="res_model">olt.command.test.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+    <field name="context">{'default_olt_id': active_id}</field>
+  </record>
+
+  <!-- Add button to Access Device form -->
+  <record id="view_crm_access_device_form_test_button" model="ir.ui.view">
+    <field name="name">crm.access.device.form.test.button</field>
+    <field name="model">crm.access.device</field>
+    <field name="inherit_id" ref="crm_abissnet.view_crm_access_device_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//header" position="inside">
+        <button name="%(action_olt_command_test_wizard)d" type="action"
+                string="Test Commands" class="btn-secondary"
+                icon="fa-terminal"
+                invisible="device_type != 'olt'"/>
+      </xpath>
+    </field>
+  </record>
+
+</odoo>
