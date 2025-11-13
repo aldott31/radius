@@ -12,6 +12,16 @@ _ONU_CHOICES = [
     ('ZTE-F6600', 'ZTE-F6600 ( ZTE-F6600 )'),
 ]
 
+_SPEED_PROFILE_CHOICES = [
+    ('10M', '10Mbps'),
+    ('20M', '20Mbps'),
+    ('50M', '50Mbps'),
+    ('100M', '100Mbps'),
+    ('200M', '200Mbps'),
+    ('500M', '500Mbps'),
+    ('1G', '1Gbps'),
+]
+
 class OltOnuRegisterQuick(models.TransientModel):
     _name = 'olt.onu.register.quick'
     _description = 'Quick Register ONU (from scan)'
@@ -29,21 +39,10 @@ class OltOnuRegisterQuick(models.TransientModel):
     function_mode = fields.Selection([('bridge','Bridge'),('router','Router')],
                                      string="Function Mode", required=True, default='bridge')
 
-    # Optional services (kept for UI completeness; no hard enforcement here)
-    svc_internet = fields.Boolean(string="Internet", default=True)
-    internet_vlan = fields.Char(string="Internet VLAN")
-    profile = fields.Char(string="Speed Profile (text)")
-    lan_selection = fields.Selection([('lan1','LAN1'),('lan2','LAN2'),('lan3','LAN3'),('lan4','LAN4')], string="Select LAN")
-    dhcp_option82 = fields.Selection([('enable','Enable'),('disable','Disable')], default='disable')
-
-    svc_tv = fields.Boolean(string="TV")
-    tv_vlan = fields.Char(string="TV VLAN")
-
-    svc_voice = fields.Boolean(string="Telefoni")
-    voice_vlan = fields.Char(string="Voice VLAN")
-
-    svc_data = fields.Boolean(string="Data")
-    data_vlan = fields.Char(string="Data VLAN")
+    # Internet configuration
+    internet_vlan = fields.Char(string="Internet VLAN", required=True)
+    speed_profile = fields.Selection(_SPEED_PROFILE_CHOICES, string="Speed Profile",
+                                     required=True, default='1G')
 
     @api.model
     def default_get(self, fields_list):
@@ -56,12 +55,20 @@ class OltOnuRegisterQuick(models.TransientModel):
         tech = ctx.get('default_technology', 'gpon')
         if 'onu_type' not in vals:
             vals['onu_type'] = 'ZTE-F612' if tech == 'gpon' else 'ZTE-F412'
+
+        # Set default internet_vlan from OLT if available
+        if 'access_device_id' in vals and vals['access_device_id']:
+            olt = self.env['crm.access.device'].browse(vals['access_device_id'])
+            if olt.internet_vlan:
+                vals['internet_vlan'] = olt.internet_vlan.split(',')[0].strip()
+
         return vals
 
     @api.onchange('access_device_id')
     def _onchange_access_device_id(self):
-        # If your device model has VLAN defaults, you can prefill here
-        return
+        # Prefill internet_vlan from OLT
+        if self.access_device_id and self.access_device_id.internet_vlan:
+            self.internet_vlan = self.access_device_id.internet_vlan.split(',')[0].strip()
 
     def _execute_telnet_session(self, host, username, password, command, timeout=12):
         chunks = []
@@ -121,20 +128,95 @@ class OltOnuRegisterQuick(models.TransientModel):
             raise UserError(_('OLT returned error: %s') % output[:500])
         return output
 
+    def _generate_router_config(self):
+        """Generate GPON Router (PPPoE) configuration commands"""
+        self.ensure_one()
+        if not self.customer_id.username or not self.customer_id.radius_password:
+            raise UserError(_('Customer missing RADIUS username or password for PPPoE configuration.'))
+
+        # Convert gpon-olt_1/2/15 -> gpon_onu-1/2/15:10
+        port_part = self.interface.replace('gpon-olt_', '')
+        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        vport_interface = f"vport-{port_part}.{self.onu_slot}:1"
+
+        commands = [
+            "conf t",
+            f"interface {onu_interface}",
+            f"name {self.customer_id.username}",
+            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
+            "gemport 1 tcont 1",
+            "$",
+            f"pon-onu-mng {onu_interface}",
+            f"service 1 gemport 1 vlan {self.internet_vlan}",
+            f"wan-ip ipv4 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
+            "security-mgmt 1 state enable mode forward protocol web",
+            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+            "$",
+            f"interface {vport_interface}",
+            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+            "port-identification operator-profile service-port 1 TEST",
+            "$",
+            "exit"
+        ]
+        return ";".join(commands)
+
+    def _generate_bridge_config(self):
+        """Generate GPON Bridge configuration commands"""
+        self.ensure_one()
+
+        # Convert gpon-olt_1/2/15 -> gpon_onu-1/2/15:10
+        port_part = self.interface.replace('gpon-olt_', '')
+        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        vport_interface = f"vport-{port_part}.{self.onu_slot}:1"
+
+        commands = [
+            "conf t",
+            f"interface {onu_interface}",
+            f"name {self.customer_id.username}",
+            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
+            "gemport 1 tcont 1",
+            "$",
+            f"pon-onu-mng {onu_interface}",
+            "dhcp-ip ethuni eth_0/1 from-internet",
+            f"service 1 gemport 1 vlan {self.internet_vlan}",
+            f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+            "security-mgmt 1 state enable mode forward protocol web",
+            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+            "$",
+            f"interface {vport_interface}",
+            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+            "port-identification operator-profile service-port 1 TEST",
+            "$",
+            "exit"
+        ]
+        return ";".join(commands)
+
     def action_register(self):
-        """Register ONU: conf t; interface <port>; onu <slot> type <type> sn <serial>"""
+        """Register ONU and configure it based on function_mode"""
         self.ensure_one()
 
         if not self.access_device_id or not getattr(self.access_device_id, 'ip_address', False):
             raise UserError(_('OLT missing Management IP.'))
 
+        if not self.customer_id.username:
+            raise UserError(_('Customer missing RADIUS username.'))
+
         # ✅ ALWAYS from OLT (helper handles fallback to Company)
         user, pwd = self.access_device_id.get_telnet_credentials()
 
         olt_ip = self.access_device_id.ip_address.strip()
-        registration_cmd = f"conf t;interface {self.interface};onu {self.onu_slot} type {self.onu_type} sn {self.serial};exit;exit"
 
+        # Step 1: Register ONU
+        registration_cmd = f"conf t;interface {self.interface};onu {self.onu_slot} type {self.onu_type} sn {self.serial};exit;exit"
         output = self._execute_telnet_session(olt_ip, user, pwd, registration_cmd)
+
+        # Step 2: Configure ONU based on function_mode
+        if self.function_mode == 'router':
+            config_cmd = self._generate_router_config()
+        else:  # bridge
+            config_cmd = self._generate_bridge_config()
+
+        output += "\n" + self._execute_telnet_session(olt_ip, user, pwd, config_cmd)
 
         # Optional: update customer record fields if they exist
         try:
@@ -152,24 +234,32 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         # Logs
         try:
+            mode_label = "PPPoE (Router)" if self.function_mode == 'router' else "Bridge"
+            speed_label = dict(_SPEED_PROFILE_CHOICES).get(self.speed_profile, self.speed_profile)
+
             self.customer_id.message_post(
-                body=_('✅ ONU Registered via Telnet:<br/>'
+                body=_('✅ ONU Registered & Configured via Telnet:<br/>'
                        '• Port: %(port)s<br/>'
                        '• Slot: %(slot)d<br/>'
                        '• Type: %(type)s<br/>'
                        '• SN: %(sn)s<br/>'
-                       '• Mode: %(mode)s') % {
+                       '• Mode: %(mode)s<br/>'
+                       '• VLAN: %(vlan)s<br/>'
+                       '• Speed: %(speed)s') % {
                     'port': self.interface,
                     'slot': self.onu_slot,
                     'type': self.onu_type,
                     'sn': self.serial,
-                    'mode': self.function_mode.upper()
+                    'mode': mode_label,
+                    'vlan': self.internet_vlan,
+                    'speed': speed_label
                 }
             )
             self.access_device_id.message_post(
-                body=_('ONU registered: Slot %(slot)d, SN %(sn)s by %(user)s') % {
+                body=_('ONU registered & configured: Slot %(slot)d, SN %(sn)s, Mode: %(mode)s by %(user)s') % {
                     'slot': self.onu_slot,
                     'sn': self.serial,
+                    'mode': mode_label,
                     'user': self.env.user.display_name
                 }
             )
@@ -180,11 +270,12 @@ class OltOnuRegisterQuick(models.TransientModel):
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
-                'title': _('✅ ONU Registered Successfully'),
-                'message': _('Port: %(port)s, Slot: %(slot)d, SN: %(sn)s') % {
+                'title': _('✅ ONU Registered & Configured Successfully'),
+                'message': _('Port: %(port)s:%(slot)d, Mode: %(mode)s, VLAN: %(vlan)s') % {
                     'port': self.interface,
                     'slot': self.onu_slot,
-                    'sn': self.serial
+                    'mode': mode_label,
+                    'vlan': self.internet_vlan
                 },
                 'type': 'success',
                 'sticky': False

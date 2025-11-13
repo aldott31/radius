@@ -26,25 +26,10 @@
             </group>
           </group>
 
-          <group string="Shërbimet">
-            <group string="Internet">
-              <field name="svc_internet"/>
-              <field name="internet_vlan" invisible="not svc_internet" placeholder="e.g., 1604"/>
-              <field name="profile" invisible="not svc_internet" placeholder="e.g., 500/50"/>
-              <field name="lan_selection" invisible="not svc_internet"/>
-              <field name="dhcp_option82" invisible="not svc_internet"/>
-            </group>
-            <group string="TV">
-              <field name="svc_tv"/>
-              <field name="tv_vlan" invisible="not svc_tv" placeholder="e.g., 2020"/>
-            </group>
-            <group string="Telefoni">
-              <field name="svc_voice"/>
-              <field name="voice_vlan" invisible="not svc_voice" placeholder="e.g., 444"/>
-            </group>
-            <group string="Data">
-              <field name="svc_data"/>
-              <field name="data_vlan" invisible="not svc_data"/>
+          <group string="Internet Configuration">
+            <group>
+              <field name="internet_vlan" placeholder="e.g., 1604, 1616" required="1"/>
+              <field name="speed_profile" required="1"/>
             </group>
           </group>
 
