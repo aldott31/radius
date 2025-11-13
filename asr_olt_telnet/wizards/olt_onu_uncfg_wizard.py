@@ -51,13 +51,29 @@ class OltOnuUncfgLine(models.TransientModel):
         return onu_index
 
     def _find_free_slot(self, olt_device, olt_port):
-        """Telnet → 'show running-config interface <port>' → parse slots → return first free"""
+        """Telnet → show config for port → parse slots → return first free
+
+        C300: show running-config interface gpon-olt_1/5/10
+        C600: show running gpon-olt-1/4/3 (sintaksë e ndryshme!)
+        """
         if not olt_device or not getattr(olt_device, 'ip_address', False):
             raise UserError(_('OLT device has no IP address'))
 
         user, pwd = olt_device.get_telnet_credentials()
 
-        cmd = f"show running-config interface {olt_port}"
+        # Detekto komandën e duhur bazuar në modelin e OLT
+        model = (olt_device.model or '').upper()
+
+        # C600/C650 përdorin sintaksë të ndryshme
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            # C600 format: gpon-olt_1/4/3 (me underscore pas 'olt')
+            # Por komanda duhet të jetë me dash: gpon-olt-1/4/3
+            port_for_cmd = olt_port.replace('_', '-')
+            cmd = f"show running {port_for_cmd}"
+        else:
+            # C300/C320 format standard
+            cmd = f"show running-config interface {olt_port}"
+
         output = self.wizard_id._telnet_run(
             olt_device.ip_address.strip(),
             user, pwd, cmd, timeout=10
