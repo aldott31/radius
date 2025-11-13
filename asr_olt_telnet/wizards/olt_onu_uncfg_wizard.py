@@ -111,6 +111,13 @@ class OltOnuUncfgWizard(models.TransientModel):
                             default='auto', required=True)
     result_text = fields.Text(string='Raw Output', readonly=True)
     line_ids = fields.One2many('olt.onu.uncfg.line', 'wizard_id', string="Unregistered ONUs")
+    onu_count = fields.Integer(string='ONU Count', compute='_compute_onu_count', store=False)
+
+    @api.depends('line_ids')
+    def _compute_onu_count(self):
+        """Count number of unregistered ONUs"""
+        for rec in self:
+            rec.onu_count = len(rec.line_ids)
 
     @api.model
     def default_get(self, fields_list):

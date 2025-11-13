@@ -6,16 +6,18 @@
     <field name="name">olt.onu.uncfg.line.list</field>
     <field name="model">olt.onu.uncfg.line</field>
     <field name="arch" type="xml">
-      <list string="Unregistered ONUs">
-        <field name="technology"/>
-        <field name="olt_index"/>
-        <field name="model"/>
-        <field name="mac"/>
-        <field name="sn"/>
-        <field name="raw"/>
+      <list string="Unregistered ONUs" create="false" edit="false" delete="false">
+        <field name="technology" string="Tech"
+               decoration-info="technology == 'gpon'"
+               decoration-success="technology == 'epon'"/>
+        <field name="olt_index" string="OLT Port"/>
+        <field name="model" string="ONU Model"/>
+        <field name="mac" string="MAC Address" optional="hide"/>
+        <field name="sn" string="Serial Number"/>
         <button name="action_open_register"
                 type="object"
                 string="Register"
+                icon="fa-play-circle"
                 class="btn-primary"/>
       </list>
     </field>
@@ -28,22 +30,51 @@
     <field name="arch" type="xml">
       <form string="Unregistered ONUs" create="false" edit="false">
         <header>
-          <button name="action_fetch" type="object" string="Fetch from OLT" class="btn-primary"/>
+          <button name="action_fetch" type="object" string="🔍 Fetch from OLT" class="btn-primary"/>
         </header>
         <sheet>
+          <div class="alert alert-info" role="alert" attrs="{'invisible': [('onu_count', '=', 0)]}">
+            <strong>📡 Found <field name="onu_count" readonly="1" nolabel="1" class="d-inline"/> unregistered ONU(s)</strong><br/>
+            Select an ONU and click <strong>Register</strong> to provision it.
+          </div>
+
+          <div class="alert alert-warning" role="alert" attrs="{'invisible': [('onu_count', '!=', 0)]}">
+            <strong>ℹ️ No unregistered ONUs found</strong><br/>
+            Click <strong>🔍 Fetch from OLT</strong> to scan for unregistered devices.
+          </div>
+
           <group>
-            <field name="user_id" options="{'no_open': True}"/>
-            <field name="olt_id" required="1" options="{'no_open': True}"/>
-            <field name="tech"/>
+            <group string="Filter Settings">
+              <field name="user_id" string="Customer (optional)" options="{'no_open': True}"/>
+              <field name="olt_id" required="1" string="OLT Device" options="{'no_open': True}"/>
+            </group>
+            <group string="Technology">
+              <field name="tech" widget="radio"/>
+            </group>
           </group>
+
           <notebook>
-            <page string="Unregistered ONUs">
-              <!-- Përdor list_view_ref për Odoo 17/18 -->
+            <page string="📋 Unregistered ONUs" name="onu_list">
               <field name="line_ids" nolabel="1"
-                     context="{'list_view_ref': 'asr_olt_telnet.view_olt_onu_uncfg_line_list'}"/>
+                     context="{'list_view_ref': 'asr_olt_telnet.view_olt_onu_uncfg_line_list'}">
+                <list string="Unregistered ONUs" create="false" edit="false" delete="false">
+                  <field name="technology" string="Tech"
+                         decoration-info="technology == 'gpon'"
+                         decoration-success="technology == 'epon'"/>
+                  <field name="olt_index" string="OLT Port"/>
+                  <field name="model" string="ONU Model"/>
+                  <field name="mac" string="MAC Address" optional="hide"/>
+                  <field name="sn" string="Serial Number"/>
+                  <button name="action_open_register"
+                          type="object"
+                          string="Register"
+                          icon="fa-play-circle"
+                          class="btn-primary"/>
+                </list>
+              </field>
             </page>
-            <page string="Raw Output">
-              <field name="result_text" readonly="1" widget="text"/>
+            <page string="📄 Raw Output" name="raw_output">
+              <field name="result_text" readonly="1" widget="text" nolabel="1"/>
             </page>
           </notebook>
         </sheet>
