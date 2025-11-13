@@ -27,19 +27,27 @@ class OltOnuUncfgLine(models.TransientModel):
 
     def _extract_olt_port(self, onu_index):
         """
-        Convert gpon-onu_1/5/10:1 → gpon-olt_1/5/10
-               epon-onu_1/2/3:4 → epon-olt_1/2/3
-               pon-onu_1/1/1:5 → pon-olt_1/1/1 (C600)
+        Convert ONU index to OLT port:
+        - C300: gpon-onu_1/5/10:1 → gpon-olt_1/5/10
+        - C300: epon-onu_1/2/3:4 → epon-olt_1/2/3
+        - C600: gpon_olt-1/4/3:1 → gpon-olt_1/4/3
+        - C600: pon-onu_1/1/1:5 → gpon-olt_1/1/1
         """
         if not onu_index:
             return ''
-        m = re.match(r'(gpon|epon|pon)-onu_(\d+/\d+/\d+):\d+', onu_index, re.IGNORECASE)
+
+        # Match both C300 (gpon-onu_X) and C600 (gpon_olt-X) formats
+        m = re.match(r'(gpon|epon|pon)[-_](onu|olt)[-_](\d+/\d+/\d+):\d+', onu_index, re.IGNORECASE)
         if m:
             tech = m.group(1).lower()
-            # C600 përdor "pon" por në konfigurim duhet "gpon-olt" ose "epon-olt"
+            port = m.group(3)
+
+            # C600 përdor "pon" por në konfigurim duhet "gpon-olt"
             if tech == 'pon':
                 tech = 'gpon'  # Default për C600
-            return f"{tech}-olt_{m.group(2)}"
+
+            return f"{tech}-olt_{port}"
+
         return onu_index
 
     def _find_free_slot(self, olt_device, olt_port):
@@ -213,15 +221,15 @@ class OltOnuUncfgWizard(models.TransientModel):
         Parse 'show gpon onu uncfg' (C300), 'show pon onu uncfg' (C600) dhe 'show onu unauthentication' (EPON)
 
         Formate të mbështetura:
-        1) Me header:
-               OnuIndex                 Sn                  State
-               ---------------------------------------------------
+        1) C300 format:
                gpon-onu_1/5/10:1       ZTEGC9647C69        unknown
 
-        2) Pa header (C300):
-               gpon-onu_1/5/10:1  ZTEGC9647C69  unknown
+        2) C600 format me header:
+               OltIndex            Model              MAC               SN
+               -------------------------------------------------------------------------
+               gpon_olt-1/4/3      F612V6.0           N/A               ZTEGC97E6BC5
 
-        3) C600 format:
+        3) C600 format pa header:
                pon-onu_1/1/1:1    ZTEGC9647C69   auto-find
         """
         rows = []
@@ -233,7 +241,7 @@ class OltOnuUncfgWizard(models.TransientModel):
         # 1) Provo të gjesh header (formati klasik)
         header_idx = -1
         for i, line in enumerate(lines):
-            if re.search(r'\bOnu(Index)?\b', line, re.IGNORECASE) and re.search(r'\b(Sn|SN|MAC|Serial)\b', line,
+            if re.search(r'\b(Onu|Olt)(Index)?\b', line, re.IGNORECASE) and re.search(r'\b(Sn|SN|MAC|Serial|Model)\b', line,
                                                                                 re.IGNORECASE):
                 header_idx = i
                 break
@@ -244,9 +252,9 @@ class OltOnuUncfgWizard(models.TransientModel):
             start += 1
 
         # 2) Regex i përgjithshëm për një rresht (me ose pa header)
-        #   Mbështet: gpon-onu, epon-onu, pon-onu (C600)
+        #   Mbështet: gpon-onu_X, gpon_olt-X, epon-onu_X, pon-onu_X (C300/C600)
         pat = re.compile(
-            r'^(?P<idx>(?:gpon|epon|pon)-onu_\d+/\d+/\d+:\d+)\s+'
+            r'^(?P<idx>(?:gpon|epon|pon)[-_](?:onu|olt)[-_]\d+/\d+/\d+:\d+)\s+'
             r'(?P<c2>\S+)'  # mund të jetë SN ose MODEL
             r'(?:\s+(?P<c3>\S+))?'  # mund të jetë STATE ose MAC
             r'(?:\s+(?P<c4>\S+))?$',  # ndonjë kolonë shtesë (SN/STATE)
