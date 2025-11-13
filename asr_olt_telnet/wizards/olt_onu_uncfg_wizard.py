@@ -81,15 +81,20 @@ class OltOnuUncfgLine(models.TransientModel):
 
         # Clean output from special characters that might interfere with parsing
         if output:
-            output = output.replace('\r', '')  # Remove carriage returns
-            output = output.replace('\x00', '')  # Remove null bytes
+            # Normalize line endings: treat \r as line delimiter
+            output = output.replace('\r\n', '\n')  # Windows-style → Unix
+            output = output.replace('\r', '\n')     # Mac/overwrite → Unix (prevents line concatenation)
+            output = output.replace('\x00', '')     # Remove null bytes
 
         occupied = set()
         _logger.info(f'Parsing OLT config for {olt_port}')
         _logger.info(f'Output length: {len(output) if output else 0} chars')
         _logger.debug(f'Raw output (first 2000 chars):\n{output[:2000] if output else "(empty)"}')
 
-        for line in (output or '').splitlines():
+        lines = (output or '').splitlines()
+        _logger.info(f'Total lines to parse: {len(lines)}')
+
+        for idx, line in enumerate(lines, 1):
             # Example: "  onu 8 type ZTE-F612 sn ZTEGC9647C69"
             m = re.match(r'^\s*onu\s+(\d+)\s+type', line, re.IGNORECASE)
             if m:
@@ -99,6 +104,10 @@ class OltOnuUncfgLine(models.TransientModel):
                     _logger.info(f'  Found occupied slot: {slot_num} from line: {line.strip()[:80]}')
                 except Exception:
                     pass
+            else:
+                # Log lines that look like ONU config but don't match
+                if 'onu' in line.lower() and 'type' in line.lower():
+                    _logger.warning(f'  Line {idx} did not match regex: {repr(line[:100])}')
 
         _logger.info(f'Total occupied slots: {len(occupied)} - Slots: {sorted(occupied) if occupied else "none"}')
 
