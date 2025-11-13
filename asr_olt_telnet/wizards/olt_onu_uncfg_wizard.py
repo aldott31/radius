@@ -51,27 +51,69 @@ class OltOnuUncfgLine(models.TransientModel):
         return onu_index
 
     def _find_free_slot(self, olt_device, olt_port):
-        """Telnet → 'show running-config interface <port>' → parse slots → return first free"""
+        """Telnet → show config for port → parse slots → return first free
+
+        C300: show running-config interface gpon-olt_1/5/10
+        C600: show running-config-interface gpon_olt-1/4/3 (me dash!)
+        """
         if not olt_device or not getattr(olt_device, 'ip_address', False):
             raise UserError(_('OLT device has no IP address'))
 
         user, pwd = olt_device.get_telnet_credentials()
 
-        cmd = f"show running-config interface {olt_port}"
+        # Detekto komandën e duhur bazuar në modelin e OLT
+        model = (olt_device.model or '').upper()
+
+        # C600/C650 përdorin sintaksë të ndryshme
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            # C600 format: show running-config-interface gpon_olt-1/4/3
+            # Port format: gpon-olt_1/4/3 → gpon_olt-1/4/3
+            port_for_cmd = olt_port.replace('-olt_', '_olt-')  # gpon-olt_1/4/3 → gpon_olt-1/4/3
+            cmd = f"show running-config-interface {port_for_cmd}"
+        else:
+            # C300/C320 format standard
+            cmd = f"show running-config interface {olt_port}"
+
         output = self.wizard_id._telnet_run(
             olt_device.ip_address.strip(),
             user, pwd, cmd, timeout=10
         )
 
+        # Clean output from special characters that might interfere with parsing
+        if output:
+            # Normalize line endings: treat \r as line delimiter
+            output = output.replace('\r\n', '\n')  # Windows-style → Unix
+            output = output.replace('\r', '\n')     # Mac/overwrite → Unix (prevents line concatenation)
+            output = output.replace('\x00', '')     # Remove null bytes
+
+            # Remove telnet pager prompts (--More--) with backspace sequences
+            # Pattern: --More-- followed by backspaces (\x08) and spaces trying to erase it
+            output = re.sub(r'--More--[\x08 ]*', '', output)
+
         occupied = set()
-        for line in (output or '').splitlines():
+        _logger.info(f'Parsing OLT config for {olt_port}')
+        _logger.info(f'Output length: {len(output) if output else 0} chars')
+        _logger.debug(f'Raw output (first 2000 chars):\n{output[:2000] if output else "(empty)"}')
+
+        lines = (output or '').splitlines()
+        _logger.info(f'Total lines to parse: {len(lines)}')
+
+        for idx, line in enumerate(lines, 1):
             # Example: "  onu 8 type ZTE-F612 sn ZTEGC9647C69"
             m = re.match(r'^\s*onu\s+(\d+)\s+type', line, re.IGNORECASE)
             if m:
                 try:
-                    occupied.add(int(m.group(1)))
+                    slot_num = int(m.group(1))
+                    occupied.add(slot_num)
+                    _logger.info(f'  Found occupied slot: {slot_num} from line: {line.strip()[:80]}')
                 except Exception:
                     pass
+            else:
+                # Log lines that look like ONU config but don't match
+                if 'onu' in line.lower() and 'type' in line.lower():
+                    _logger.warning(f'  Line {idx} did not match regex: {repr(line[:100])}')
+
+        _logger.info(f'Total occupied slots: {len(occupied)} - Slots: {sorted(occupied) if occupied else "none"}')
 
         # GPON zakonisht 1..128; EPON 1..64
         max_slots = 128 if 'gpon' in olt_port.lower() else 64
@@ -314,16 +356,15 @@ class OltOnuUncfgWizard(models.TransientModel):
                 # 2 kolona: <idx> <SN> (pa state)
                 sn = c2
 
-            # Normalize olt_index: nëse nuk ka :slot në fund, shto :1
-            # C600 format: gpon_olt-1/4/3 → gpon_olt-1/4/3:1
-            # C300 format: gpon-onu_1/5/10:1 → e mbajmë si është
-            normalized_idx = idx
-            if ':' not in idx:
-                normalized_idx = f"{idx}:1"
+            # C600 nuk ka :slot për unregistered ONUs, vetëm port
+            # Slot-i auto-detektohet kur klikohet "Register"
+            # C300 ka :slot në output dhe e mbajmë si është
+            # C600: gpon_olt-1/4/3 (pa :slot)
+            # C300: gpon-onu_1/5/10:1 (me :slot)
 
             rows.append({
                 'technology': tech_key,
-                'olt_index': normalized_idx,
+                'olt_index': idx,  # Mbaje formatin origjinal
                 'model': model,
                 'mac': mac,
                 'sn': sn,
