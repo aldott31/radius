@@ -314,16 +314,15 @@ class OltOnuUncfgWizard(models.TransientModel):
                 # 2 kolona: <idx> <SN> (pa state)
                 sn = c2
 
-            # Normalize olt_index: nëse nuk ka :slot në fund, shto :1
-            # C600 format: gpon_olt-1/4/3 → gpon_olt-1/4/3:1
-            # C300 format: gpon-onu_1/5/10:1 → e mbajmë si është
-            normalized_idx = idx
-            if ':' not in idx:
-                normalized_idx = f"{idx}:1"
+            # C600 nuk ka :slot për unregistered ONUs, vetëm port
+            # Slot-i auto-detektohet kur klikohet "Register"
+            # C300 ka :slot në output dhe e mbajmë si është
+            # C600: gpon_olt-1/4/3 (pa :slot)
+            # C300: gpon-onu_1/5/10:1 (me :slot)
 
             rows.append({
                 'technology': tech_key,
-                'olt_index': normalized_idx,
+                'olt_index': idx,  # Mbaje formatin origjinal
                 'model': model,
                 'mac': mac,
                 'sn': sn,
