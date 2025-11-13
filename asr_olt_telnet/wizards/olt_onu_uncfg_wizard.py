@@ -86,6 +86,10 @@ class OltOnuUncfgLine(models.TransientModel):
             output = output.replace('\r', '\n')     # Mac/overwrite → Unix (prevents line concatenation)
             output = output.replace('\x00', '')     # Remove null bytes
 
+            # Remove telnet pager prompts (--More--) with backspace sequences
+            # Pattern: --More-- followed by backspaces (\x08) and spaces trying to erase it
+            output = re.sub(r'--More--[\x08 ]*', '', output)
+
         occupied = set()
         _logger.info(f'Parsing OLT config for {olt_port}')
         _logger.info(f'Output length: {len(output) if output else 0} chars')
