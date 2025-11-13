@@ -33,12 +33,12 @@
           <button name="action_fetch" type="object" string="🔍 Fetch from OLT" class="btn-primary"/>
         </header>
         <sheet>
-          <div class="alert alert-info" role="alert" attrs="{'invisible': [('onu_count', '=', 0)]}">
+          <div class="alert alert-info" role="alert" invisible="onu_count == 0">
             <strong>📡 Found <field name="onu_count" readonly="1" nolabel="1" class="d-inline"/> unregistered ONU(s)</strong><br/>
             Select an ONU and click <strong>Register</strong> to provision it.
           </div>
 
-          <div class="alert alert-warning" role="alert" attrs="{'invisible': [('onu_count', '!=', 0)]}">
+          <div class="alert alert-warning" role="alert" invisible="onu_count != 0">
             <strong>ℹ️ No unregistered ONUs found</strong><br/>
             Click <strong>🔍 Fetch from OLT</strong> to scan for unregistered devices.
           </div>

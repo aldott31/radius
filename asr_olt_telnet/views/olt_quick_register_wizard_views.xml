@@ -29,25 +29,22 @@
           <group string="VLAN Configuration">
             <group>
               <field name="internet_vlan" required="1"
-                     placeholder="Enter VLAN ID"
-                     attrs="{'required': [('access_device_id', '!=', False)]}"/>
-              <div class="text-muted" attrs="{'invisible': [('access_device_id', '=', False)]}">
+                     placeholder="Enter VLAN ID"/>
+              <div class="text-muted" invisible="not access_device_id">
                 <i class="fa fa-info-circle"/> Available:
                 <field name="available_internet_vlans_display" nolabel="1" readonly="1" class="d-inline"/>
               </div>
 
               <field name="tv_vlan" placeholder="Enter TV VLAN ID (optional)"/>
               <div class="text-muted"
-                   attrs="{'invisible': ['|', ('access_device_id', '=', False),
-                                        ('available_tv_vlans_display', '=', 'Not configured')]}">
+                   invisible="not access_device_id or available_tv_vlans_display == 'Not configured'">
                 <i class="fa fa-info-circle"/> Available:
                 <field name="available_tv_vlans_display" nolabel="1" readonly="1" class="d-inline"/>
               </div>
 
               <field name="voice_vlan" placeholder="Enter Voice VLAN ID (optional)"/>
               <div class="text-muted"
-                   attrs="{'invisible': ['|', ('access_device_id', '=', False),
-                                        ('available_voice_vlans_display', '=', 'Not configured')]}">
+                   invisible="not access_device_id or available_voice_vlans_display == 'Not configured'">
                 <i class="fa fa-info-circle"/> Available:
                 <field name="available_voice_vlans_display" nolabel="1" readonly="1" class="d-inline"/>
               </div>
