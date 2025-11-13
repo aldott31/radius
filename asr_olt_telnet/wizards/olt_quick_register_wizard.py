@@ -51,6 +51,10 @@ class OltOnuRegisterQuick(models.TransientModel):
     available_tv_vlans_display = fields.Char(compute='_compute_available_vlans_display', store=False)
     available_voice_vlans_display = fields.Char(compute='_compute_available_vlans_display', store=False)
 
+    # Display correct interface format based on OLT model
+    interface_display = fields.Char(compute='_compute_interface_display', store=False,
+                                    help="Interface format that will be used in the command")
+
     @api.depends('access_device_id')
     def _compute_available_vlans_display(self):
         """Compute display text for available VLANs"""
@@ -63,6 +67,23 @@ class OltOnuRegisterQuick(models.TransientModel):
                 rec.available_internet_vlans_display = 'Select OLT first'
                 rec.available_tv_vlans_display = 'Select OLT first'
                 rec.available_voice_vlans_display = 'Select OLT first'
+
+    @api.depends('interface', 'access_device_id')
+    def _compute_interface_display(self):
+        """Compute the correct interface format based on OLT model"""
+        for rec in self:
+            if not rec.interface:
+                rec.interface_display = ''
+                continue
+
+            # Detect OLT model and convert format if needed
+            model = (rec.access_device_id.model or '').upper() if rec.access_device_id else ''
+            if 'C600' in model or 'C650' in model or 'C680' in model:
+                # C600 format: gpon_olt-1/4/3 (underscore-dash)
+                rec.interface_display = rec.interface.replace('-olt_', '_olt-')
+            else:
+                # C300 format: gpon-olt_1/4/3 (dash-underscore) - no change
+                rec.interface_display = rec.interface
 
     @api.model
     def default_get(self, fields_list):

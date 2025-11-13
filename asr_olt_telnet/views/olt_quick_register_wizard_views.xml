@@ -56,7 +56,7 @@
 
           <div class="alert alert-warning" role="alert">
             <strong>⚠️ Registration Command:</strong><br/>
-            <code>interface <field name="interface" readonly="1" nolabel="1" class="d-inline"/></code><br/>
+            <code>interface <field name="interface_display" readonly="1" nolabel="1" class="d-inline"/></code><br/>
             <code>onu <field name="onu_slot" readonly="1" nolabel="1" class="d-inline"/> type <field name="onu_type" readonly="1" nolabel="1" class="d-inline"/> sn <field name="serial" readonly="1" nolabel="1" class="d-inline"/></code>
           </div>
         </sheet>
