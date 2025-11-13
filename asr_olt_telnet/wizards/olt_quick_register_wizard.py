@@ -40,9 +40,53 @@ class OltOnuRegisterQuick(models.TransientModel):
                                      string="Function Mode", required=True, default='bridge')
 
     # Internet configuration
-    internet_vlan = fields.Char(string="Internet VLAN", required=True)
+    internet_vlan = fields.Selection(selection='_get_available_internet_vlans',
+                                     string="Internet VLAN", required=True)
+    tv_vlan = fields.Selection(selection='_get_available_tv_vlans',
+                               string="TV VLAN", required=False)
+    voice_vlan = fields.Selection(selection='_get_available_voice_vlans',
+                                  string="Voice VLAN", required=False)
     speed_profile = fields.Selection(_SPEED_PROFILE_CHOICES, string="Speed Profile",
                                      required=True, default='1G')
+
+    def _get_available_internet_vlans(self):
+        """Return list of available Internet VLANs from OLT"""
+        if not self.access_device_id or not self.access_device_id.internet_vlan:
+            return [('', 'No VLANs configured')]
+
+        vlans = []
+        for vlan in self.access_device_id.internet_vlan.split(','):
+            vlan = vlan.strip()
+            if vlan:
+                vlans.append((vlan, f"VLAN {vlan}"))
+
+        return vlans or [('', 'No VLANs configured')]
+
+    def _get_available_tv_vlans(self):
+        """Return list of available TV VLANs from OLT"""
+        if not self.access_device_id or not self.access_device_id.tv_vlan:
+            return [('', 'No TV VLANs configured')]
+
+        vlans = []
+        for vlan in self.access_device_id.tv_vlan.split(','):
+            vlan = vlan.strip()
+            if vlan:
+                vlans.append((vlan, f"TV VLAN {vlan}"))
+
+        return vlans or [('', 'No TV VLANs configured')]
+
+    def _get_available_voice_vlans(self):
+        """Return list of available Voice VLANs from OLT"""
+        if not self.access_device_id or not self.access_device_id.voice_vlan:
+            return [('', 'No Voice VLANs configured')]
+
+        vlans = []
+        for vlan in self.access_device_id.voice_vlan.split(','):
+            vlan = vlan.strip()
+            if vlan:
+                vlans.append((vlan, f"Voice VLAN {vlan}"))
+
+        return vlans or [('', 'No Voice VLANs configured')]
 
     @api.model
     def default_get(self, fields_list):
@@ -56,19 +100,28 @@ class OltOnuRegisterQuick(models.TransientModel):
         if 'onu_type' not in vals:
             vals['onu_type'] = 'ZTE-F612' if tech == 'gpon' else 'ZTE-F412'
 
-        # Set default internet_vlan from OLT if available
+        # Set default VLANs from OLT if available
         if 'access_device_id' in vals and vals['access_device_id']:
             olt = self.env['crm.access.device'].browse(vals['access_device_id'])
             if olt.internet_vlan:
                 vals['internet_vlan'] = olt.internet_vlan.split(',')[0].strip()
+            if olt.tv_vlan:
+                vals['tv_vlan'] = olt.tv_vlan.split(',')[0].strip()
+            if olt.voice_vlan:
+                vals['voice_vlan'] = olt.voice_vlan.split(',')[0].strip()
 
         return vals
 
     @api.onchange('access_device_id')
     def _onchange_access_device_id(self):
-        # Prefill internet_vlan from OLT
-        if self.access_device_id and self.access_device_id.internet_vlan:
-            self.internet_vlan = self.access_device_id.internet_vlan.split(',')[0].strip()
+        # Prefill VLANs from OLT (first value from each CSV list)
+        if self.access_device_id:
+            if self.access_device_id.internet_vlan:
+                self.internet_vlan = self.access_device_id.internet_vlan.split(',')[0].strip()
+            if self.access_device_id.tv_vlan:
+                self.tv_vlan = self.access_device_id.tv_vlan.split(',')[0].strip()
+            if self.access_device_id.voice_vlan:
+                self.voice_vlan = self.access_device_id.voice_vlan.split(',')[0].strip()
 
     def _execute_telnet_session(self, host, username, password, command, timeout=12):
         chunks = []
@@ -237,6 +290,13 @@ class OltOnuRegisterQuick(models.TransientModel):
             mode_label = "PPPoE (Router)" if self.function_mode == 'router' else "Bridge"
             speed_label = dict(_SPEED_PROFILE_CHOICES).get(self.speed_profile, self.speed_profile)
 
+            # Build VLAN info
+            vlan_info = f"Internet: {self.internet_vlan}"
+            if self.tv_vlan:
+                vlan_info += f", TV: {self.tv_vlan}"
+            if self.voice_vlan:
+                vlan_info += f", Voice: {self.voice_vlan}"
+
             self.customer_id.message_post(
                 body=_('✅ ONU Registered & Configured via Telnet:<br/>'
                        '• Port: %(port)s<br/>'
@@ -244,14 +304,14 @@ class OltOnuRegisterQuick(models.TransientModel):
                        '• Type: %(type)s<br/>'
                        '• SN: %(sn)s<br/>'
                        '• Mode: %(mode)s<br/>'
-                       '• VLAN: %(vlan)s<br/>'
+                       '• VLANs: %(vlan)s<br/>'
                        '• Speed: %(speed)s') % {
                     'port': self.interface,
                     'slot': self.onu_slot,
                     'type': self.onu_type,
                     'sn': self.serial,
                     'mode': mode_label,
-                    'vlan': self.internet_vlan,
+                    'vlan': vlan_info,
                     'speed': speed_label
                 }
             )
@@ -271,11 +331,11 @@ class OltOnuRegisterQuick(models.TransientModel):
             'tag': 'display_notification',
             'params': {
                 'title': _('✅ ONU Registered & Configured Successfully'),
-                'message': _('Port: %(port)s:%(slot)d, Mode: %(mode)s, VLAN: %(vlan)s') % {
+                'message': _('Port: %(port)s:%(slot)d, Mode: %(mode)s, VLANs: %(vlan)s') % {
                     'port': self.interface,
                     'slot': self.onu_slot,
                     'mode': mode_label,
-                    'vlan': self.internet_vlan
+                    'vlan': vlan_info
                 },
                 'type': 'success',
                 'sticky': False

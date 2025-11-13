@@ -26,9 +26,13 @@
             </group>
           </group>
 
-          <group string="Internet Configuration">
+          <group string="VLAN Configuration">
             <group>
-              <field name="internet_vlan" placeholder="e.g., 1604, 1616" required="1"/>
+              <field name="internet_vlan" required="1"/>
+              <field name="tv_vlan"/>
+              <field name="voice_vlan"/>
+            </group>
+            <group>
               <field name="speed_profile" required="1"/>
             </group>
           </group>
