@@ -79,15 +79,28 @@ class OltOnuUncfgLine(models.TransientModel):
             user, pwd, cmd, timeout=10
         )
 
+        # Clean output from special characters that might interfere with parsing
+        if output:
+            output = output.replace('\r', '')  # Remove carriage returns
+            output = output.replace('\x00', '')  # Remove null bytes
+
         occupied = set()
+        _logger.info(f'Parsing OLT config for {olt_port}')
+        _logger.info(f'Output length: {len(output) if output else 0} chars')
+        _logger.debug(f'Raw output (first 2000 chars):\n{output[:2000] if output else "(empty)"}')
+
         for line in (output or '').splitlines():
             # Example: "  onu 8 type ZTE-F612 sn ZTEGC9647C69"
             m = re.match(r'^\s*onu\s+(\d+)\s+type', line, re.IGNORECASE)
             if m:
                 try:
-                    occupied.add(int(m.group(1)))
+                    slot_num = int(m.group(1))
+                    occupied.add(slot_num)
+                    _logger.info(f'  Found occupied slot: {slot_num} from line: {line.strip()[:80]}')
                 except Exception:
                     pass
+
+        _logger.info(f'Total occupied slots: {len(occupied)} - Slots: {sorted(occupied) if occupied else "none"}')
 
         # GPON zakonisht 1..128; EPON 1..64
         max_slots = 128 if 'gpon' in olt_port.lower() else 64
