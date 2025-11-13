@@ -30,14 +30,14 @@ class OltOnuUncfgLine(models.TransientModel):
         Convert ONU index to OLT port:
         - C300: gpon-onu_1/5/10:1 → gpon-olt_1/5/10
         - C300: epon-onu_1/2/3:4 → epon-olt_1/2/3
-        - C600: gpon_olt-1/4/3:1 → gpon-olt_1/4/3
+        - C600: gpon_olt-1/4/3 → gpon-olt_1/4/3 (pa :slot)
         - C600: pon-onu_1/1/1:5 → gpon-olt_1/1/1
         """
         if not onu_index:
             return ''
 
-        # Match both C300 (gpon-onu_X) and C600 (gpon_olt-X) formats
-        m = re.match(r'(gpon|epon|pon)[-_](onu|olt)[-_](\d+/\d+/\d+):\d+', onu_index, re.IGNORECASE)
+        # Match both C300 (gpon-onu_X:slot) and C600 (gpon_olt-X pa slot)
+        m = re.match(r'(gpon|epon|pon)[-_](onu|olt)[-_](\d+/\d+/\d+)(?::\d+)?', onu_index, re.IGNORECASE)
         if m:
             tech = m.group(1).lower()
             port = m.group(3)
@@ -252,9 +252,11 @@ class OltOnuUncfgWizard(models.TransientModel):
             start += 1
 
         # 2) Regex i përgjithshëm për një rresht (me ose pa header)
-        #   Mbështet: gpon-onu_X, gpon_olt-X, epon-onu_X, pon-onu_X (C300/C600)
+        #   Mbështet: gpon-onu_X:slot, gpon_olt-X (pa slot), epon-onu_X:slot
+        #   C300: gpon-onu_1/5/10:1
+        #   C600: gpon_olt-1/4/3 (pa :slot në fund!)
         pat = re.compile(
-            r'^(?P<idx>(?:gpon|epon|pon)[-_](?:onu|olt)[-_]\d+/\d+/\d+:\d+)\s+'
+            r'^(?P<idx>(?:gpon|epon|pon)[-_](?:onu|olt)[-_]\d+/\d+/\d+(?::\d+)?)\s+'
             r'(?P<c2>\S+)'  # mund të jetë SN ose MODEL
             r'(?:\s+(?P<c3>\S+))?'  # mund të jetë STATE ose MAC
             r'(?:\s+(?P<c4>\S+))?$',  # ndonjë kolonë shtesë (SN/STATE)
@@ -300,9 +302,16 @@ class OltOnuUncfgWizard(models.TransientModel):
                 # 2 kolona: <idx> <SN> (pa state)
                 sn = c2
 
+            # Normalize olt_index: nëse nuk ka :slot në fund, shto :1
+            # C600 format: gpon_olt-1/4/3 → gpon_olt-1/4/3:1
+            # C300 format: gpon-onu_1/5/10:1 → e mbajmë si është
+            normalized_idx = idx
+            if ':' not in idx:
+                normalized_idx = f"{idx}:1"
+
             rows.append({
                 'technology': tech_key,
-                'olt_index': idx,
+                'olt_index': normalized_idx,
                 'model': model,
                 'mac': mac,
                 'sn': sn,
