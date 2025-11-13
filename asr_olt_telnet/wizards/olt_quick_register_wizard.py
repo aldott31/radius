@@ -266,8 +266,17 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         olt_ip = self.access_device_id.ip_address.strip()
 
+        # Detect correct interface format based on OLT model
+        model = (self.access_device_id.model or '').upper()
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            # C600 format: gpon_olt-1/4/3 (underscore-dash)
+            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
+        else:
+            # C300 format: gpon-olt_1/4/3 (dash-underscore)
+            interface_for_cmd = self.interface
+
         # Step 1: Register ONU
-        registration_cmd = f"conf t;interface {self.interface};onu {self.onu_slot} type {self.onu_type} sn {self.serial};exit;exit"
+        registration_cmd = f"conf t;interface {interface_for_cmd};onu {self.onu_slot} type {self.onu_type} sn {self.serial};exit;exit"
         output = self._execute_telnet_session(olt_ip, user, pwd, registration_cmd)
 
         # Step 2: Configure ONU based on function_mode
