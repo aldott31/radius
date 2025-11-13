@@ -267,7 +267,19 @@ class OltOnuUncfgWizard(models.TransientModel):
             if _TAB_LINE_RE.search(ln):
                 continue
 
-            m = pat.match(ln.strip())
+            stripped_line = ln.strip()
+
+            # Skip standalone CLI prompts (lines that are only a prompt)
+            # e.g., "Bllok-OLT.3#" or "C600-Name#"
+            if re.match(r'^[\w\.-]+#\s*$', stripped_line):
+                continue
+
+            # Clean CLI prompt from end of data lines
+            # e.g., "gpon-onu_1/17/14:1  ZTEGC6868F3C  unknown  Bllok-OLT.3#"
+            #   →   "gpon-onu_1/17/14:1  ZTEGC6868F3C  unknown"
+            cleaned_line = re.sub(r'\s+[\w\.-]+#\s*$', '', stripped_line)
+
+            m = pat.match(cleaned_line)
             if not m:
                 continue
 
