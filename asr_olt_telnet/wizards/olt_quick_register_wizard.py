@@ -40,53 +40,29 @@ class OltOnuRegisterQuick(models.TransientModel):
                                      string="Function Mode", required=True, default='bridge')
 
     # Internet configuration
-    internet_vlan = fields.Selection(selection='_get_available_internet_vlans',
-                                     string="Internet VLAN", required=True)
-    tv_vlan = fields.Selection(selection='_get_available_tv_vlans',
-                               string="TV VLAN", required=False)
-    voice_vlan = fields.Selection(selection='_get_available_voice_vlans',
-                                  string="Voice VLAN", required=False)
+    internet_vlan = fields.Char(string="Internet VLAN", required=True)
+    tv_vlan = fields.Char(string="TV VLAN", required=False)
+    voice_vlan = fields.Char(string="Voice VLAN", required=False)
     speed_profile = fields.Selection(_SPEED_PROFILE_CHOICES, string="Speed Profile",
                                      required=True, default='1G')
 
-    def _get_available_internet_vlans(self):
-        """Return list of available Internet VLANs from OLT"""
-        if not self.access_device_id or not self.access_device_id.internet_vlan:
-            return [('', 'No VLANs configured')]
+    # Helper fields for showing available VLANs
+    available_internet_vlans_display = fields.Char(compute='_compute_available_vlans_display', store=False)
+    available_tv_vlans_display = fields.Char(compute='_compute_available_vlans_display', store=False)
+    available_voice_vlans_display = fields.Char(compute='_compute_available_vlans_display', store=False)
 
-        vlans = []
-        for vlan in self.access_device_id.internet_vlan.split(','):
-            vlan = vlan.strip()
-            if vlan:
-                vlans.append((vlan, f"VLAN {vlan}"))
-
-        return vlans or [('', 'No VLANs configured')]
-
-    def _get_available_tv_vlans(self):
-        """Return list of available TV VLANs from OLT"""
-        if not self.access_device_id or not self.access_device_id.tv_vlan:
-            return [('', 'No TV VLANs configured')]
-
-        vlans = []
-        for vlan in self.access_device_id.tv_vlan.split(','):
-            vlan = vlan.strip()
-            if vlan:
-                vlans.append((vlan, f"TV VLAN {vlan}"))
-
-        return vlans or [('', 'No TV VLANs configured')]
-
-    def _get_available_voice_vlans(self):
-        """Return list of available Voice VLANs from OLT"""
-        if not self.access_device_id or not self.access_device_id.voice_vlan:
-            return [('', 'No Voice VLANs configured')]
-
-        vlans = []
-        for vlan in self.access_device_id.voice_vlan.split(','):
-            vlan = vlan.strip()
-            if vlan:
-                vlans.append((vlan, f"Voice VLAN {vlan}"))
-
-        return vlans or [('', 'No Voice VLANs configured')]
+    @api.depends('access_device_id')
+    def _compute_available_vlans_display(self):
+        """Compute display text for available VLANs"""
+        for rec in self:
+            if rec.access_device_id:
+                rec.available_internet_vlans_display = rec.access_device_id.internet_vlan or 'Not configured'
+                rec.available_tv_vlans_display = rec.access_device_id.tv_vlan or 'Not configured'
+                rec.available_voice_vlans_display = rec.access_device_id.voice_vlan or 'Not configured'
+            else:
+                rec.available_internet_vlans_display = 'Select OLT first'
+                rec.available_tv_vlans_display = 'Select OLT first'
+                rec.available_voice_vlans_display = 'Select OLT first'
 
     @api.model
     def default_get(self, fields_list):
@@ -122,6 +98,37 @@ class OltOnuRegisterQuick(models.TransientModel):
                 self.tv_vlan = self.access_device_id.tv_vlan.split(',')[0].strip()
             if self.access_device_id.voice_vlan:
                 self.voice_vlan = self.access_device_id.voice_vlan.split(',')[0].strip()
+
+    @api.constrains('internet_vlan', 'tv_vlan', 'voice_vlan', 'access_device_id')
+    def _check_vlan_values(self):
+        """Validate that selected VLANs are in the OLT's configured VLANs"""
+        for rec in self:
+            if not rec.access_device_id:
+                continue
+
+            # Check Internet VLAN
+            if rec.internet_vlan and rec.access_device_id.internet_vlan:
+                available = [v.strip() for v in rec.access_device_id.internet_vlan.split(',')]
+                if rec.internet_vlan not in available:
+                    raise UserError(_('Internet VLAN "%s" is not configured on OLT "%s".\nAvailable: %s') %
+                                    (rec.internet_vlan, rec.access_device_id.name,
+                                     rec.access_device_id.internet_vlan))
+
+            # Check TV VLAN
+            if rec.tv_vlan and rec.access_device_id.tv_vlan:
+                available = [v.strip() for v in rec.access_device_id.tv_vlan.split(',')]
+                if rec.tv_vlan not in available:
+                    raise UserError(_('TV VLAN "%s" is not configured on OLT "%s".\nAvailable: %s') %
+                                    (rec.tv_vlan, rec.access_device_id.name,
+                                     rec.access_device_id.tv_vlan))
+
+            # Check Voice VLAN
+            if rec.voice_vlan and rec.access_device_id.voice_vlan:
+                available = [v.strip() for v in rec.access_device_id.voice_vlan.split(',')]
+                if rec.voice_vlan not in available:
+                    raise UserError(_('Voice VLAN "%s" is not configured on OLT "%s".\nAvailable: %s') %
+                                    (rec.voice_vlan, rec.access_device_id.name,
+                                     rec.access_device_id.voice_vlan))
 
     def _execute_telnet_session(self, host, username, password, command, timeout=12):
         chunks = []
