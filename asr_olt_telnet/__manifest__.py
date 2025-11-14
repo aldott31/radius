@@ -14,6 +14,7 @@
         'views/olt_quick_register_wizard_views.xml',
         'views/olt_command_test_wizard_views.xml',  # ← NEW
         'views/asr_radius_user_inherit.xml',
+        'views/asr_radius_user_olt_views.xml',  # ← ONU delete functionality
         'views/crm_access_device_inherit.xml',
     ],
     'installable': True,
