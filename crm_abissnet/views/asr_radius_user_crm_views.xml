@@ -157,6 +157,16 @@
             → Core #<field name="fiber_core_number" readonly="1" nolabel="1"/>
             (<field name="fiber_color" readonly="1" nolabel="1" widget="badge"/>)
           </div>
+
+          <div class="alert alert-warning" role="alert" invisible="not olt_pon_port">
+            <strong>📡 Registered ONU for this account:</strong><br/>
+            <code><field name="olt_pon_port" readonly="1" nolabel="1" class="d-inline"/></code>
+            <br/><br/>
+            <button name="action_delete_onu" type="object"
+                    string="🗑️ Delete ONU"
+                    class="btn-danger"
+                    confirm="Are you sure you want to delete this ONU from the OLT? This will disconnect the customer!"/>
+          </div>
         </page>
 
         <!-- Contract & Billing -->
