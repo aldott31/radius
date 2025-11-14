@@ -210,70 +210,92 @@ class OltOnuRegisterQuick(models.TransientModel):
         return output
 
     def _generate_router_config(self):
-        """Generate GPON Router (PPPoE) configuration commands"""
+        """Generate GPON Router (PPPoE) configuration commands - FULL registration + config"""
         self.ensure_one()
         if not self.customer_id.username or not self.customer_id.radius_password:
             raise UserError(_('Customer missing RADIUS username or password for PPPoE configuration.'))
 
-        # Convert gpon-olt_1/2/15 -> gpon_onu-1/2/15:10
+        # Detect correct interface format based on OLT model
+        model = (self.access_device_id.model or '').upper()
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            # C600 format: gpon_olt-1/4/3 (underscore-dash)
+            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
+        else:
+            # C300 format: gpon-olt_1/4/3 (dash-underscore)
+            interface_for_cmd = self.interface
+
+        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
         port_part = self.interface.replace('gpon-olt_', '')
         onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
         vport_interface = f"vport-{port_part}.{self.onu_slot}:1"
 
         commands = [
             "conf t",
+            f"interface {interface_for_cmd}",
+            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+            "exit",
             f"interface {onu_interface}",
             f"name {self.customer_id.username}",
             f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
             "gemport 1 tcont 1",
-            "$",
+            "exit",
             f"pon-onu-mng {onu_interface}",
             f"service 1 gemport 1 vlan {self.internet_vlan}",
             f"wan-ip ipv4 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
             "security-mgmt 1 state enable mode forward protocol web",
             "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
-            "$",
+            "exit",
             f"interface {vport_interface}",
             f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
             "port-identification operator-profile service-port 1 TEST",
-            "$",
-            "exit"
+            "exit",
         ]
         return ";".join(commands)
 
     def _generate_bridge_config(self):
-        """Generate GPON Bridge configuration commands"""
+        """Generate GPON Bridge configuration commands - FULL registration + config"""
         self.ensure_one()
 
-        # Convert gpon-olt_1/2/15 -> gpon_onu-1/2/15:10
+        # Detect correct interface format based on OLT model
+        model = (self.access_device_id.model or '').upper()
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            # C600 format: gpon_olt-1/4/3 (underscore-dash)
+            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
+        else:
+            # C300 format: gpon-olt_1/4/3 (dash-underscore)
+            interface_for_cmd = self.interface
+
+        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
         port_part = self.interface.replace('gpon-olt_', '')
         onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
         vport_interface = f"vport-{port_part}.{self.onu_slot}:1"
 
         commands = [
             "conf t",
+            f"interface {interface_for_cmd}",
+            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+            "exit",
             f"interface {onu_interface}",
             f"name {self.customer_id.username}",
             f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
             "gemport 1 tcont 1",
-            "$",
+            "exit",
             f"pon-onu-mng {onu_interface}",
             "dhcp-ip ethuni eth_0/1 from-internet",
             f"service 1 gemport 1 vlan {self.internet_vlan}",
             f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
             "security-mgmt 1 state enable mode forward protocol web",
             "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
-            "$",
+            "exit",
             f"interface {vport_interface}",
             f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
             "port-identification operator-profile service-port 1 TEST",
-            "$",
-            "exit"
+            "exit",
         ]
         return ";".join(commands)
 
     def action_register(self):
-        """Register ONU and configure it based on function_mode"""
+        """Register ONU and configure it based on function_mode - Single telnet session"""
         self.ensure_one()
 
         if not self.access_device_id or not getattr(self.access_device_id, 'ip_address', False):
@@ -287,26 +309,14 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         olt_ip = self.access_device_id.ip_address.strip()
 
-        # Detect correct interface format based on OLT model
-        model = (self.access_device_id.model or '').upper()
-        if 'C600' in model or 'C650' in model or 'C680' in model:
-            # C600 format: gpon_olt-1/4/3 (underscore-dash)
-            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
-        else:
-            # C300 format: gpon-olt_1/4/3 (dash-underscore)
-            interface_for_cmd = self.interface
-
-        # Step 1: Register ONU
-        registration_cmd = f"conf t;interface {interface_for_cmd};onu {self.onu_slot} type {self.onu_type} sn {self.serial};exit;exit"
-        output = self._execute_telnet_session(olt_ip, user, pwd, registration_cmd)
-
-        # Step 2: Configure ONU based on function_mode
+        # Generate full command based on function_mode (includes registration + config)
         if self.function_mode == 'router':
-            config_cmd = self._generate_router_config()
+            full_cmd = self._generate_router_config()
         else:  # bridge
-            config_cmd = self._generate_bridge_config()
+            full_cmd = self._generate_bridge_config()
 
-        output += "\n" + self._execute_telnet_session(olt_ip, user, pwd, config_cmd)
+        # Execute in a single telnet session
+        output = self._execute_telnet_session(olt_ip, user, pwd, full_cmd)
 
         # Optional: update customer record fields if they exist
         try:
