@@ -1,5 +1,8 @@
 # crm_abissnet/models/crm_fiber_closure.py
 # -*- coding: utf-8 -*-
+import re
+import telnetlib
+import time
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError, UserError
 
@@ -340,7 +343,6 @@ class AsrRadiusUserFiber(models.Model):
             raise UserError(_('OLT has no IP address configured.'))
 
         # Parse olt_pon_port: "gpon-olt_1/2/15:1" → interface: gpon-olt_1/2/15, slot: 1
-        import re
         match = re.match(r'^(.+?):(\d+)$', self.olt_pon_port.strip())
         if not match:
             raise UserError(_('Invalid olt_pon_port format: %s. Expected format: gpon-olt_X/Y/Z:slot') % self.olt_pon_port)
@@ -364,8 +366,6 @@ class AsrRadiusUserFiber(models.Model):
         delete_cmd = f"conf t;interface {interface_for_cmd};no onu {slot};exit;exit"
 
         # Execute via telnet
-        import telnetlib
-        import time
         olt_ip = self.access_device_id.ip_address.strip()
 
         try:
