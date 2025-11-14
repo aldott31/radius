@@ -23,12 +23,12 @@ class AsrRadiusUserOLT(models.Model):
             raise UserError(_('OLT has no IP address configured.'))
 
         # Parse olt_pon_port: "gpon-olt_1/2/15:1" → interface: gpon-olt_1/2/15, slot: 1
-        match = re.match(r'^(.+?):(\d+)$', self.olt_pon_port.strip())
-        if not match:
+        port_match = re.match(r'^(.+?):(\d+)$', self.olt_pon_port.strip())
+        if not port_match:
             raise UserError(_('Invalid olt_pon_port format: %s. Expected format: gpon-olt_X/Y/Z:slot') % self.olt_pon_port)
 
-        interface = match.group(1)  # gpon-olt_1/2/15
-        slot = match.group(2)  # 1
+        interface = port_match.group(1)  # gpon-olt_1/2/15
+        slot = port_match.group(2)  # 1
 
         # Detect OLT model and convert interface format if needed
         model = (self.access_device_id.model or '').upper()
@@ -55,19 +55,19 @@ class AsrRadiusUserOLT(models.Model):
 
         try:
             # Login
-            idx, _, _ = tn.expect([b'Username:', b'Login:', b'login:'], 12)
+            idx, dummy1, dummy2 = tn.expect([b'Username:', b'Login:', b'login:'], 12)
             if idx == -1:
                 raise UserError(_('Did not receive Username prompt from %s') % olt_ip)
             tn.write((user + '\n').encode('ascii', errors='ignore'))
             time.sleep(0.3)
 
-            idx, _, _ = tn.expect([b'Password:', b'password:'], 12)
+            idx, dummy1, dummy2 = tn.expect([b'Password:', b'password:'], 12)
             if idx == -1:
                 raise UserError(_('Did not receive Password prompt from %s') % olt_ip)
             tn.write((pwd + '\n').encode('ascii', errors='ignore'))
             time.sleep(0.6)
 
-            idx, _, text = tn.expect([
+            idx, dummy1, text = tn.expect([
                 b'>', b'#', b'$',
                 b'Username:',
                 b'Authentication failed',
