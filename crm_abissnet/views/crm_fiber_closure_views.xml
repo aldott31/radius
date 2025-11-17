@@ -211,7 +211,7 @@
   <record id="action_crm_fiber_closure" model="ir.actions.act_window">
     <field name="name">Fiber Closures (Kaseta)</field>
     <field name="res_model">crm.fiber.closure</field>
-    <field name="view_mode">list,form</field>
+    <field name="view_mode">tree,form</field>
     <field name="context">{'search_default_active': 1}</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">
