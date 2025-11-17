@@ -69,4 +69,11 @@ action = env['asr.radius.config'].action_open_config()
     ]]></field>
   </record>
 
+  <!-- Menuitem që përdor action-in -->
+  <menuitem id="menu_asr_radius_config_settings"
+            name="RADIUS Settings"
+            parent="menu_asr_radius_config"
+            action="action_open_asr_radius_config"
+            sequence="10"/>
+
 </odoo>
