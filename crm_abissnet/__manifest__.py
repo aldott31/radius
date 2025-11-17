@@ -2,7 +2,7 @@
 {
     'name': 'Abissnet CRM',
     'summary': 'Customer relationship management for ISP operations',
-    'version': '18.0.1.0.0',
+    'version': '17.0.1.0',
     'category': 'Customer Relationship Management',
     'author': 'Abissnet',
     'license': 'LGPL-3',

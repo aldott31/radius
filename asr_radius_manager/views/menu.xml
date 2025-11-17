@@ -5,10 +5,9 @@
             web_icon="asr_radius_manager,static/description/icon.png"
             sequence="50"/>
 
-    <!-- Configuration nën ROOT me action-in ekzistues -->
+    <!-- Configuration kategori (pa action - vendoset në asr_radius_config_views.xml) -->
   <menuitem id="menu_asr_radius_config"
             name="Configuration"
             parent="menu_asr_radius_root"
-            action="asr_radius_manager.action_open_asr_radius_config"
             sequence="90"/>
 </odoo>

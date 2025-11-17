@@ -73,7 +73,7 @@ class CrmPop(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('Devices in %s') % self.name,
             'res_model': 'crm.access.device',
-            'view_mode': 'list,form',
+            'view_mode': 'tree,form',
             'domain': [('pop_id', '=', self.id)],
             'context': {'default_pop_id': self.id},
         }

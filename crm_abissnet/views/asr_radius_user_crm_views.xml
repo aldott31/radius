@@ -267,7 +267,7 @@
   <record id="action_asr_radius_user_crm" model="ir.actions.act_window">
     <field name="name">Customers</field>
     <field name="res_model">asr.radius.user</field>
-    <field name="view_mode">list,form</field> <!-- FIX: jo 'tree,form' -->
+    <field name="view_mode">tree,form</field>
     <field name="context">{'search_default_active': 1}</field>
     <field name="domain">[]</field>
     <field name="help" type="html">

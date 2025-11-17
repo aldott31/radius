@@ -2,7 +2,7 @@
 {
     'name': 'ASR RADIUS Manager',
     'summary': 'Manage FreeRADIUS devices, subscriptions, and user access for ISP operations',
-    'version': '18.0.1.0.0',
+    'version': '17.0.1.0',
     'category': 'Services/RADIUS',
     'author': 'Abissnet',
     'license': 'LGPL-3',

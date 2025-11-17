@@ -56,7 +56,7 @@ class CrmCity(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('POPs in %s') % self.name,
             'res_model': 'crm.pop',
-            'view_mode': 'list,form',
+            'view_mode': 'tree,form',
             'domain': [('city_id', '=', self.id)],
             'context': {'default_city_id': self.id},
         }
