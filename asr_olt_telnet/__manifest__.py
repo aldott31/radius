@@ -2,7 +2,7 @@
 {
     'name': 'ASR OLT Telnet Tools',
     'summary': 'Telnet to OLT and run commands (supports C300, C600, Huawei)',
-    'version': '18.0.1.0.4',
+    'version': '17.0.1.0',
     'category': 'Network',
     'author': 'Abissnet',
     'license': 'LGPL-3',
