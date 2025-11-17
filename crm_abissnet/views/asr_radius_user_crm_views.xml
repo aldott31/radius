@@ -197,7 +197,7 @@
 
   <!-- ==================== LIST VIEW (Inherit) ==================== -->
   <record id="view_asr_radius_user_list_crm" model="ir.ui.view">
-    <field name="name">asr.radius.user.list.crm</field>
+    <field name="name">asr.radius.user.tree.crm</field>
     <field name="model">asr.radius.user</field>
     <field name="inherit_id" ref="asr_radius_manager.view_asr_radius_user_list"/>
     <field name="arch" type="xml">
@@ -213,8 +213,8 @@
         <field name="access_device_id" optional="hide"/>
       </xpath>
 
-      <!-- Dekorimet standarde sipas SLA (Odoo 17: <list>) -->
-      <xpath expr="//list" position="attributes">
+      <!-- Dekorimet standarde sipas SLA (Odoo 17: <tree>) -->
+      <xpath expr="//tree" position="attributes">
         <attribute name="decoration-muted">sla_level == '1'</attribute>
         <attribute name="decoration-warning">sla_level == '2'</attribute>
         <attribute name="decoration-success">sla_level == '3'</attribute>

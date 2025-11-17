@@ -6,7 +6,7 @@
     <field name="name">asr.radius.session.list</field>
     <field name="model">asr.radius.session</field>
     <field name="arch" type="xml">
-      <list string="RADIUS Sessions"
+      <tree string="RADIUS Sessions"
             create="0"
             edit="0"
             delete="0"
@@ -21,7 +21,7 @@
         <field name="download_mb" string="Download (MB)"/>
         <field name="upload_mb" string="Upload (MB)"/>
         <field name="total_mb" string="Total (MB)"/>
-      </list>
+      </tree>
     </field>
   </record>
 

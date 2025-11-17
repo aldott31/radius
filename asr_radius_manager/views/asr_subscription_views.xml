@@ -6,7 +6,7 @@
     <field name="name">asr.subscription.list</field>
     <field name="model">asr.subscription</field>
     <field name="arch" type="xml">
-      <list string="Subscriptions"
+      <tree string="Subscriptions"
             decoration-success="radius_synced"
             decoration-danger="not radius_synced">
         <field name="name"/>
@@ -17,7 +17,7 @@
         <field name="radius_synced" widget="boolean_toggle"/>
         <field name="last_sync_date"/>
         <field name="company_id" groups="base.group_multi_company"/>
-      </list>
+      </tree>
     </field>
   </record>
 
@@ -132,11 +132,11 @@
             <!-- Custom Attributes -->
             <page string="Custom Attributes">
               <field name="attribute_ids" nolabel="1">
-                <list editable="bottom">
+                <tree editable="bottom">
                   <field name="attribute" placeholder="e.g., Session-Timeout"/>
                   <field name="op" placeholder=":="/>
                   <field name="value" placeholder="Value"/>
-                </list>
+                </tree>
               </field>
               <div class="alert alert-warning" role="alert">
                 ⚠️ Custom attributes override auto-generated ones.<br/>

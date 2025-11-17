@@ -6,7 +6,7 @@
     <field name="name">asr.radius.user.remote.list</field>
     <field name="model">asr.radius.user.remote</field>
     <field name="arch" type="xml">
-      <list string="RADIUS Users (MySQL)" create="0" edit="0" delete="0"
+      <tree string="RADIUS Users (MySQL)" create="0" edit="0" delete="0"
             decoration-success="status == 'ONLINE'"
             decoration-muted="status != 'ONLINE'">
         <field name="status" string="PPPoE Status"/>
@@ -14,7 +14,7 @@
         <field name="username"/>
         <field name="ip_address" string="IP (current)"/>
         <field name="current_group" string="Current RADIUS Group"/>
-      </list>
+      </tree>
     </field>
   </record>
 
