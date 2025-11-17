@@ -24,6 +24,7 @@
         <field name="last_sync_date" string="Last Sync"/>
         <field name="active" column_invisible="1"/>
         <field name="is_suspended" column_invisible="1"/>
+        <field name="last_sync_error" column_invisible="1"/>
       </tree>
     </field>
   </record>
