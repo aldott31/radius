@@ -6,7 +6,7 @@
     <field name="name">asr.radius.pppoe_status.list</field>
     <field name="model">asr.radius.pppoe_status</field>
     <field name="arch" type="xml">
-      <list string="PPPoE Status" create="0" edit="0" delete="0"
+      <tree string="PPPoE Status" create="0" edit="0" delete="0"
             decoration-success="status == 'ONLINE'"
             decoration-muted="status != 'ONLINE'">
         <field name="status"/>
@@ -19,7 +19,7 @@
         <field name="circuit_id_mac"/>
         <field name="login_port" string="Login Port"/>
         <field name="virtual_interface" column_invisible="1"/>
-      </list>
+      </tree>
     </field>
   </record>
 

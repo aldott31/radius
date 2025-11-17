@@ -6,7 +6,7 @@
     <field name="name">asr.radius.user.list</field>
     <field name="model">asr.radius.user</field>
     <field name="arch" type="xml">
-      <list string="RADIUS Users"
+      <tree string="RADIUS Users"
             decoration-muted="not active"
             decoration-success="radius_synced and not is_suspended"
             decoration-danger="not radius_synced"
@@ -24,7 +24,7 @@
         <field name="last_sync_date" string="Last Sync"/>
         <field name="active" column_invisible="1"/>
         <field name="is_suspended" column_invisible="1"/>
-      </list>
+      </tree>
     </field>
   </record>
 

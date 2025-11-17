@@ -6,7 +6,7 @@
     <field name="name">crm.access.device.list</field>
     <field name="model">crm.access.device</field>
     <field name="arch" type="xml">
-      <list string="Access Devices"
+      <tree string="Access Devices"
             decoration-muted="not active"
             decoration-success="operational_status == 'online'"
             decoration-danger="operational_status == 'faulty'"
@@ -26,7 +26,7 @@
         <field name="customer_count"/>
         <field name="active" column_invisible="1"/>
         <field name="model" column_invisible="1"/>
-      </list>
+      </tree>
     </field>
   </record>
 

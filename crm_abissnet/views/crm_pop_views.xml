@@ -7,7 +7,7 @@
     <field name="name">crm.pop.list</field>
     <field name="model">crm.pop</field>
     <field name="arch" type="xml">
-      <list string="POPs"
+      <tree string="POPs"
             decoration-muted="not active"
             decoration-success="operational_status == 'active'"
             decoration-warning="operational_status == 'maintenance'"
@@ -21,7 +21,7 @@
         <field name="customer_count"/>
         <field name="capacity"/>
         <field name="active" column_invisible="1"/>
-      </list>
+      </tree>
     </field>
   </record>
 
@@ -97,7 +97,7 @@
           <notebook>
             <page string="Access Devices">
               <field name="device_ids" nolabel="1">
-                <list>
+                <tree>
                   <field name="name"/>
                   <field name="device_type"/>
                   <field name="manufacturer"/>
@@ -107,7 +107,7 @@
                   <field name="ports_used"/>
                   <field name="capacity_percentage" widget="progressbar"/>
                   <field name="customer_count"/>
-                </list>
+                </tree>
               </field>
             </page>
 

@@ -7,7 +7,7 @@
     <field name="name">crm.city.list</field>
     <field name="model">crm.city</field>
     <field name="arch" type="xml">
-      <list string="Cities" decoration-muted="not active">
+      <tree string="Cities" decoration-muted="not active">
         <field name="name"/>
         <field name="code"/>
         <field name="pop_count"/>
@@ -15,7 +15,7 @@
         <field name="customer_count"/>
         <field name="company_id" groups="base.group_multi_company"/>
         <field name="active" column_invisible="1"/>
-      </list>
+      </tree>
     </field>
   </record>
 
@@ -80,14 +80,14 @@
           <notebook>
             <page string="POPs">
               <field name="pop_ids" nolabel="1">
-                <list>
+                <tree>
                   <field name="name"/>
                   <field name="code"/>
                   <field name="pop_type"/>
                   <field name="operational_status"/>
                   <field name="device_count"/>
                   <field name="customer_count"/>
-                </list>
+                </tree>
               </field>
             </page>
 

@@ -7,7 +7,7 @@
     <field name="name">crm.fiber.closure.list</field>
     <field name="model">crm.fiber.closure</field>
     <field name="arch" type="xml">
-      <list string="Fiber Closures (Kaseta)"
+      <tree string="Fiber Closures (Kaseta)"
             decoration-muted="not active"
             decoration-success="operational_status == 'active'"
             decoration-danger="operational_status == 'faulty'">
@@ -24,7 +24,7 @@
         <field name="capacity_percentage" widget="progressbar"/>
         <field name="operational_status"/>
         <field name="active" column_invisible="1"/>
-      </list>
+      </tree>
     </field>
   </record>
 
