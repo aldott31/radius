@@ -5,11 +5,11 @@ from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
 _ONU_CHOICES = [
-    ('ZTE-F412',  'EPON-ZTE-F412 ( ZTE-F412 )'),
-    ('ZTE-F460',  'EPON-ZTE-F460 ( ZTE-F460 )'),
-    ('ZTE-F612',  'GPON-ZTE-F612 ( ZTE-F612 )'),
-    ('ZTE-F660',  'GPON-ZTE-F660 ( ZTE-F660 )'),
-    ('ZTE-F6600', 'ZTE-F6600 ( ZTE-F6600 )'),
+    ('ZTE-F412',  'ZTE-F412'),
+    ('ZTE-F460',  'ZTE-F460'),
+    ('ZTE-F612',  'ZTE-F612'),
+    ('ZTE-F660',  'ZTE-F660'),
+    ('ZTE-F6600', 'ZTE-F6600'),
 ]
 
 _SPEED_PROFILE_CHOICES = [
