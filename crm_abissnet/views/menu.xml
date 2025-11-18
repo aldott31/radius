@@ -8,13 +8,13 @@
   <menuitem id="menu_crm_abissnet_root"
             name="Abissnet CRM"
             web_icon="crm_abissnet,static/description/icon.png"
-            groups="group_crm_user"
+            groups="crm_abissnet.group_crm_user"
             sequence="10"/>
 
   <menuitem id="menu_management"
             name="Management"
             parent="menu_crm_abissnet_root"
-            groups="group_crm_user"
+            groups="crm_abissnet.group_crm_user"
             sequence="50"/>
 
 </odoo>
