@@ -315,5 +315,6 @@
             name="Access Devices"
             parent="menu_management"
             action="action_crm_access_device"
+            groups="crm_abissnet.group_crm_user"
             sequence="30"/>
 </odoo>

@@ -232,6 +232,7 @@
             name="Fiber Closures"
             parent="crm_abissnet.menu_management"
             action="action_crm_fiber_closure"
+            groups="crm_abissnet.group_crm_user"
             sequence="35"/>
 
   <!-- ==================== WIZARD VIEW ==================== -->

@@ -157,6 +157,7 @@
             name="Cities"
             parent="menu_management"
             action="action_crm_city"
+            groups="crm_abissnet.group_crm_user"
             sequence="10"/>
 
 </odoo>
