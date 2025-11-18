@@ -6,7 +6,7 @@
     <field name="name">olt.onu.uncfg.line.list</field>
     <field name="model">olt.onu.uncfg.line</field>
     <field name="arch" type="xml">
-      <list string="Unregistered ONUs" create="false" edit="false" delete="false">
+      <tree string="Unregistered ONUs" create="false" edit="false" delete="false">
         <field name="technology" string="Tech"
                decoration-info="technology == 'gpon'"
                decoration-success="technology == 'epon'"/>
@@ -19,7 +19,7 @@
                 string="Register"
                 icon="fa-play-circle"
                 class="btn-primary"/>
-      </list>
+      </tree>
     </field>
   </record>
 
@@ -57,7 +57,7 @@
             <page string="📋 Unregistered ONUs" name="onu_list">
               <field name="line_ids" nolabel="1"
                      context="{'list_view_ref': 'asr_olt_telnet.view_olt_onu_uncfg_line_list'}">
-                <list string="Unregistered ONUs" create="false" edit="false" delete="false">
+                <tree string="Unregistered ONUs" create="false" edit="false" delete="false">
                   <field name="technology" string="Tech"
                          decoration-info="technology == 'gpon'"
                          decoration-success="technology == 'epon'"/>
@@ -70,7 +70,7 @@
                           string="Register"
                           icon="fa-play-circle"
                           class="btn-primary"/>
-                </list>
+                </tree>
               </field>
             </page>
             <page string="📄 Raw Output" name="raw_output">

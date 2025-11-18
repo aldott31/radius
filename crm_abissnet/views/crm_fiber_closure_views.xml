@@ -7,7 +7,7 @@
     <field name="name">crm.fiber.closure.list</field>
     <field name="model">crm.fiber.closure</field>
     <field name="arch" type="xml">
-      <list string="Fiber Closures (Kaseta)"
+      <tree string="Fiber Closures (Kaseta)"
             decoration-muted="not active"
             decoration-success="operational_status == 'active'"
             decoration-danger="operational_status == 'faulty'">
@@ -24,7 +24,7 @@
         <field name="capacity_percentage" widget="progressbar"/>
         <field name="operational_status"/>
         <field name="active" column_invisible="1"/>
-      </list>
+      </tree>
     </field>
   </record>
 
@@ -35,19 +35,21 @@
     <field name="model">crm.fiber.closure</field>
     <field name="arch" type="xml">
       <form string="Fiber Closure">
-        <header>
-          <button name="action_initialize_cores" type="object"
-                  string="Initialize Cores" class="btn-primary"
-                  invisible="fiber_cores_json != '[]'"/>
-          <button name="action_assign_customer_wizard" type="object"
-                  string="Assign Customer" class="btn-primary"
-                  invisible="fiber_cores_json == '[]'"/>
-          <button name="action_open_map" type="object"
-                  string="Show on Map" class="btn-secondary"
-                  invisible="not latitude or not longitude"/>
-          <field name="operational_status" widget="statusbar"
-                 options="{'clickable': '1'}"/>
-        </header>
+          <header>
+    <field name="fiber_cores_json" invisible="1"/>  <!-- SHTO KËTË RRESHT -->
+
+    <button name="action_initialize_cores" type="object"
+            string="Initialize Cores" class="btn-primary"
+            invisible="fiber_cores_json != '[]'"/>
+    <button name="action_assign_customer_wizard" type="object"
+            string="Assign Customer" class="btn-primary"
+            invisible="fiber_cores_json == '[]'"/>
+    <button name="action_open_map" type="object"
+            string="Show on Map" class="btn-secondary"
+            invisible="not latitude or not longitude"/>
+    <field name="operational_status" widget="statusbar"
+           options="{'clickable': '1'}"/>
+  </header>
 
         <sheet>
 
@@ -99,7 +101,7 @@
               <field name="installation_date"/>
               <field name="last_maintenance_date"/>
               <field name="installer_id"/>
-              <field name="company_id" groups="base.group_multi_company"/>
+              <field name="company_id"/>
             </group>
           </group>
 
@@ -211,7 +213,7 @@
   <record id="action_crm_fiber_closure" model="ir.actions.act_window">
     <field name="name">Fiber Closures (Kaseta)</field>
     <field name="res_model">crm.fiber.closure</field>
-    <field name="view_mode">list,form</field>
+    <field name="view_mode">tree,form</field>
     <field name="context">{'search_default_active': 1}</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">
@@ -230,6 +232,7 @@
             name="Fiber Closures"
             parent="crm_abissnet.menu_management"
             action="action_crm_fiber_closure"
+            groups="crm_abissnet.group_crm_user"
             sequence="35"/>
 
   <!-- ==================== WIZARD VIEW ==================== -->

@@ -6,7 +6,7 @@
     <field name="name">crm.access.device.list</field>
     <field name="model">crm.access.device</field>
     <field name="arch" type="xml">
-      <list string="Access Devices"
+      <tree string="Access Devices"
             decoration-muted="not active"
             decoration-success="operational_status == 'online'"
             decoration-danger="operational_status == 'faulty'"
@@ -26,7 +26,7 @@
         <field name="customer_count"/>
         <field name="active" column_invisible="1"/>
         <field name="model" column_invisible="1"/>
-      </list>
+      </tree>
     </field>
   </record>
 
@@ -105,7 +105,7 @@
                      domain="[('company_id', '=', company_id)]"
                      options="{'no_create': True}"
                      help="Link to RADIUS NAS configuration"/>
-              <field name="company_id" groups="base.group_multi_company"/>
+              <field name="company_id"/>
             </group>
           </group>
 
@@ -295,7 +295,7 @@
   <record id="action_crm_access_device" model="ir.actions.act_window">
     <field name="name">Access Devices</field>
     <field name="res_model">crm.access.device</field>
-    <field name="view_mode">list,form</field>
+    <field name="view_mode">tree,form</field>
     <field name="context">{'search_default_active': 1, 'search_default_olt': 1}</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">Add your first access device</p>
@@ -315,5 +315,6 @@
             name="Access Devices"
             parent="menu_management"
             action="action_crm_access_device"
+            groups="crm_abissnet.group_crm_user"
             sequence="30"/>
 </odoo>

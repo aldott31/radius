@@ -12,4 +12,9 @@
     <field name="category_id" ref="base.module_category_sales_sales"/>
     <field name="implied_ids" eval="[(4, ref('group_crm_user'))]"/>
   </record>
+
+  <!-- Extend FreeRADIUS Admin group to automatically include CRM User -->
+  <record id="ab_radius_connector.group_ab_radius_admin" model="res.groups">
+    <field name="implied_ids" eval="[(4, ref('group_crm_user'))]"/>
+  </record>
 </odoo>

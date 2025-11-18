@@ -214,7 +214,7 @@
       </xpath>
 
       <!-- Dekorimet standarde sipas SLA (Odoo 17: <list>) -->
-      <xpath expr="//list" position="attributes">
+      <xpath expr="//tree" position="attributes">
         <attribute name="decoration-muted">sla_level == '1'</attribute>
         <attribute name="decoration-warning">sla_level == '2'</attribute>
         <attribute name="decoration-success">sla_level == '3'</attribute>
@@ -286,5 +286,6 @@
             name="Customers"
             parent="menu_crm_abissnet_root"
             action="action_asr_radius_user_crm"
+            groups="crm_abissnet.group_crm_user"
             sequence="10"/>
 </odoo>
