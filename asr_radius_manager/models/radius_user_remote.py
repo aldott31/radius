@@ -298,7 +298,7 @@ class AsrRadiusUserRemote(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('RADIUS Users'),
             'res_model': 'asr.radius.user',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': [('username', '=', self.username)],
             'target': 'current',
             'context': {'search_default_username': self.username},

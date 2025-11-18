@@ -541,7 +541,7 @@ class AsrRadiusUserExt(models.Model):
             'name': _("Sessions"),
             'type': 'ir.actions.act_window',
             'res_model': 'asr.radius.session',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': domain,
             'target': 'current',
             'context': {'create': False, 'edit': False, 'delete': False},

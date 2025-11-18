@@ -13,7 +13,7 @@
         <field name="pop_count"/>
         <field name="device_count"/>
         <field name="customer_count"/>
-        <field name="company_id" groups="base.group_multi_company"/>
+        <field name="company_id"/>
         <field name="active" column_invisible="1"/>
       </tree>
     </field>
@@ -73,7 +73,7 @@
             <group string="Geolocation">
               <field name="latitude" placeholder="41.3275"/>
               <field name="longitude" placeholder="19.8187"/>
-              <field name="company_id" groups="base.group_multi_company"/>
+              <field name="company_id"/>
             </group>
           </group>
 

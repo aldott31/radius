@@ -105,7 +105,7 @@
                      domain="[('company_id', '=', company_id)]"
                      options="{'no_create': True}"
                      help="Link to RADIUS NAS configuration"/>
-              <field name="company_id" groups="base.group_multi_company"/>
+              <field name="company_id"/>
             </group>
           </group>
 

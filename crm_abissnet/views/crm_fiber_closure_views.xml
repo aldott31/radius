@@ -35,19 +35,21 @@
     <field name="model">crm.fiber.closure</field>
     <field name="arch" type="xml">
       <form string="Fiber Closure">
-        <header>
-          <button name="action_initialize_cores" type="object"
-                  string="Initialize Cores" class="btn-primary"
-                  invisible="fiber_cores_json != '[]'"/>
-          <button name="action_assign_customer_wizard" type="object"
-                  string="Assign Customer" class="btn-primary"
-                  invisible="fiber_cores_json == '[]'"/>
-          <button name="action_open_map" type="object"
-                  string="Show on Map" class="btn-secondary"
-                  invisible="not latitude or not longitude"/>
-          <field name="operational_status" widget="statusbar"
-                 options="{'clickable': '1'}"/>
-        </header>
+          <header>
+    <field name="fiber_cores_json" invisible="1"/>  <!-- SHTO KËTË RRESHT -->
+
+    <button name="action_initialize_cores" type="object"
+            string="Initialize Cores" class="btn-primary"
+            invisible="fiber_cores_json != '[]'"/>
+    <button name="action_assign_customer_wizard" type="object"
+            string="Assign Customer" class="btn-primary"
+            invisible="fiber_cores_json == '[]'"/>
+    <button name="action_open_map" type="object"
+            string="Show on Map" class="btn-secondary"
+            invisible="not latitude or not longitude"/>
+    <field name="operational_status" widget="statusbar"
+           options="{'clickable': '1'}"/>
+  </header>
 
         <sheet>
 
@@ -99,7 +101,7 @@
               <field name="installation_date"/>
               <field name="last_maintenance_date"/>
               <field name="installer_id"/>
-              <field name="company_id" groups="base.group_multi_company"/>
+              <field name="company_id"/>
             </group>
           </group>
 

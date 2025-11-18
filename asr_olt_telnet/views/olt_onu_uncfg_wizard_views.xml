@@ -56,7 +56,7 @@
           <notebook>
             <page string="📋 Unregistered ONUs" name="onu_list">
               <field name="line_ids" nolabel="1"
-                     context="{'tree_view_ref': 'asr_olt_telnet.view_olt_onu_uncfg_line_list'}">
+                     context="{'list_view_ref': 'asr_olt_telnet.view_olt_onu_uncfg_line_list'}">
                 <tree string="Unregistered ONUs" create="false" edit="false" delete="false">
                   <field name="technology" string="Tech"
                          decoration-info="technology == 'gpon'"

@@ -173,7 +173,7 @@ class CrmAccessDevice(models.Model):
             'type': 'ir.actions.act_window',
             'name': _('Customers on %s') % self.name,
             'res_model': 'asr.radius.user',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': [('access_device_id', '=', self.id)],
             'context': {'default_access_device_id': self.id},
         }
