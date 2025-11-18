@@ -54,6 +54,19 @@
             </group>
           </group>
 
+          <group string="VoIP Configuration" invisible="function_mode not in ['bridge_mcast_voip', 'router_mcast_voip']">
+            <group>
+              <field name="voip_userid" placeholder="e.g., 044310660"
+                     required="function_mode in ['bridge_mcast_voip', 'router_mcast_voip']"/>
+              <field name="voip_username" placeholder="e.g., 044310660"
+                     required="function_mode in ['bridge_mcast_voip', 'router_mcast_voip']"/>
+            </group>
+            <group>
+              <field name="voip_password" password="True"
+                     required="function_mode in ['bridge_mcast_voip', 'router_mcast_voip']"/>
+            </group>
+          </group>
+
           <div class="alert alert-warning" role="alert">
             <strong>⚠️ Registration Command:</strong><br/>
             <code>interface <field name="interface_display" readonly="1" nolabel="1" class="d-inline"/></code><br/>

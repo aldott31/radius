@@ -36,8 +36,14 @@ class OltOnuRegisterQuick(models.TransientModel):
     name = fields.Char(string="Name/Description")
 
     onu_type = fields.Selection(_ONU_CHOICES, string="ONU Type", required=True)
-    function_mode = fields.Selection([('bridge','Bridge'),('router','Router')],
-                                     string="Function Mode", required=True, default='bridge')
+    function_mode = fields.Selection([
+        ('bridge', 'Bridge'),
+        ('router', 'Router'),
+        ('bridge_mcast', 'Bridge + MCAST'),
+        ('bridge_mcast_voip', 'Bridge + MCAST + VoIP'),
+        ('data', 'Data Only'),
+        ('router_mcast_voip', 'Router + MCAST + VoIP'),
+    ], string="Function Mode", required=True, default='bridge')
 
     # Internet configuration
     internet_vlan = fields.Char(string="Internet VLAN", required=True)
@@ -45,6 +51,11 @@ class OltOnuRegisterQuick(models.TransientModel):
     voice_vlan = fields.Char(string="Voice VLAN", required=False)
     speed_profile = fields.Selection(_SPEED_PROFILE_CHOICES, string="Speed Profile",
                                      required=True, default='1G')
+
+    # VoIP configuration (for modes with telephony)
+    voip_userid = fields.Char(string="VoIP UserID", help="SIP userid (e.g., 044310660)")
+    voip_username = fields.Char(string="VoIP Username", help="SIP username (e.g., 044310660)")
+    voip_password = fields.Char(string="VoIP Password", help="SIP password")
 
     # Helper fields for showing available VLANs
     available_internet_vlans_display = fields.Char(compute='_compute_available_vlans_display', store=False)
@@ -294,6 +305,237 @@ class OltOnuRegisterQuick(models.TransientModel):
         ]
         return ";".join(commands)
 
+    def _generate_bridge_mcast_config(self):
+        """Generate GPON Bridge + MCAST configuration commands"""
+        self.ensure_one()
+
+        if not self.tv_vlan:
+            raise UserError(_('TV VLAN is required for Bridge + MCAST mode.'))
+
+        # Detect correct interface format based on OLT model
+        model = (self.access_device_id.model or '').upper()
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
+        else:
+            interface_for_cmd = self.interface
+
+        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
+        port_part = self.interface.replace('gpon-olt_', '')
+        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        vport_interface_1 = f"vport-{port_part}.{self.onu_slot}:1"
+        vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
+
+        commands = [
+            "conf t",
+            f"interface {interface_for_cmd}",
+            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+            "exit",
+            f"interface {onu_interface}",
+            f"name {self.customer_id.username}",
+            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
+            "tcont 2 name mcast profile mcast",
+            "gemport 1 tcont 1",
+            "gemport 2 tcont 2",
+            "exit",
+            f"pon-onu-mng {onu_interface}",
+            "dhcp-ip ethuni eth_0/1 from-internet",
+            "dhcp-ip ethuni eth_0/2 from-internet",
+            f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+            f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
+            f"service 1 gemport 1 vlan {self.internet_vlan}",
+            f"service 2 gemport 2 vlan {self.tv_vlan}",
+            "security-mgmt 1 state enable mode forward protocol web",
+            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+            "exit",
+            f"interface {vport_interface_1}",
+            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+            "port-identification operator-profile service-port 1 TEST",
+            "exit",
+            f"interface {vport_interface_2}",
+            f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+            "exit",
+            f"igmp mvlan {self.tv_vlan}",
+            f"receive-port {vport_interface_2}",
+            "exit",
+        ]
+        return ";".join(commands)
+
+    def _generate_bridge_mcast_voip_config(self):
+        """Generate GPON Bridge + MCAST + VoIP configuration commands"""
+        self.ensure_one()
+
+        if not self.tv_vlan:
+            raise UserError(_('TV VLAN is required for Bridge + MCAST + VoIP mode.'))
+        if not self.voice_vlan:
+            raise UserError(_('Voice VLAN is required for Bridge + MCAST + VoIP mode.'))
+        if not self.voip_userid or not self.voip_username or not self.voip_password:
+            raise UserError(_('VoIP credentials (UserID, Username, Password) are required for VoIP mode.'))
+
+        # Detect correct interface format based on OLT model
+        model = (self.access_device_id.model or '').upper()
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
+        else:
+            interface_for_cmd = self.interface
+
+        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
+        port_part = self.interface.replace('gpon-olt_', '')
+        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        vport_interface_1 = f"vport-{port_part}.{self.onu_slot}:1"
+        vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
+        vport_interface_3 = f"vport-{port_part}.{self.onu_slot}:3"
+
+        commands = [
+            "conf t",
+            f"interface {interface_for_cmd}",
+            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+            "exit",
+            f"interface {onu_interface}",
+            f"name {self.customer_id.username}",
+            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
+            "tcont 2 name mcast profile mcast",
+            "tcont 3 name voip profile voip",
+            "gemport 1 tcont 1",
+            "gemport 2 tcont 2",
+            "gemport 3 tcont 3",
+            "exit",
+            f"pon-onu-mng {onu_interface}",
+            "dhcp-ip ethuni eth_0/1 from-internet",
+            "dhcp-ip ethuni eth_0/4 from-internet",
+            f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+            f"vlan port eth_0/4 mode tag vlan {self.tv_vlan}",
+            f"service 1 gemport 1 vlan {self.internet_vlan}",
+            f"service 2 gemport 2 vlan {self.tv_vlan}",
+            f"service 3 gemport 3 vlan {self.voice_vlan}",
+            "voip protocol sip",
+            "voip-ip ipv4 mode dhcp vlan-profile PHONE host 2",
+            f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
+            "security-mgmt 1 state enable mode forward protocol web",
+            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+            "exit",
+            f"interface {vport_interface_1}",
+            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+            "port-identification operator-profile service-port 1 TEST",
+            "exit",
+            f"interface {vport_interface_2}",
+            f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+            "exit",
+            f"interface {vport_interface_3}",
+            f"service-port 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
+            "exit",
+            f"igmp mvlan {self.tv_vlan}",
+            f"receive-port {vport_interface_2}",
+            "exit",
+        ]
+        return ";".join(commands)
+
+    def _generate_data_config(self):
+        """Generate GPON Data Only configuration commands"""
+        self.ensure_one()
+
+        # Detect correct interface format based on OLT model
+        model = (self.access_device_id.model or '').upper()
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
+        else:
+            interface_for_cmd = self.interface
+
+        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
+        port_part = self.interface.replace('gpon-olt_', '')
+        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        vport_interface = f"vport-{port_part}.{self.onu_slot}:4"
+
+        commands = [
+            "conf t",
+            f"interface {interface_for_cmd}",
+            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+            "exit",
+            f"interface {onu_interface}",
+            f"name {self.customer_id.username}",
+            f"tcont 4 name {self.speed_profile} profile {self.speed_profile}",
+            "gemport 4 tcont 4",
+            "exit",
+            f"pon-onu-mng {onu_interface}",
+            "dhcp-ip ethuni eth_0/1 from-internet",
+            f"service 4 gemport 4 vlan {self.internet_vlan}",
+            f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+            "exit",
+            f"interface {vport_interface}",
+            f"service-port 4 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+            "exit",
+        ]
+        return ";".join(commands)
+
+    def _generate_router_mcast_voip_config(self):
+        """Generate GPON Router + MCAST + VoIP configuration commands"""
+        self.ensure_one()
+
+        if not self.customer_id.username or not self.customer_id.radius_password:
+            raise UserError(_('Customer missing RADIUS username or password for PPPoE configuration.'))
+        if not self.tv_vlan:
+            raise UserError(_('TV VLAN is required for Router + MCAST + VoIP mode.'))
+        if not self.voice_vlan:
+            raise UserError(_('Voice VLAN is required for Router + MCAST + VoIP mode.'))
+        if not self.voip_userid or not self.voip_username or not self.voip_password:
+            raise UserError(_('VoIP credentials (UserID, Username, Password) are required for VoIP mode.'))
+
+        # Detect correct interface format based on OLT model
+        model = (self.access_device_id.model or '').upper()
+        if 'C600' in model or 'C650' in model or 'C680' in model:
+            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
+        else:
+            interface_for_cmd = self.interface
+
+        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
+        port_part = self.interface.replace('gpon-olt_', '')
+        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        vport_interface_1 = f"vport-{port_part}.{self.onu_slot}:1"
+        vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
+        vport_interface_3 = f"vport-{port_part}.{self.onu_slot}:3"
+
+        commands = [
+            "conf t",
+            f"interface {interface_for_cmd}",
+            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+            "exit",
+            f"interface {onu_interface}",
+            f"name {self.customer_id.username}",
+            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
+            "tcont 2 name mcast profile mcast",
+            "tcont 3 name voip profile voip",
+            "gemport 1 tcont 1",
+            "gemport 2 tcont 2",
+            "gemport 3 tcont 3",
+            "exit",
+            f"pon-onu-mng {onu_interface}",
+            "dhcp-ip ethuni eth_0/2 from-internet",
+            f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
+            f"service 1 gemport 1 vlan {self.internet_vlan}",
+            f"service 2 gemport 2 vlan {self.tv_vlan}",
+            f"service 3 gemport 3 vlan {self.voice_vlan}",
+            "voip protocol sip",
+            "voip-ip ipv4 mode dhcp vlan-profile PHONE host 2",
+            f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
+            f"wan-ip ipv4 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
+            "security-mgmt 1 state enable mode forward protocol web",
+            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+            "exit",
+            f"interface {vport_interface_1}",
+            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+            "port-identification operator-profile service-port 1 TEST",
+            "exit",
+            f"interface {vport_interface_2}",
+            f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+            "exit",
+            f"interface {vport_interface_3}",
+            f"service-port 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
+            "exit",
+            f"igmp mvlan {self.tv_vlan}",
+            f"receive-port {vport_interface_2}",
+            "exit",
+        ]
+        return ";".join(commands)
+
     def action_register(self):
         """Register ONU and configure it based on function_mode - Single telnet session"""
         self.ensure_one()
@@ -312,8 +554,18 @@ class OltOnuRegisterQuick(models.TransientModel):
         # Generate full command based on function_mode (includes registration + config)
         if self.function_mode == 'router':
             full_cmd = self._generate_router_config()
-        else:  # bridge
+        elif self.function_mode == 'bridge':
             full_cmd = self._generate_bridge_config()
+        elif self.function_mode == 'bridge_mcast':
+            full_cmd = self._generate_bridge_mcast_config()
+        elif self.function_mode == 'bridge_mcast_voip':
+            full_cmd = self._generate_bridge_mcast_voip_config()
+        elif self.function_mode == 'data':
+            full_cmd = self._generate_data_config()
+        elif self.function_mode == 'router_mcast_voip':
+            full_cmd = self._generate_router_mcast_voip_config()
+        else:
+            raise UserError(_('Unknown function mode: %s') % self.function_mode)
 
         # Execute in a single telnet session
         output = self._execute_telnet_session(olt_ip, user, pwd, full_cmd)
@@ -334,7 +586,15 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         # Logs
         try:
-            mode_label = "PPPoE (Router)" if self.function_mode == 'router' else "Bridge"
+            mode_labels = {
+                'router': 'PPPoE (Router)',
+                'bridge': 'Bridge',
+                'bridge_mcast': 'Bridge + MCAST',
+                'bridge_mcast_voip': 'Bridge + MCAST + VoIP',
+                'data': 'Data Only',
+                'router_mcast_voip': 'Router + MCAST + VoIP',
+            }
+            mode_label = mode_labels.get(self.function_mode, self.function_mode)
             speed_label = dict(_SPEED_PROFILE_CHOICES).get(self.speed_profile, self.speed_profile)
 
             # Build VLAN info
@@ -344,24 +604,29 @@ class OltOnuRegisterQuick(models.TransientModel):
             if self.voice_vlan:
                 vlan_info += f", Voice: {self.voice_vlan}"
 
-            self.customer_id.message_post(
-                body=_('✅ ONU Registered & Configured via Telnet:<br/>'
-                       '• Port: %(port)s<br/>'
-                       '• Slot: %(slot)d<br/>'
-                       '• Type: %(type)s<br/>'
-                       '• SN: %(sn)s<br/>'
-                       '• Mode: %(mode)s<br/>'
-                       '• VLANs: %(vlan)s<br/>'
-                       '• Speed: %(speed)s') % {
-                    'port': self.interface,
-                    'slot': self.onu_slot,
-                    'type': self.onu_type,
-                    'sn': self.serial,
-                    'mode': mode_label,
-                    'vlan': vlan_info,
-                    'speed': speed_label
-                }
-            )
+            # Build message body
+            msg_body = _('✅ ONU Registered & Configured via Telnet:<br/>'
+                        '• Port: %(port)s<br/>'
+                        '• Slot: %(slot)d<br/>'
+                        '• Type: %(type)s<br/>'
+                        '• SN: %(sn)s<br/>'
+                        '• Mode: %(mode)s<br/>'
+                        '• VLANs: %(vlan)s<br/>'
+                        '• Speed: %(speed)s') % {
+                'port': self.interface,
+                'slot': self.onu_slot,
+                'type': self.onu_type,
+                'sn': self.serial,
+                'mode': mode_label,
+                'vlan': vlan_info,
+                'speed': speed_label
+            }
+
+            # Add VoIP info if configured
+            if self.voip_userid and self.voip_username:
+                msg_body += _('<br/>• VoIP User: %(voip_user)s') % {'voip_user': self.voip_username}
+
+            self.customer_id.message_post(body=msg_body)
             self.access_device_id.message_post(
                 body=_('ONU registered & configured: Slot %(slot)d, SN %(sn)s, Mode: %(mode)s by %(user)s') % {
                     'slot': self.onu_slot,
