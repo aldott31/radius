@@ -315,6 +315,6 @@
             name="Access Devices"
             parent="menu_management"
             action="action_crm_access_device"
-            groups="crm_abissnet.group_crm_user"
+            groups="asr_radius_manager.group_isp_manager,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc"
             sequence="30"/>
 </odoo>

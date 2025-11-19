@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- ============================================================ -->
+  <!-- CATEGORY: ISP Operations -->
+  <!-- ============================================================ -->
+  <record id="module_category_isp_operations" model="ir.module.category">
+    <field name="name">CRM Operations</field>
+    <field name="description">Manage ISP customer lifecycle, billing, and network operations</field>
+    <field name="sequence">50</field>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- SALES DEPARTMENT -->
+  <!-- ============================================================ -->
+  <record id="group_isp_sales" model="res.groups">
+    <field name="name">CRM: Sales</field>
+    <field name="category_id" ref="module_category_isp_operations"/>
+    <field name="comment">
+      Sales team: Create leads/orders, view customers, update contact info.
+      Cannot: Provision, sync RADIUS, access network devices, manage billing.
+    </field>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- CUSTOMER SERVICE DEPARTMENT -->
+  <!-- ============================================================ -->
+  <record id="group_isp_customer_service" model="res.groups">
+    <field name="name">CRM: Customer Service</field>
+    <field name="category_id" ref="module_category_isp_operations"/>
+    <field name="comment">
+      Customer service: View active customers, update contact info, view sessions.
+      Cannot: Provision, create customers, delete, access devices.
+    </field>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- PROVISIONING DEPARTMENT -->
+  <!-- ============================================================ -->
+  <record id="group_isp_provisioning" model="res.groups">
+    <field name="name">CRM: Core Network</field>
+    <field name="category_id" ref="module_category_isp_operations"/>
+    <field name="comment">
+      Provisioning team: Sync to RADIUS, manage OLT, configure VLANs, assign IPs.
+      Cannot: Create customers, delete, manage billing.
+    </field>
+    <field name="implied_ids" eval="[(4, ref('ab_radius_connector.group_ab_radius_admin'))]"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- FIELD INSTALLATION DEPARTMENT -->
+  <!-- ============================================================ -->
+  <record id="group_isp_field_tech" model="res.groups">
+    <field name="name">CRM: Field Technician</field>
+    <field name="category_id" ref="module_category_isp_operations"/>
+    <field name="comment">
+      Field technicians: View scheduled installs, update installation status, upload photos.
+      Cannot: Provision RADIUS, create customers, delete, manage billing.
+    </field>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- NOC (Network Operations Center) -->
+  <!-- ============================================================ -->
+  <record id="group_isp_noc" model="res.groups">
+    <field name="name">CRM: NOC</field>
+    <field name="category_id" ref="module_category_isp_operations"/>
+    <field name="comment">
+      NOC team: View all customers, disconnect sessions, troubleshoot, monitor devices.
+      Cannot: Create/delete customers, manage billing, provision new customers.
+    </field>
+    <field name="implied_ids" eval="[(4, ref('ab_radius_connector.group_ab_radius_admin'))]"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- FINANCE / BILLING DEPARTMENT -->
+  <!-- ============================================================ -->
+  <record id="group_isp_finance" model="res.groups">
+    <field name="name">CRM: Finance</field>
+    <field name="category_id" ref="module_category_isp_operations"/>
+    <field name="comment">
+      Finance team: View all customers, manage contracts, approve credit, suspend for non-payment.
+      Cannot: Provision RADIUS, configure devices, access technical settings.
+    </field>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- MANAGER (Full Access) -->
+  <!-- ============================================================ -->
+  <record id="group_isp_manager" model="res.groups">
+    <field name="name">CRM: Manager</field>
+    <field name="category_id" ref="module_category_isp_operations"/>
+    <field name="comment">
+      Management: Full access to all operations, override permissions, view all reports.
+    </field>
+    <field name="implied_ids" eval="[
+      (4, ref('group_isp_sales')),
+      (4, ref('group_isp_customer_service')),
+      (4, ref('group_isp_provisioning')),
+      (4, ref('group_isp_field_tech')),
+      (4, ref('group_isp_noc')),
+      (4, ref('group_isp_finance'))
+    ]"/>
+  </record>
+
+</odoo>

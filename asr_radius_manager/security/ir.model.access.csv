@@ -1,4 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+
 access_asr_device_admin,asr.device admin,model_asr_device,ab_radius_connector.group_ab_radius_admin,1,1,1,1
 access_asr_device_user,asr.device user,model_asr_device,base.group_user,1,0,0,0
 
@@ -23,3 +24,43 @@ access_asr_radius_config_manager,asr.radius.config manager,model_asr_radius_conf
 
 access_asr_pppoe_config_wizard,asr.pppoe.config.wizard,model_asr_pppoe_config_wizard,base.group_system,1,1,1,1
 access_asr_radius_test_wizard,asr.radius.test.wizard,model_asr_radius_test_wizard,base.group_system,1,1,1,1
+
+
+
+access_asr_radius_user_sales,asr.radius.user sales,model_asr_radius_user,group_isp_sales,1,1,1,0
+access_asr_subscription_sales,asr.subscription sales,model_asr_subscription,group_isp_sales,1,0,0,0
+access_asr_device_sales,asr.device sales,model_asr_device,group_isp_sales,1,0,0,0
+access_asr_radius_session_sales,asr.radius.session sales,model_asr_radius_session,group_isp_sales,1,0,0,0
+
+
+access_asr_radius_user_cs,asr.radius.user cs,model_asr_radius_user,group_isp_customer_service,1,1,0,0
+access_asr_subscription_cs,asr.subscription cs,model_asr_subscription,group_isp_customer_service,1,0,0,0
+access_asr_device_cs,asr.device cs,model_asr_device,group_isp_customer_service,1,0,0,0
+access_asr_radius_session_cs,asr.radius.session cs,model_asr_radius_session,group_isp_customer_service,1,0,0,0
+
+
+access_asr_radius_user_prov,asr.radius.user prov,model_asr_radius_user,group_isp_provisioning,1,1,0,0
+access_asr_subscription_prov,asr.subscription prov,model_asr_subscription,group_isp_provisioning,1,1,1,0
+access_asr_device_prov,asr.device prov,model_asr_device,group_isp_provisioning,1,1,1,0
+access_asr_radius_attribute_prov,asr.radius.attribute prov,model_asr_radius_attribute,group_isp_provisioning,1,1,1,1
+access_asr_radius_session_prov,asr.radius.session prov,model_asr_radius_session,group_isp_provisioning,1,0,0,0
+access_asr_radius_user_remote_prov,asr.radius.user.remote prov,model_asr_radius_user_remote,group_isp_provisioning,1,1,0,0
+
+
+access_asr_radius_user_field,asr.radius.user field,model_asr_radius_user,group_isp_field_tech,1,1,0,0
+access_asr_subscription_field,asr.subscription field,model_asr_subscription,group_isp_field_tech,1,0,0,0
+access_asr_device_field,asr.device field,model_asr_device,group_isp_field_tech,1,0,0,0
+
+
+access_asr_radius_user_noc,asr.radius.user noc,model_asr_radius_user,group_isp_noc,1,1,0,0
+access_asr_subscription_noc,asr.subscription noc,model_asr_subscription,group_isp_noc,1,0,0,0
+access_asr_device_noc,asr.device noc,model_asr_device,group_isp_noc,1,1,0,0
+access_asr_radius_session_noc,asr.radius.session noc,model_asr_radius_session,group_isp_noc,1,0,0,0
+access_asr_radius_user_remote_noc,asr.radius.user.remote noc,model_asr_radius_user_remote,group_isp_noc,1,1,0,0
+access_asr_radius_pppoe_status_noc,asr.radius.pppoe_status noc,model_asr_radius_pppoe_status,group_isp_noc,1,0,0,0
+
+
+access_asr_radius_user_finance,asr.radius.user finance,model_asr_radius_user,group_isp_finance,1,1,0,0
+access_asr_subscription_finance,asr.subscription finance,model_asr_subscription,group_isp_finance,1,1,0,0
+access_asr_device_finance,asr.device finance,model_asr_device,group_isp_finance,1,0,0,0
+access_asr_radius_session_finance,asr.radius.session finance,model_asr_radius_session,group_isp_finance,1,0,0,0

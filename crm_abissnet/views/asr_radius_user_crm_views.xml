@@ -286,6 +286,6 @@
             name="Customers"
             parent="menu_crm_abissnet_root"
             action="action_asr_radius_user_crm"
-            groups="crm_abissnet.group_crm_user"
+            groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"
             sequence="10"/>
 </odoo>

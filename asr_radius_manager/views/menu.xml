@@ -1,7 +1,8 @@
 <odoo>
-  <!-- ROOT menu only -->
+  <!-- ROOT menu - RADIUS (NOC + Manager only) -->
   <menuitem id="menu_asr_radius_root"
             name="RADIUS"
+            groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"
             web_icon="asr_radius_manager,static/description/icon.png"
             sequence="50"/>
 </odoo>

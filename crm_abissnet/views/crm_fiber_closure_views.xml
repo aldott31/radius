@@ -232,7 +232,7 @@
             name="Fiber Closures"
             parent="crm_abissnet.menu_management"
             action="action_crm_fiber_closure"
-            groups="crm_abissnet.group_crm_user"
+            groups="asr_radius_manager.group_isp_manager,asr_radius_manager.group_isp_provisioning"
             sequence="35"/>
 
   <!-- ==================== WIZARD VIEW ==================== -->

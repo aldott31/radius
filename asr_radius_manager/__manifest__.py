@@ -13,7 +13,11 @@
         'ab_radius_connector'   # DSN & MySQL connector te res.company
     ],
     'data': [
+    # Security must load first: groups → rules → access rights
+    'security/groups.xml',
+    'security/security_rules.xml',
     'security/ir.model.access.csv',
+    # Data files
     'data/ir_sequence.xml',
     'data/ir_config_parameter.xml',
     'data/server_actions.xml',

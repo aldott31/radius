@@ -157,7 +157,7 @@
             name="Cities"
             parent="menu_management"
             action="action_crm_city"
-            groups="crm_abissnet.group_crm_user"
+            groups="asr_radius_manager.group_isp_manager,asr_radius_manager.group_isp_finance"
             sequence="10"/>
 
 </odoo>

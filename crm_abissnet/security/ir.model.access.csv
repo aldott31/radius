@@ -1,12 +1,11 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_asr_radius_user_crm_user,asr.radius.user CRM User,asr_radius_manager.model_asr_radius_user,group_crm_user,1,1,1,0
-access_asr_radius_user_crm_manager,asr.radius.user CRM Manager,asr_radius_manager.model_asr_radius_user,group_crm_manager,1,1,1,1
-access_crm_city_user,crm.city user,model_crm_city,group_crm_user,1,0,0,0
-access_crm_city_manager,crm.city manager,model_crm_city,group_crm_manager,1,1,1,1
-access_crm_pop_user,crm.pop user,model_crm_pop,group_crm_user,1,0,0,0
-access_crm_pop_manager,crm.pop manager,model_crm_pop,group_crm_manager,1,1,1,1
-access_crm_access_device_user,crm.access.device user,model_crm_access_device,group_crm_user,1,0,0,0
-access_crm_access_device_manager,crm.access.device manager,model_crm_access_device,group_crm_manager,1,1,1,1
-access_crm_fiber_closure_user,crm.fiber.closure user,model_crm_fiber_closure,group_crm_user,1,0,0,0
-access_crm_fiber_closure_manager,crm.fiber.closure manager,model_crm_fiber_closure,group_crm_manager,1,1,1,1
-access_crm_fiber_assignment_wizard,crm.fiber.assignment.wizard,model_crm_fiber_assignment_wizard,group_crm_manager,1,1,1,1
+access_crm_city_manager,crm.city manager,model_crm_city,asr_radius_manager.group_isp_manager,1,1,1,1
+access_crm_city_finance,crm.city finance,model_crm_city,asr_radius_manager.group_isp_finance,1,0,0,0
+access_crm_pop_manager,crm.pop manager,model_crm_pop,asr_radius_manager.group_isp_manager,1,1,1,1
+access_crm_pop_finance,crm.pop finance,model_crm_pop,asr_radius_manager.group_isp_finance,1,0,0,0
+access_crm_access_device_manager,crm.access.device manager,model_crm_access_device,asr_radius_manager.group_isp_manager,1,1,1,1
+access_crm_access_device_provisioning,crm.access.device provisioning,model_crm_access_device,asr_radius_manager.group_isp_provisioning,1,1,0,0
+access_crm_access_device_noc,crm.access.device noc,model_crm_access_device,asr_radius_manager.group_isp_noc,1,1,0,0
+access_crm_fiber_closure_manager,crm.fiber.closure manager,model_crm_fiber_closure,asr_radius_manager.group_isp_manager,1,1,1,1
+access_crm_fiber_closure_provisioning,crm.fiber.closure provisioning,model_crm_fiber_closure,asr_radius_manager.group_isp_provisioning,1,1,0,0
+access_crm_fiber_assignment_wizard,crm.fiber.assignment.wizard,model_crm_fiber_assignment_wizard,asr_radius_manager.group_isp_manager,1,1,1,1

@@ -11,7 +11,6 @@
     ],
     'data': [
         # 1️⃣ SECURITY (FIRST!)
-        'security/groups.xml',
         'security/ir.model.access.csv',
 
         # 2️⃣ MENU ROOT (before submenus!)

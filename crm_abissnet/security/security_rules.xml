@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- ============================================================ -->
+  <!-- SECURITY RULES: CRM Module Extensions -->
+  <!-- ============================================================ -->
+
+  <!-- Override Field Technician rule to restrict by assignment -->
+  <!-- This rule has higher priority and filters by installation_technician_id -->
+  <record id="rule_asr_radius_user_field_assigned_crm" model="ir.rule">
+    <field name="name">Field Tech: Assigned Customers Only (CRM)</field>
+    <field name="model_id" ref="asr_radius_manager.model_asr_radius_user"/>
+    <field name="groups" eval="[(4, ref('asr_radius_manager.group_isp_field_tech'))]"/>
+    <field name="domain_force">[
+      '|',
+      ('installation_technician_id', '=', user.id),
+      ('installation_technician_id', '=', False)
+    ]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- Multi-company rules for CRM-specific models -->
+  <record id="rule_crm_access_device_company" model="ir.rule">
+    <field name="name">Multi-Company: Access Device Own Company Only</field>
+    <field name="model_id" ref="model_crm_access_device"/>
+    <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    <field name="global" eval="True"/>
+  </record>
+
+  <record id="rule_crm_pop_company" model="ir.rule">
+    <field name="name">Multi-Company: POP Own Company Only</field>
+    <field name="model_id" ref="model_crm_pop"/>
+    <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    <field name="global" eval="True"/>
+  </record>
+
+  <record id="rule_crm_city_company" model="ir.rule">
+    <field name="name">Multi-Company: City Own Company Only</field>
+    <field name="model_id" ref="model_crm_city"/>
+    <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    <field name="global" eval="True"/>
+  </record>
+
+</odoo>

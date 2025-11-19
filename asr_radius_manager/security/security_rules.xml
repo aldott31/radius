@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- ============================================================ -->
+  <!-- RECORD RULES: Row-level security for data isolation -->
+  <!-- ============================================================ -->
+
+  <!-- ============================================================ -->
+  <!-- SALES: Can see all customers -->
+  <!-- ============================================================ -->
+  <record id="rule_asr_radius_user_sales_all" model="ir.rule">
+    <field name="name">Sales: All Customers</field>
+    <field name="model_id" ref="model_asr_radius_user"/>
+    <field name="groups" eval="[(4, ref('group_isp_sales'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="True"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- CUSTOMER SERVICE: Only active/suspended customers -->
+  <!-- ============================================================ -->
+  <record id="rule_asr_radius_user_cs_active" model="ir.rule">
+    <field name="name">CS: Active/Suspended Customers Only</field>
+    <field name="model_id" ref="model_asr_radius_user"/>
+    <field name="groups" eval="[(4, ref('group_isp_customer_service'))]"/>
+    <field name="domain_force">[('active', '=', True)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- PROVISIONING: All customers (need to see all for provisioning) -->
+  <!-- ============================================================ -->
+  <record id="rule_asr_radius_user_prov_all" model="ir.rule">
+    <field name="name">Provisioning: All Customers</field>
+    <field name="model_id" ref="model_asr_radius_user"/>
+    <field name="groups" eval="[(4, ref('group_isp_provisioning'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- FIELD TECHNICIAN: All customers (filtered by assigned field in views) -->
+  <!-- Note: installation_technician_id exists only in crm_abissnet module -->
+  <!-- TODO: Add field-level filtering when CRM module is always installed -->
+  <!-- ============================================================ -->
+  <record id="rule_asr_radius_user_field_all" model="ir.rule">
+    <field name="name">Field Tech: All Customers (View Filtering)</field>
+    <field name="model_id" ref="model_asr_radius_user"/>
+    <field name="groups" eval="[(4, ref('group_isp_field_tech'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- NOC: All active customers (need full visibility for troubleshooting) -->
+  <!-- ============================================================ -->
+  <record id="rule_asr_radius_user_noc_all" model="ir.rule">
+    <field name="name">NOC: All Active Customers</field>
+    <field name="model_id" ref="model_asr_radius_user"/>
+    <field name="groups" eval="[(4, ref('group_isp_noc'))]"/>
+    <field name="domain_force">[('active', '=', True)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- FINANCE: All customers (need to see everyone for billing) -->
+  <!-- ============================================================ -->
+  <record id="rule_asr_radius_user_finance_all" model="ir.rule">
+    <field name="name">Finance: All Customers</field>
+    <field name="model_id" ref="model_asr_radius_user"/>
+    <field name="groups" eval="[(4, ref('group_isp_finance'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- MANAGER: All customers (full access) -->
+  <!-- ============================================================ -->
+  <record id="rule_asr_radius_user_manager_all" model="ir.rule">
+    <field name="name">Manager: All Customers (Full Access)</field>
+    <field name="model_id" ref="model_asr_radius_user"/>
+    <field name="groups" eval="[(4, ref('group_isp_manager'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="True"/>
+    <field name="perm_unlink" eval="True"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- MULTI-COMPANY: All users see only their company's data -->
+  <!-- ============================================================ -->
+  <record id="rule_asr_radius_user_company" model="ir.rule">
+    <field name="name">Multi-Company: Own Company Only</field>
+    <field name="model_id" ref="model_asr_radius_user"/>
+    <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    <field name="global" eval="True"/>
+  </record>
+
+  <record id="rule_asr_subscription_company" model="ir.rule">
+    <field name="name">Multi-Company: Subscription Own Company Only</field>
+    <field name="model_id" ref="model_asr_subscription"/>
+    <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    <field name="global" eval="True"/>
+  </record>
+
+  <record id="rule_asr_device_company" model="ir.rule">
+    <field name="name">Multi-Company: Device Own Company Only</field>
+    <field name="model_id" ref="model_asr_device"/>
+    <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    <field name="global" eval="True"/>
+  </record>
+
+</odoo>
