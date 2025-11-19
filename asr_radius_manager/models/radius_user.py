@@ -4,6 +4,8 @@ from odoo.exceptions import UserError
 import logging
 import re
 import subprocess  # ← SHTUAR
+import secrets
+import string
 
 _logger = logging.getLogger(__name__)
 
@@ -30,8 +32,10 @@ class AsrRadiusUser(models.Model):
 
     active = fields.Boolean(default=True, tracking=True)
     name = fields.Char(string="Name", help="Optional display name")
-    username = fields.Char(string="RADIUS Username", required=True, index=True, copy=False, tracking=True)
-    radius_password = fields.Char(string="RADIUS Password", copy=False)
+    username = fields.Char(string="RADIUS Username", index=True, copy=False, tracking=True,
+                          help="Auto-generated if left empty (format: 445XXXXXX)")
+    radius_password = fields.Char(string="RADIUS Password", copy=False,
+                                  help="Auto-generated if left empty")
     subscription_id = fields.Many2one('asr.subscription', string="Subscription", required=True, ondelete='restrict')
     device_id = fields.Many2one('asr.device', string="Device (optional)", ondelete='set null')
     company_id = fields.Many2one('res.company', required=True, default=lambda self: self.env.company, index=True)
@@ -60,6 +64,33 @@ class AsrRadiusUser(models.Model):
     _sql_constraints = [
         ('uniq_username_company', 'unique(username, company_id)', 'RADIUS username must be unique per company.')
     ]
+
+    # ---- Auto-generation helpers ----
+    def _generate_username(self):
+        """Generate next RADIUS username using sequence (445XXXXXX format)"""
+        return self.env['ir.sequence'].next_by_code('asr.radius.user.username') or '445000000'
+
+    def _generate_password(self, length=12):
+        """Generate secure random password"""
+        # Use alphanumeric characters (easier for customer support)
+        alphabet = string.ascii_letters + string.digits
+        return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Override create to auto-generate username and password if not provided"""
+        for vals in vals_list:
+            # Auto-generate username if empty
+            if not vals.get('username'):
+                vals['username'] = self._generate_username()
+                _logger.info("Auto-generated RADIUS username: %s", vals['username'])
+
+            # Auto-generate password if empty
+            if not vals.get('radius_password'):
+                vals['radius_password'] = self._generate_password()
+                _logger.info("Auto-generated RADIUS password for user: %s", vals['username'])
+
+        return super(AsrRadiusUser, self).create(vals_list)
 
     @api.depends('subscription_id', 'company_id')
     def _compute_groupname(self):

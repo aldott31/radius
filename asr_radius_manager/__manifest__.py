@@ -14,6 +14,7 @@
     ],
     'data': [
     'security/ir.model.access.csv',
+    'data/ir_sequence.xml',
     'data/ir_config_parameter.xml',
     'data/server_actions.xml',
     # Load root menu FIRST (no children)

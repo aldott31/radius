@@ -32,8 +32,8 @@
       <xpath expr="//sheet/group/group[1]" position="replace">
         <group string="Customer Info">
           <field name="name" placeholder="Customer name (optional)"/>
-          <field name="username" required="1" placeholder="username123"/>
-          <field name="radius_password" password="True" placeholder="password"/>
+          <field name="username" placeholder="Auto-generated (445XXXXXX) - leave empty"/>
+          <field name="radius_password" password="True" placeholder="Auto-generated - leave empty"/>
           <field name="sla_level" widget="radio"/>
         </group>
       </xpath>

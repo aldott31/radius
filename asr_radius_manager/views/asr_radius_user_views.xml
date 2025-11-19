@@ -103,8 +103,8 @@
 
           <group>
             <group string="Credentials">
-              <field name="username" required="1" placeholder="customer123"/>
-              <field name="radius_password" password="True" placeholder="Cleartext-Password"/>
+              <field name="username" placeholder="Auto-generated (445XXXXXX) - leave empty"/>
+              <field name="radius_password" password="True" placeholder="Auto-generated - leave empty"/>
               <field name="name" placeholder="Display name (optional)"/>
             </group>
 
