@@ -24,13 +24,13 @@ class AsrRadiusUserCRM(models.Model):
     partner_latitude = fields.Float(string="Latitude", digits=(10, 7))
     partner_longitude = fields.Float(string="Longitude", digits=(10, 7))
 
-    # SLA (Service Level Agreement)
+    # SLA (Service Level Agreement) - AUTO from Subscription
     sla_level = fields.Selection([
         ('1', 'SLA 1 - Individual'),
         ('2', 'SLA 2 - Small Business'),
         ('3', 'SLA 3 - Enterprise'),
-    ], string="SLA Level", default='1', required=True, tracking=True,
-        help="1=Residential, 2=Small Biz, 3=Large Corp")
+    ], string="SLA Level", related='subscription_id.sla_level', store=True, readonly=True,
+        help="Inherited from subscription package. 1=Residential, 2=Small Biz, 3=Large Corp")
 
     # Business Info (conditional)
     is_business = fields.Boolean(string="Is Business", compute='_compute_is_business', store=True)

@@ -28,6 +28,15 @@ class AsrSubscription(models.Model):
     price = fields.Float(help="Default price per cycle (billing in Phase 4/5).")
     product_id = fields.Many2one('product.product', string='Product', help='Product for invoicing (Phase 4/5).')
 
+    # SLA (Service Level Agreement) - NEW
+    sla_level = fields.Selection([
+        ('1', 'SLA 1 - Individual/Residential'),
+        ('2', 'SLA 2 - Small Business'),
+        ('3', 'SLA 3 - Enterprise'),
+    ], string="SLA Level", default='1', required=True, tracking=True,
+        help="Service Level Agreement: 1=Residential, 2=Small Business, 3=Enterprise. "
+             "Users with this subscription will automatically inherit this SLA level.")
+
     # Odoo-only multi-company
     company_id = fields.Many2one('res.company', default=lambda self: self.env.company, index=True)
 

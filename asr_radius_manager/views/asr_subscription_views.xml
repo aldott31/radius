@@ -11,6 +11,7 @@
             decoration-danger="not radius_synced">
         <field name="name"/>
         <field name="code"/>
+        <field name="sla_level"/>
         <field name="rate_limit"/>
         <field name="ip_pool_active"/>
         <field name="user_count"/>
@@ -65,6 +66,7 @@
             <group string="Plan Details">
               <field name="name" placeholder="e.g., 300M/300M Package"/>
               <field name="code" placeholder="Auto-filled from name"/>
+              <field name="sla_level" widget="radio"/>
               <field name="company_id" groups="base.group_multi_company"/>
             </group>
             <group string="Speed &amp; Pool">
