@@ -213,8 +213,8 @@
         <field name="access_device_id" optional="hide"/>
       </xpath>
 
-      <!-- Dekorimet standarde sipas SLA (Odoo 17: <list>) -->
-      <xpath expr="//tree" position="attributes">
+      <!-- Dekorimet standarde sipas SLA (Odoo 18: <list>) -->
+      <xpath expr="//list" position="attributes">
         <attribute name="decoration-muted">sla_level == '1'</attribute>
         <attribute name="decoration-warning">sla_level == '2'</attribute>
         <attribute name="decoration-success">sla_level == '3'</attribute>
