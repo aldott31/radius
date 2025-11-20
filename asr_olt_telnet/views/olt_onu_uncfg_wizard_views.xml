@@ -43,7 +43,7 @@
             Click <strong>🔍 Fetch from OLT</strong> to scan for unregistered devices.
           </div>
 
-          <group>
+          <group col="2">
             <group string="Filter Settings">
               <field name="user_id" string="Customer (optional)" options="{'no_open': True}"/>
               <field name="olt_id" required="1" string="OLT Device" options="{'no_open': True}"/>

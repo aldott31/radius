@@ -82,7 +82,7 @@
 
         <!-- Infrastructure -->
         <page string="Infrastructure">
-          <group>
+          <group col="2">
             <group string="Network Location">
               <field name="access_device_id"
                      domain="[('company_id', '=', company_id), ('operational_status', '=', 'online')]"
@@ -117,7 +117,7 @@
 
         <!-- Fiber Installation -->
         <page string="Fiber Installation">
-          <group>
+          <group col="2">
             <group string="Fiber Path">
               <field name="fiber_closure_id"
                      domain="[('access_device_id', '=', access_device_id), ('operational_status', '=', 'active')]"
@@ -161,7 +161,7 @@
 
         <!-- Contract & Billing -->
         <page string="Contract &amp; Billing">
-          <group>
+          <group col="2">
             <group string="Contract Period">
               <field name="contract_start_date"/>
               <field name="contract_end_date"/>

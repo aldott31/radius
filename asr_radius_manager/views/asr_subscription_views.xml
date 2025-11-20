@@ -156,7 +156,7 @@
 
             <!-- Status -->
             <page string="Sync Status">
-              <group>
+              <group col="2">
                 <group>
                   <field name="radius_synced" readonly="1"/>
                   <field name="last_sync_date" readonly="1"/>

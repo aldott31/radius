@@ -38,7 +38,7 @@
           </group>
 
           <!-- Command Selection -->
-          <group string="Command Configuration">
+          <group string="Command Configuration" col="2">
             <group>
               <field name="command_type" widget="radio"/>
               <field name="custom_command" placeholder="Enter command..."

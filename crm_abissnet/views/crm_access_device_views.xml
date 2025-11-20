@@ -207,7 +207,7 @@
                 <field name="use_custom_credentials"/>
               </group>
 
-              <group invisible="not use_custom_credentials">
+              <group invisible="not use_custom_credentials" col="2">
                 <group>
                   <field name="telnet_username" placeholder="e.g., admin"
                          required="use_custom_credentials"/>
