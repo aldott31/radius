@@ -32,7 +32,7 @@
     <field name="arch" type="xml">
       <form string="Session Details" create="0" edit="0" delete="0">
         <sheet>
-          <group>
+          <group col="2">
             <group string="User Info">
               <field name="username"/>
               <field name="framedipaddress"/>
@@ -44,7 +44,7 @@
               <field name="nasportid"/>
             </group>
           </group>
-          <group>
+          <group col="2">
             <group string="Session Times">
               <field name="acctstarttime"/>
               <field name="acctstoptime"/>

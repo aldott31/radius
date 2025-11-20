@@ -63,7 +63,7 @@
             </button>
           </div>
 
-          <group>
+          <group col="2">
             <group string="City Information">
               <field name="name" placeholder="e.g., Tirana"/>
               <field name="code" placeholder="e.g., TIR"/>

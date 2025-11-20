@@ -31,7 +31,7 @@
                   class="oe_highlight"/>
         </header>
         <sheet>
-          <group>
+          <group col="2">
             <group>
               <field name="username"/>
               <field name="status" string="PPPoE Status"/>

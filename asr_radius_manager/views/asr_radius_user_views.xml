@@ -101,7 +101,7 @@
           <widget name="web_ribbon" title="Suspended" bg_color="text-bg-warning"
                   invisible="not is_suspended"/>
 
-          <group>
+          <group col="2">
             <group string="Credentials">
               <field name="username" placeholder="Auto-generated (445XXXXXX) - leave empty"/>
               <field name="radius_password" password="True" placeholder="Auto-generated - leave empty"/>
@@ -124,7 +124,7 @@
           </group>
 
           <!-- LIVE Session Info -->
-          <group string="Live Session (from radacct)">
+          <group string="Live Session (from radacct)" col="2">
             <group>
               <field name="pppoe_status" readonly="1"/>
               <field name="current_framed_ip" readonly="1" string="IP (current)"/>
@@ -137,7 +137,7 @@
 
           <notebook>
             <page string="Status">
-              <group>
+              <group col="2">
                 <group>
                   <field name="radius_synced" readonly="1"/>
                   <field name="last_sync_date" readonly="1"/>

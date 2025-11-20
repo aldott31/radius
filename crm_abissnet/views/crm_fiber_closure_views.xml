@@ -73,7 +73,7 @@
           <widget name="web_ribbon" title="Faulty" bg_color="text-bg-danger"
                   invisible="operational_status != 'faulty'"/>
 
-          <group>
+          <group col="2">
             <group string="Identification">
               <field name="name" placeholder="KASETA-TIR-001"/>
               <field name="code" placeholder="Scan QR code here"/>
@@ -89,7 +89,7 @@
             </group>
           </group>
 
-          <group>
+          <group col="2">
             <group string="Fiber Capacity">
               <field name="fiber_count"/>
               <field name="cores_used" readonly="1"/>
@@ -128,7 +128,7 @@
               <group>
                 <field name="address" nolabel="1" widget="text" placeholder="Detailed address..."/>
               </group>
-              <group>
+              <group col="2">
                 <group>
                   <field name="latitude"/>
                   <field name="longitude"/>

@@ -62,7 +62,7 @@
           <widget name="web_ribbon" title="Synced" bg_color="text-bg-success"
                   invisible="not radius_synced"/>
 
-          <group>
+          <group col="2">
             <group string="Plan Details">
               <field name="name" placeholder="e.g., 300M/300M Package"/>
               <field name="code" placeholder="Auto-filled from name"/>

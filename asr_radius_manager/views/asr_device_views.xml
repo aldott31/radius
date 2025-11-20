@@ -72,7 +72,7 @@
                         <widget name="web_ribbon" title="Synced" bg_color="text-bg-success"
                                 invisible="not radius_synced"/>
 
-                        <group>
+                        <group col="2">
                             <group string="Device Information">
                                 <field name="name" placeholder="e.g., RouterOS-Main"/>
                                 <field name="ip_address" placeholder="192.168.1.1"/>
@@ -94,7 +94,7 @@
 
                         <notebook>
                             <page string="Sync Status">
-                                <group>
+                                <group col="2">
                                     <group>
                                         <field name="radius_synced" readonly="1"/>
                                         <field name="last_sync_date" readonly="1"/>
@@ -106,7 +106,7 @@
                                 <group string="Last Error" invisible="not last_sync_error">
                                     <field name="last_sync_error" nolabel="1" readonly="1" widget="text"/>
                                 </group>
-                                <group string="Ping Status">
+                                <group string="Ping Status" col="2">
                                     <group>
                                         <field name="last_ping_ok" readonly="1"/>
                                         <field name="last_ping_rtt_ms" readonly="1"/>

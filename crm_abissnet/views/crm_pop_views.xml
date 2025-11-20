@@ -70,7 +70,7 @@
           <widget name="web_ribbon" title="Inactive" bg_color="text-bg-danger"
                   invisible="active"/>
 
-          <group>
+          <group col="2">
             <group string="POP Information">
               <field name="name" placeholder="e.g., Tirana Center POP"/>
               <field name="code" placeholder="e.g., TIR-01"/>

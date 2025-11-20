@@ -63,7 +63,7 @@
           <widget name="web_ribbon" title="Faulty" bg_color="text-bg-danger"
                   invisible="operational_status != 'faulty'"/>
 
-          <group>
+          <group col="2">
             <group string="Device Information">
               <field name="name" placeholder="e.g., OLT-TIR-01"/>
               <field name="code" placeholder="Serial number or identifier"/>
@@ -92,7 +92,7 @@
             </group>
           </group>
 
-          <group>
+          <group col="2">
             <group string="Port Capacity">
               <field name="port_count" placeholder="e.g., 48"/>
               <field name="ports_used" readonly="1"/>
