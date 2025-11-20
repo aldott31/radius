@@ -6,7 +6,7 @@
     <field name="name">asr.subscription.list</field>
     <field name="model">asr.subscription</field>
     <field name="arch" type="xml">
-      <tree string="Subscriptions"
+      <list string="Subscriptions"
             decoration-success="radius_synced"
             decoration-danger="not radius_synced">
         <field name="name"/>
@@ -18,7 +18,7 @@
         <field name="radius_synced" widget="boolean_toggle"/>
         <field name="last_sync_date"/>
         <field name="company_id" groups="base.group_multi_company"/>
-      </tree>
+      </list>
     </field>
   </record>
 
@@ -134,11 +134,11 @@
             <!-- Custom Attributes -->
             <page string="Custom Attributes">
               <field name="attribute_ids" nolabel="1">
-                <tree editable="bottom">
+                <list editable="bottom">
                   <field name="attribute" placeholder="e.g., Session-Timeout"/>
                   <field name="op" placeholder=":="/>
                   <field name="value" placeholder="Value"/>
-                </tree>
+                </list>
               </field>
               <div class="alert alert-warning" role="alert">
                 ⚠️ Custom attributes override auto-generated ones.<br/>
@@ -209,7 +209,7 @@
   <record id="action_asr_subscription" model="ir.actions.act_window">
     <field name="name">Subscriptions</field>
     <field name="res_model">asr.subscription</field>
-    <field name="view_mode">tree,form</field>
+    <field name="view_mode">list,form</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">
         Create your first RADIUS service plan

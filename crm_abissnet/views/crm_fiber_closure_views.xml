@@ -7,7 +7,7 @@
     <field name="name">crm.fiber.closure.list</field>
     <field name="model">crm.fiber.closure</field>
     <field name="arch" type="xml">
-      <tree string="Fiber Closures (Kaseta)"
+      <list string="Fiber Closures (Kaseta)"
             decoration-muted="not active"
             decoration-success="operational_status == 'active'"
             decoration-danger="operational_status == 'faulty'">
@@ -24,7 +24,7 @@
         <field name="capacity_percentage" widget="progressbar"/>
         <field name="operational_status"/>
         <field name="active" column_invisible="1"/>
-      </tree>
+      </list>
     </field>
   </record>
 
@@ -213,7 +213,7 @@
   <record id="action_crm_fiber_closure" model="ir.actions.act_window">
     <field name="name">Fiber Closures (Kaseta)</field>
     <field name="res_model">crm.fiber.closure</field>
-    <field name="view_mode">tree,form</field>
+    <field name="view_mode">list,form</field>
     <field name="context">{'search_default_active': 1}</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">
