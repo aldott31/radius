@@ -4,16 +4,16 @@
     <!-- PRODUCT.TEMPLATE - RADIUS SERVICE EXTENSION VIEWS -->
     <!-- ============================================================ -->
 
-    <!-- RADIUS Attribute Tree View (separate definition) -->
-    <record id="view_product_radius_attribute_tree" model="ir.ui.view">
-        <field name="name">product.radius.attribute.tree</field>
+    <!-- RADIUS Attribute List View (separate definition) -->
+    <record id="view_product_radius_attribute_list" model="ir.ui.view">
+        <field name="name">product.radius.attribute.list</field>
         <field name="model">product.radius.attribute</field>
         <field name="arch" type="xml">
-            <tree editable="bottom">
+            <list editable="bottom">
                 <field name="attribute" placeholder="e.g., Session-Timeout"/>
                 <field name="op"/>
                 <field name="value" placeholder="e.g., 3600"/>
-            </tree>
+            </list>
         </field>
     </record>
 
