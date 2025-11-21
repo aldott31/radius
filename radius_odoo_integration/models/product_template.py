@@ -211,6 +211,27 @@ class ProductTemplate(models.Model):
 
         return f"{comp_slug}:{grp}"
 
+    # ==================== UI ACTION ====================
+    def action_view_radius_users(self):
+        """View RADIUS customers using this product/plan"""
+        self.ensure_one()
+        if not self.is_radius_service:
+            raise UserError(_("Product '%s' is not a RADIUS service.") % self.name)
+
+        groupname = self._get_radius_groupname()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('RADIUS Users'),
+                'message': _('Group %(g)s has %(n)d user(s) in radusergroup.') % {
+                    'g': groupname, 'n': self.radius_user_count
+                },
+                'type': 'info',
+                'sticky': False,
+            }
+        }
+
     # ==================== RADIUS SYNC ACTIONS ====================
     def action_sync_to_radius(self):
         """
