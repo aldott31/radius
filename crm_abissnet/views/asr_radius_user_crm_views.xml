@@ -70,7 +70,7 @@
         </group>
 
         <!-- Geolocation -->
-        <group string="Geolocation (for field service)">
+        <group string="Geolocation (for field service)" col="2">
           <field name="partner_latitude" placeholder="41.3275"/>
           <field name="partner_longitude" placeholder="19.8187"/>
         </group>
@@ -82,7 +82,7 @@
 
         <!-- Infrastructure -->
         <page string="Infrastructure">
-          <group>
+          <group col="2">
             <group string="Network Location">
               <field name="access_device_id"
                      domain="[('company_id', '=', company_id), ('operational_status', '=', 'online')]"
@@ -101,7 +101,7 @@
             </group>
           </group>
 
-          <group string="Quick Info" invisible="not access_device_id">
+          <group string="Quick Info" invisible="not access_device_id" col="2">
             <group>
               <div class="o_form_label">Capacity Status</div>
               <div>
@@ -117,7 +117,7 @@
 
         <!-- Fiber Installation -->
         <page string="Fiber Installation">
-          <group>
+          <group col="2">
             <group string="Fiber Path">
               <field name="fiber_closure_id"
                      domain="[('access_device_id', '=', access_device_id), ('operational_status', '=', 'active')]"
@@ -133,14 +133,14 @@
             </group>
           </group>
 
-          <group>
+          <group col="2">
             <group string="Fiber Quality">
               <field name="fiber_splice_loss_db"/>
               <field name="fiber_total_loss_db"/>
             </group>
           </group>
 
-          <group>
+          <group col="2">
             <button name="action_open_closure" type="object"
                     string="Open Fiber Closure" class="btn-link"
                     invisible="not fiber_closure_id" icon="fa-external-link"/>
@@ -161,7 +161,7 @@
 
         <!-- Contract & Billing -->
         <page string="Contract &amp; Billing">
-          <group>
+          <group col="2">
             <group string="Contract Period">
               <field name="contract_start_date"/>
               <field name="contract_end_date"/>
@@ -177,13 +177,13 @@
 
         <!-- Notes -->
         <page string="Notes">
-          <group>
+          <group col="2">
             <field name="internal_notes" nolabel="1"
                    placeholder="Internal notes (not visible to customer)..."
                    widget="text"/>
           </group>
           <separator string="Customer Notes (visible in portal)"/>
-          <group>
+          <group col="2">
             <field name="customer_notes" nolabel="1"
                    placeholder="Customer-facing notes..."
                    widget="text"/>
