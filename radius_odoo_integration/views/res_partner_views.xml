@@ -177,7 +177,7 @@
     <record id="action_radius_customers" model="ir.actions.act_window">
         <field name="name">RADIUS Customers</field>
         <field name="res_model">res.partner</field>
-        <field name="view_mode">kanban,tree,form</field>
+        <field name="view_mode">kanban,list,form</field>
         <field name="domain">[('is_radius_customer', '=', True)]</field>
         <field name="context">{'default_is_radius_customer': True}</field>
         <field name="search_view_id" ref="base.view_res_partner_filter"/>

@@ -137,7 +137,7 @@
     <record id="action_radius_services" model="ir.actions.act_window">
         <field name="name">RADIUS Services</field>
         <field name="res_model">product.template</field>
-        <field name="view_mode">tree,kanban,form</field>
+        <field name="view_mode">list,kanban,form</field>
         <field name="domain">[('is_radius_service', '=', True)]</field>
         <field name="context">{'default_is_radius_service': True, 'default_type': 'service'}</field>
         <field name="search_view_id" ref="product.product_template_search_view"/>
