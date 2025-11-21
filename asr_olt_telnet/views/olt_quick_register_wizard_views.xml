@@ -11,7 +11,7 @@
             Free slot detected and ready to register on OLT.
           </div>
 
-          <group>
+          <group col="2">
             <group string="OLT Configuration (Auto-detected)">
               <field name="access_device_id" readonly="1" options="{'no_open': False}"/>
               <field name="interface" readonly="1"/>
@@ -26,7 +26,7 @@
             </group>
           </group>
 
-          <group string="VLAN Configuration">
+          <group string="VLAN Configuration" col="2">
             <group>
               <field name="internet_vlan" required="1"
                      placeholder="Enter VLAN ID"/>
@@ -54,7 +54,7 @@
             </group>
           </group>
 
-          <group string="VoIP Configuration" invisible="function_mode not in ['bridge_mcast_voip', 'router_mcast_voip']">
+          <group string="VoIP Configuration" invisible="function_mode not in ['bridge_mcast_voip', 'router_mcast_voip']" col="2">
             <group>
               <field name="voip_userid" placeholder="e.g., 044310660"
                      required="function_mode in ['bridge_mcast_voip', 'router_mcast_voip']"/>

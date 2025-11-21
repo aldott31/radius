@@ -7,7 +7,7 @@
     <field name="name">crm.fiber.closure.list</field>
     <field name="model">crm.fiber.closure</field>
     <field name="arch" type="xml">
-      <tree string="Fiber Closures (Kaseta)"
+      <list string="Fiber Closures (Kaseta)"
             decoration-muted="not active"
             decoration-success="operational_status == 'active'"
             decoration-danger="operational_status == 'faulty'">
@@ -24,7 +24,7 @@
         <field name="capacity_percentage" widget="progressbar"/>
         <field name="operational_status"/>
         <field name="active" column_invisible="1"/>
-      </tree>
+      </list>
     </field>
   </record>
 
@@ -73,7 +73,7 @@
           <widget name="web_ribbon" title="Faulty" bg_color="text-bg-danger"
                   invisible="operational_status != 'faulty'"/>
 
-          <group>
+          <group col="2">
             <group string="Identification">
               <field name="name" placeholder="KASETA-TIR-001"/>
               <field name="code" placeholder="Scan QR code here"/>
@@ -89,7 +89,7 @@
             </group>
           </group>
 
-          <group>
+          <group col="2">
             <group string="Fiber Capacity">
               <field name="fiber_count"/>
               <field name="cores_used" readonly="1"/>
@@ -128,7 +128,7 @@
               <group>
                 <field name="address" nolabel="1" widget="text" placeholder="Detailed address..."/>
               </group>
-              <group>
+              <group col="2">
                 <group>
                   <field name="latitude"/>
                   <field name="longitude"/>
@@ -213,7 +213,7 @@
   <record id="action_crm_fiber_closure" model="ir.actions.act_window">
     <field name="name">Fiber Closures (Kaseta)</field>
     <field name="res_model">crm.fiber.closure</field>
-    <field name="view_mode">tree,form</field>
+    <field name="view_mode">list,form</field>
     <field name="context">{'search_default_active': 1}</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">

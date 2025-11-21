@@ -70,7 +70,7 @@
         </group>
 
         <!-- Geolocation -->
-        <group string="Geolocation (for field service)" col="2">
+        <group string="Geolocation (for field service)">
           <field name="partner_latitude" placeholder="41.3275"/>
           <field name="partner_longitude" placeholder="19.8187"/>
         </group>
@@ -101,7 +101,7 @@
             </group>
           </group>
 
-          <group string="Quick Info" invisible="not access_device_id" col="2">
+          <group string="Quick Info" invisible="not access_device_id">
             <group>
               <div class="o_form_label">Capacity Status</div>
               <div>
@@ -133,14 +133,14 @@
             </group>
           </group>
 
-          <group col="2">
+          <group>
             <group string="Fiber Quality">
               <field name="fiber_splice_loss_db"/>
               <field name="fiber_total_loss_db"/>
             </group>
           </group>
 
-          <group col="2">
+          <group>
             <button name="action_open_closure" type="object"
                     string="Open Fiber Closure" class="btn-link"
                     invisible="not fiber_closure_id" icon="fa-external-link"/>
@@ -177,13 +177,13 @@
 
         <!-- Notes -->
         <page string="Notes">
-          <group col="2">
+          <group>
             <field name="internal_notes" nolabel="1"
                    placeholder="Internal notes (not visible to customer)..."
                    widget="text"/>
           </group>
           <separator string="Customer Notes (visible in portal)"/>
-          <group col="2">
+          <group>
             <field name="customer_notes" nolabel="1"
                    placeholder="Customer-facing notes..."
                    widget="text"/>
@@ -213,8 +213,8 @@
         <field name="access_device_id" optional="hide"/>
       </xpath>
 
-      <!-- Dekorimet standarde sipas SLA (Odoo 17: <list>) -->
-      <xpath expr="//tree" position="attributes">
+      <!-- Dekorimet standarde sipas SLA (Odoo 18: <list>) -->
+      <xpath expr="//list" position="attributes">
         <attribute name="decoration-muted">sla_level == '1'</attribute>
         <attribute name="decoration-warning">sla_level == '2'</attribute>
         <attribute name="decoration-success">sla_level == '3'</attribute>

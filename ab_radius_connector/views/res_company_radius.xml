@@ -11,7 +11,7 @@
 
       <xpath expr="//notebook" position="inside">
         <page string="FreeRADIUS">
-          <group>
+          <group col="2">
             <group string="Database Connection">
               <field name="fr_db_host"/>
               <field name="fr_db_port"/>

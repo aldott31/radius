@@ -6,7 +6,7 @@
     <field name="name">olt.onu.uncfg.line.list</field>
     <field name="model">olt.onu.uncfg.line</field>
     <field name="arch" type="xml">
-      <tree string="Unregistered ONUs" create="false" edit="false" delete="false">
+      <list string="Unregistered ONUs" create="false" edit="false" delete="false">
         <field name="technology" string="Tech"
                decoration-info="technology == 'gpon'"
                decoration-success="technology == 'epon'"/>
@@ -19,7 +19,7 @@
                 string="Register"
                 icon="fa-play-circle"
                 class="btn-primary"/>
-      </tree>
+      </list>
     </field>
   </record>
 
@@ -43,7 +43,7 @@
             Click <strong>🔍 Fetch from OLT</strong> to scan for unregistered devices.
           </div>
 
-          <group>
+          <group col="2">
             <group string="Filter Settings">
               <field name="user_id" string="Customer (optional)" options="{'no_open': True}"/>
               <field name="olt_id" required="1" string="OLT Device" options="{'no_open': True}"/>
@@ -57,7 +57,7 @@
             <page string="📋 Unregistered ONUs" name="onu_list">
               <field name="line_ids" nolabel="1"
                      context="{'list_view_ref': 'asr_olt_telnet.view_olt_onu_uncfg_line_list'}">
-                <tree string="Unregistered ONUs" create="false" edit="false" delete="false">
+                <list string="Unregistered ONUs" create="false" edit="false" delete="false">
                   <field name="technology" string="Tech"
                          decoration-info="technology == 'gpon'"
                          decoration-success="technology == 'epon'"/>
@@ -70,7 +70,7 @@
                           string="Register"
                           icon="fa-play-circle"
                           class="btn-primary"/>
-                </tree>
+                </list>
               </field>
             </page>
             <page string="📄 Raw Output" name="raw_output">

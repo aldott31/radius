@@ -7,7 +7,7 @@
     <field name="name">crm.pop.list</field>
     <field name="model">crm.pop</field>
     <field name="arch" type="xml">
-      <tree string="POPs"
+      <list string="POPs"
             decoration-muted="not active"
             decoration-success="operational_status == 'active'"
             decoration-warning="operational_status == 'maintenance'"
@@ -21,7 +21,7 @@
         <field name="customer_count"/>
         <field name="capacity"/>
         <field name="active" column_invisible="1"/>
-      </tree>
+      </list>
     </field>
   </record>
 
@@ -70,7 +70,7 @@
           <widget name="web_ribbon" title="Inactive" bg_color="text-bg-danger"
                   invisible="active"/>
 
-          <group>
+          <group col="2">
             <group string="POP Information">
               <field name="name" placeholder="e.g., Tirana Center POP"/>
               <field name="code" placeholder="e.g., TIR-01"/>
@@ -97,7 +97,7 @@
           <notebook>
             <page string="Access Devices">
               <field name="device_ids" nolabel="1">
-                <tree>
+                <list>
                   <field name="name"/>
                   <field name="device_type"/>
                   <field name="manufacturer"/>
@@ -107,7 +107,7 @@
                   <field name="ports_used"/>
                   <field name="capacity_percentage" widget="progressbar"/>
                   <field name="customer_count"/>
-                </tree>
+                </list>
               </field>
             </page>
 
@@ -166,7 +166,7 @@
   <record id="action_crm_pop" model="ir.actions.act_window">
     <field name="name">POPs</field>
     <field name="res_model">crm.pop</field>
-    <field name="view_mode">tree,form</field>
+    <field name="view_mode">list,form</field>
     <field name="context">{'search_default_active': 1}</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">
