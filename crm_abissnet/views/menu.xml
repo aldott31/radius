@@ -1,23 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-  <!-- ========================================== -->
-  <!-- DEPRECATED: Menu structure moved to radius_odoo_integration -->
-  <!-- New structure: ISP Management (root) + Infrastructure (submenu) -->
-  <!-- ========================================== -->
-
-  <!--
-  <menuitem id="menu_crm_abissnet_root"
-            name="Abissnet CRM"
+  <!-- ============================================================ -->
+  <!-- ISP MANAGEMENT ROOT MENU (Sales, CS, Management)           -->
+  <!-- ============================================================ -->
+  <menuitem id="menu_isp_management_root"
+            name="ISP Management"
             web_icon="crm_abissnet,static/description/icon.png"
-            groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"
+            groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"
             sequence="10"/>
 
-  <menuitem id="menu_management"
-            name="Management"
-            parent="menu_crm_abissnet_root"
-            groups="asr_radius_manager.group_isp_manager,asr_radius_manager.group_isp_finance"
-            sequence="50"/>
-  -->
+  <!-- Infrastructure submenu under ISP Management -->
+  <menuitem id="menu_infrastructure"
+            name="Infrastructure"
+            parent="menu_isp_management_root"
+            groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"
+            sequence="30"/>
 
 </odoo>

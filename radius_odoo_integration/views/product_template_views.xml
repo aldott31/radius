@@ -145,7 +145,7 @@
 
     <menuitem id="menu_isp_service_plans"
               name="Service Plans"
-              parent="radius_odoo_integration.menu_isp_management_root"
+              parent="crm_abissnet.menu_isp_management_root"
               action="action_radius_services"
               sequence="20"
               groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>

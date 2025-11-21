@@ -185,7 +185,7 @@
 
     <menuitem id="menu_isp_customers"
               name="Customers"
-              parent="radius_odoo_integration.menu_isp_management_root"
+              parent="crm_abissnet.menu_isp_management_root"
               action="action_radius_customers"
               sequence="10"
               groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_manager"/>

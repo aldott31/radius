@@ -183,7 +183,7 @@
 
   <menuitem id="menu_crm_pops"
             name="POPs"
-            parent="radius_odoo_integration.menu_infrastructure"
+            parent="menu_infrastructure"
             action="action_crm_pop"
             groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"
             sequence="20"/>

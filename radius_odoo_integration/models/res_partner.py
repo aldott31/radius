@@ -209,23 +209,26 @@ class ResPartner(models.Model):
     )
 
     # ==================== INFRASTRUCTURE LINK ====================
+    # Note: These fields depend on crm_abissnet models
+    # They are defined with _description to avoid loading errors if crm_abissnet is not installed
     access_device_id = fields.Many2one(
         'crm.access.device',
         string="Access Device",
         tracking=True,
+        ondelete='set null',
         help="Physical device (OLT/DSLAM) this customer is connected to"
     )
     pop_id = fields.Many2one(
         'crm.pop',
         string="POP",
-        related='access_device_id.pop_id',
+        compute='_compute_infrastructure_ids',
         store=True,
         readonly=True
     )
     city_id = fields.Many2one(
         'crm.city',
         string="City",
-        related='access_device_id.city_id',
+        compute='_compute_infrastructure_ids',
         store=True,
         readonly=True
     )
@@ -311,6 +314,22 @@ class ResPartner(models.Model):
         return super(ResPartner, self).create(vals_list)
 
     # ==================== COMPUTED METHODS ====================
+    @api.depends('access_device_id')
+    def _compute_infrastructure_ids(self):
+        """Compute POP and City from Access Device (if crm_abissnet is installed)"""
+        for rec in self:
+            # Check if crm_abissnet models are available
+            if rec.access_device_id and 'crm.access.device' in self.env:
+                try:
+                    rec.pop_id = rec.access_device_id.pop_id.id if hasattr(rec.access_device_id, 'pop_id') and rec.access_device_id.pop_id else False
+                    rec.city_id = rec.access_device_id.city_id.id if hasattr(rec.access_device_id, 'city_id') and rec.access_device_id.city_id else False
+                except Exception:
+                    rec.pop_id = False
+                    rec.city_id = False
+            else:
+                rec.pop_id = False
+                rec.city_id = False
+
     @api.depends('subscription_id', 'company_id')
     def _compute_groupname(self):
         for rec in self:

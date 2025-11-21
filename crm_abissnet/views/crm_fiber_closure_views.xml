@@ -230,7 +230,7 @@
 
   <menuitem id="menu_crm_fiber_closures"
             name="Fiber Closures"
-            parent="radius_odoo_integration.menu_infrastructure"
+            parent="menu_infrastructure"
             action="action_crm_fiber_closure"
             groups="asr_radius_manager.group_isp_manager,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech"
             sequence="40"/>
