@@ -45,12 +45,19 @@
                     </group>
 
                     <group string="Custom RADIUS Attributes">
-                        <field name="radius_attribute_ids" nolabel="1" colspan="2">
-                            <tree editable="bottom">
-                                <field name="attribute" placeholder="e.g., Session-Timeout"/>
+                        <field name="radius_attribute_ids" nolabel="1" colspan="2" context="{'default_op': ':='}">
+                            <tree>
+                                <field name="attribute"/>
                                 <field name="op"/>
-                                <field name="value" placeholder="e.g., 3600"/>
+                                <field name="value"/>
                             </tree>
+                            <form>
+                                <group>
+                                    <field name="attribute" placeholder="e.g., Session-Timeout"/>
+                                    <field name="op"/>
+                                    <field name="value" placeholder="e.g., 3600"/>
+                                </group>
+                            </form>
                         </field>
                     </group>
 
@@ -139,7 +146,7 @@
 
     <menuitem id="menu_radius_services"
               name="RADIUS Services"
-              parent="asr_radius_manager.menu_radius_root"
+              parent="asr_radius_manager.menu_asr_radius_root"
               action="action_radius_services"
               sequence="15"
               groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>

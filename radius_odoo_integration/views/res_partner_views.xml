@@ -11,7 +11,7 @@
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
 
-            <!-- Add RADIUS page after Sales & Purchases -->
+            <!-- Add RADIUS page after Sales and Purchases -->
             <xpath expr="//notebook" position="inside">
                 <page string="RADIUS / ISP" invisible="not is_radius_customer">
                     <group>
@@ -23,7 +23,7 @@
                             <field name="last_sync_date" readonly="1"/>
                             <field name="last_sync_error" readonly="1" invisible="not last_sync_error"/>
                         </group>
-                        <group string="Subscription & Status">
+                        <group string="Subscription &amp; Status">
                             <field name="subscription_id"/>
                             <field name="sla_level" readonly="1"/>
                             <field name="device_id"/>
@@ -52,7 +52,7 @@
                             <field name="city_id" readonly="1"/>
                             <field name="olt_login_port"/>
                         </group>
-                        <group string="Fiber & ONT">
+                        <group string="Fiber &amp; ONT">
                             <field name="fiber_closure_id"/>
                             <field name="fiber_core_number"/>
                             <field name="fiber_color"/>
@@ -90,6 +90,40 @@
                         <field name="customer_notes" colspan="2" nolabel="1" placeholder="Customer visible notes"/>
                     </group>
 
+                    <!-- Action Buttons at bottom of RADIUS page -->
+                    <div class="oe_button_box" style="margin-top: 20px;">
+                        <button name="action_sync_to_radius" type="object"
+                                string="Sync to RADIUS"
+                                class="oe_highlight"
+                                invisible="not subscription_id"
+                                groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
+
+                        <button name="action_suspend" type="object"
+                                string="Suspend"
+                                class="btn-warning"
+                                invisible="is_suspended"
+                                groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"
+                                confirm="Are you sure you want to suspend this customer?"/>
+
+                        <button name="action_reactivate" type="object"
+                                string="Reactivate"
+                                class="btn-success"
+                                invisible="not is_suspended"
+                                groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"/>
+
+                        <button name="action_view_active_sessions" type="object"
+                                string="View Active Sessions"
+                                class="btn-info"
+                                invisible="not active_sessions_count"
+                                groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
+
+                        <button name="action_open_map" type="object"
+                                string="Open Map"
+                                icon="fa-map-marker"
+                                invisible="not partner_latitude or not partner_longitude"
+                                groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"/>
+                    </div>
+
                 </page>
             </xpath>
 
@@ -98,48 +132,6 @@
                 <field name="is_radius_customer" widget="boolean_toggle"/>
             </xpath>
 
-        </field>
-    </record>
-
-    <!-- Add action buttons to form header -->
-    <record id="view_partner_form_radius_buttons" model="ir.ui.view">
-        <field name="name">res.partner.form.radius.buttons</field>
-        <field name="model">res.partner</field>
-        <field name="inherit_id" ref="base.view_partner_form"/>
-        <field name="priority">99</field>
-        <field name="arch" type="xml">
-            <xpath expr="//header" position="inside">
-                <button name="action_sync_to_radius" type="object"
-                        string="Sync to RADIUS"
-                        class="btn-primary"
-                        invisible="not is_radius_customer or not subscription_id"
-                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
-
-                <button name="action_suspend" type="object"
-                        string="Suspend"
-                        class="btn-warning"
-                        invisible="not is_radius_customer or is_suspended"
-                        groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"
-                        confirm="Are you sure you want to suspend this customer?"/>
-
-                <button name="action_reactivate" type="object"
-                        string="Reactivate"
-                        class="btn-success"
-                        invisible="not is_radius_customer or not is_suspended"
-                        groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"/>
-
-                <button name="action_view_active_sessions" type="object"
-                        string="Active Sessions"
-                        class="btn-info"
-                        invisible="not is_radius_customer or not active_sessions_count"
-                        groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
-
-                <button name="action_open_map" type="object"
-                        string="Open Map"
-                        icon="fa-map-marker"
-                        invisible="not partner_latitude or not partner_longitude"
-                        groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"/>
-            </xpath>
         </field>
     </record>
 
@@ -177,8 +169,6 @@
                 <filter string="RADIUS Customers" name="radius_customers" domain="[('is_radius_customer', '=', True)]"/>
                 <filter string="Synced" name="synced" domain="[('is_radius_customer', '=', True), ('radius_synced', '=', True)]"/>
                 <filter string="Not Synced" name="not_synced" domain="[('is_radius_customer', '=', True), ('radius_synced', '=', False)]"/>
-                <filter string="Suspended" name="suspended" domain="[('is_radius_customer', '=', True), ('is_suspended', '=', True)]"/>
-                <filter string="Active Online" name="active_online" domain="[('is_radius_customer', '=', True), ('pppoe_status', '=', 'up')]"/>
             </xpath>
         </field>
     </record>
@@ -195,7 +185,7 @@
 
     <menuitem id="menu_radius_customers"
               name="RADIUS Customers"
-              parent="asr_radius_manager.menu_radius_root"
+              parent="asr_radius_manager.menu_asr_radius_root"
               action="action_radius_customers"
               sequence="5"
               groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_manager"/>
