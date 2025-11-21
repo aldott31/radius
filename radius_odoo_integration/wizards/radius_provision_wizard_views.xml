@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- RADIUS PROVISIONING WIZARD -->
+    <!-- ============================================================ -->
+
+    <record id="view_radius_provision_wizard_form" model="ir.ui.view">
+        <field name="name">radius.provision.wizard.form</field>
+        <field name="model">radius.provision.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Provision RADIUS User">
+                <group>
+                    <group string="Customer">
+                        <field name="partner_id" options="{'no_create': True}"/>
+                    </group>
+                    <group string="Subscription">
+                        <field name="subscription_id"/>
+                    </group>
+                </group>
+
+                <group>
+                    <group string="Devices (Optional)">
+                        <field name="device_id"/>
+                        <field name="access_device_id"/>
+                    </group>
+                    <group string="Credentials">
+                        <field name="radius_username" placeholder="Leave empty for auto-generation (445XXXXXX)"/>
+                        <field name="radius_password" password="True" placeholder="Leave empty for auto-generation"/>
+                    </group>
+                </group>
+
+                <group>
+                    <field name="auto_sync"/>
+                </group>
+
+                <div class="alert alert-info" role="alert">
+                    <strong>Note:</strong>
+                    <ul>
+                        <li>If username is empty, it will be auto-generated (format: 445XXXXXX)</li>
+                        <li>If password is empty, a secure random password will be generated</li>
+                        <li>Auto-sync will immediately sync the user to FreeRADIUS database</li>
+                    </ul>
+                </div>
+
+                <footer>
+                    <button name="action_provision" type="object" string="Provision" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_radius_provision_wizard" model="ir.actions.act_window">
+        <field name="name">Provision RADIUS User</field>
+        <field name="res_model">radius.provision.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Add menu item for manual provisioning -->
+    <menuitem id="menu_radius_provision_wizard"
+              name="Provision New User"
+              parent="asr_radius_manager.menu_radius_root"
+              action="action_radius_provision_wizard"
+              sequence="10"
+              groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
+
+</odoo>

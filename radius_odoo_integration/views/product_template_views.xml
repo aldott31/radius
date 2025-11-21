@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- PRODUCT.TEMPLATE - RADIUS SERVICE EXTENSION VIEWS -->
+    <!-- ============================================================ -->
+
+    <!-- Add RADIUS fields to product form -->
+    <record id="view_product_template_form_radius" model="ir.ui.view">
+        <field name="name">product.template.form.radius</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+
+            <!-- Add RADIUS checkbox after product type -->
+            <xpath expr="//field[@name='type']" position="after">
+                <field name="is_radius_service" widget="boolean_toggle" string="RADIUS Service"/>
+            </xpath>
+
+            <!-- Add RADIUS page -->
+            <xpath expr="//notebook" position="inside">
+                <page string="RADIUS Configuration" invisible="not is_radius_service">
+                    <group>
+                        <group string="Plan Configuration">
+                            <field name="radius_plan_code" required="is_radius_service"/>
+                            <field name="radius_rate_limit" placeholder="e.g., 300M/300M or 49M/49M"/>
+                            <field name="radius_session_timeout" placeholder="In seconds"/>
+                            <field name="sla_level"/>
+                        </group>
+                        <group string="IP Pool Management">
+                            <field name="ip_pool_active"/>
+                            <field name="ip_pool_expired"/>
+                            <field name="acct_interim_interval"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="Sync Status">
+                            <field name="radius_synced" readonly="1" widget="boolean"/>
+                            <field name="last_sync_date" readonly="1"/>
+                            <field name="last_sync_error" readonly="1" invisible="not last_sync_error"/>
+                        </group>
+                        <group string="Statistics">
+                            <field name="radius_user_count" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <group string="Custom RADIUS Attributes">
+                        <field name="radius_attribute_ids" nolabel="1" colspan="2">
+                            <tree editable="bottom">
+                                <field name="attribute" placeholder="e.g., Session-Timeout"/>
+                                <field name="op"/>
+                                <field name="value" placeholder="e.g., 3600"/>
+                            </tree>
+                        </field>
+                    </group>
+
+                    <div class="alert alert-info" role="alert">
+                        <strong>Note:</strong> When you sync this product to RADIUS, it will:
+                        <ul>
+                            <li>Generate Cisco AVPair for service-policy (input/output)</li>
+                            <li>Set Framed-Pool for IP assignment</li>
+                            <li>Configure Session-Timeout if specified</li>
+                            <li>Add custom RADIUS attributes</li>
+                        </ul>
+                    </div>
+
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Add action buttons to product form header -->
+    <record id="view_product_template_form_radius_buttons" model="ir.ui.view">
+        <field name="name">product.template.form.radius.buttons</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_sync_to_radius" type="object"
+                        string="Sync to RADIUS"
+                        class="btn-primary"
+                        invisible="not is_radius_service"
+                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
+
+                <button name="action_remove_from_radius" type="object"
+                        string="Remove from RADIUS"
+                        class="btn-warning"
+                        invisible="not is_radius_service or not radius_synced"
+                        groups="asr_radius_manager.group_isp_manager"
+                        confirm="Are you sure you want to remove this plan from RADIUS?"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add smart button for active users -->
+    <record id="view_product_template_form_radius_stats" model="ir.ui.view">
+        <field name="name">product.template.form.radius.stats</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="priority">98</field>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="%(action_radius_customers)d" type="action"
+                        class="oe_stat_button" icon="fa-users"
+                        invisible="not is_radius_service"
+                        context="{'search_default_subscription_id': active_id}"
+                        groups="asr_radius_manager.group_isp_manager,asr_radius_manager.group_isp_noc">
+                    <field name="radius_user_count" widget="statinfo" string="Active Users"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add RADIUS filter to product list -->
+    <record id="view_product_template_search_radius" model="ir.ui.view">
+        <field name="name">product.template.search.radius</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <filter string="RADIUS Services" name="radius_services" domain="[('is_radius_service', '=', True)]"/>
+                <filter string="Synced" name="synced" domain="[('is_radius_service', '=', True), ('radius_synced', '=', True)]"/>
+                <filter string="Not Synced" name="not_synced" domain="[('is_radius_service', '=', True), ('radius_synced', '=', False)]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add menu item: RADIUS Services -->
+    <record id="action_radius_services" model="ir.actions.act_window">
+        <field name="name">RADIUS Services</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">tree,kanban,form</field>
+        <field name="domain">[('is_radius_service', '=', True)]</field>
+        <field name="context">{'default_is_radius_service': True, 'default_type': 'service'}</field>
+        <field name="search_view_id" ref="product.product_template_search_view"/>
+    </record>
+
+    <menuitem id="menu_radius_services"
+              name="RADIUS Services"
+              parent="asr_radius_manager.menu_radius_root"
+              action="action_radius_services"
+              sequence="15"
+              groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
+
+</odoo>

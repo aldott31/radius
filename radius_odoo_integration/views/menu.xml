@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- RADIUS menu is provided by asr_radius_manager -->
+    <!-- We just add submenu items under it -->
+</odoo>
