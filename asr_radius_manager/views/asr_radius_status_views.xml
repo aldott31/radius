@@ -48,9 +48,9 @@
   </record>
 
   <menuitem id="menu_asr_radius_pppoe_status"
-            name="PPPoE Status"
-            parent="menu_asr_radius_root"
+            name="Live Status"
+            parent="menu_radius_monitoring"
             action="action_asr_radius_pppoe_status"
-            sequence="26"/>
+            sequence="10"/>
 
 </odoo>

@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- RADIUS menu is provided by asr_radius_manager -->
-    <!-- We just add submenu items under it -->
+    <!-- ============================================================ -->
+    <!-- ISP MANAGEMENT ROOT MENU (Sales, CS, Management)           -->
+    <!-- ============================================================ -->
+    <menuitem id="menu_isp_management_root"
+              name="ISP Management"
+              web_icon="radius_odoo_integration,static/description/icon_isp.png"
+              groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"
+              sequence="10"/>
+
+    <!-- Infrastructure submenu -->
+    <menuitem id="menu_infrastructure"
+              name="Infrastructure"
+              parent="menu_isp_management_root"
+              groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"
+              sequence="30"/>
+
 </odoo>

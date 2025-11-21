@@ -1,8 +1,18 @@
 <odoo>
-  <!-- ROOT menu - RADIUS (NOC + Manager only) -->
+  <!-- ============================================================ -->
+  <!-- RADIUS ROOT MENU (NOC, Technical staff)                     -->
+  <!-- ============================================================ -->
   <menuitem id="menu_asr_radius_root"
             name="RADIUS"
             groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"
             web_icon="asr_radius_manager,static/description/icon.png"
             sequence="50"/>
+
+  <!-- Monitoring submenu -->
+  <menuitem id="menu_radius_monitoring"
+            name="Monitoring"
+            parent="menu_asr_radius_root"
+            groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"
+            sequence="50"/>
+
 </odoo>

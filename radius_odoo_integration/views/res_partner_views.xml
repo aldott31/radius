@@ -173,9 +173,9 @@
         </field>
     </record>
 
-    <!-- Add menu item: RADIUS Customers -->
+    <!-- Add menu item: Customers -->
     <record id="action_radius_customers" model="ir.actions.act_window">
-        <field name="name">RADIUS Customers</field>
+        <field name="name">Customers</field>
         <field name="res_model">res.partner</field>
         <field name="view_mode">kanban,list,form</field>
         <field name="domain">[('is_radius_customer', '=', True)]</field>
@@ -183,11 +183,11 @@
         <field name="search_view_id" ref="base.view_res_partner_filter"/>
     </record>
 
-    <menuitem id="menu_radius_customers"
-              name="RADIUS Customers"
-              parent="asr_radius_manager.menu_asr_radius_root"
+    <menuitem id="menu_isp_customers"
+              name="Customers"
+              parent="radius_odoo_integration.menu_isp_management_root"
               action="action_radius_customers"
-              sequence="5"
+              sequence="10"
               groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_manager"/>
 
 </odoo>

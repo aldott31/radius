@@ -313,8 +313,8 @@
   <!-- ==================== MENU ITEM ==================== -->
   <menuitem id="menu_crm_access_devices"
             name="Access Devices"
-            parent="menu_management"
+            parent="radius_odoo_integration.menu_infrastructure"
             action="action_crm_access_device"
-            groups="asr_radius_manager.group_isp_manager,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc"
+            groups="asr_radius_manager.group_isp_manager,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_noc"
             sequence="30"/>
 </odoo>

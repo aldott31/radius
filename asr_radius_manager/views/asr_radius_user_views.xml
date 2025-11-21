@@ -206,10 +206,13 @@
     </field>
   </record>
 
+  <!-- Menu - HIDDEN: Replaced by unified Customers menu in ISP Management -->
+  <!--
   <menuitem id="menu_asr_radius_users"
             name="Users"
             parent="menu_asr_radius_root"
             action="action_asr_radius_user"
             sequence="30"/>
+  -->
 
 </odoo>

@@ -112,9 +112,9 @@
   </record>
 
   <menuitem id="menu_asr_radius_sessions"
-            name="Sessions"
-            parent="menu_asr_radius_root"
+            name="Session History"
+            parent="menu_radius_monitoring"
             action="action_asr_radius_session"
-            sequence="25"/>
+            sequence="20"/>
 
 </odoo>
