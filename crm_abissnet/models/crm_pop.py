@@ -7,7 +7,7 @@ class CrmPop(models.Model):
     _name = 'crm.pop'
     _description = 'Point of Presence (POP)'
     _order = 'name'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread']
 
     name = fields.Char(string="POP Name", required=True, tracking=True,
                        help="e.g., 'Tirana Center POP', 'Durres Beach POP'")

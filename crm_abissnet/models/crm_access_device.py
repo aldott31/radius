@@ -7,7 +7,7 @@ class CrmAccessDevice(models.Model):
     _name = 'crm.access.device'
     _description = 'Access Device (DSLAM, OLT, Switch, etc.)'
     _order = 'name'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread']
 
     name = fields.Char(string="Device Name", required=True, tracking=True)
     code = fields.Char(string="Serial/Code", help="Device serial number or identifier")

@@ -8,7 +8,7 @@ class CrmFiberClosure(models.Model):
     _name = 'crm.fiber.closure'
     _description = 'Fiber Splice Closure (Kaseta) with Individual Cores'
     _order = 'name'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread']
 
     # ==================== BASIC INFO ====================
 
