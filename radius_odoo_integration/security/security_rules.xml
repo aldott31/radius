@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Record rules for multi-company isolation -->
+
+    <!-- Product Radius Attributes: Multi-company -->
+    <record id="rule_product_radius_attribute_multi_company" model="ir.rule">
+        <field name="name">Product RADIUS Attribute: Multi-company</field>
+        <field name="model_id" ref="model_product_radius_attribute"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+
+</odoo>

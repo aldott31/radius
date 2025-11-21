@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_product_radius_attribute_manager,product.radius.attribute manager,model_product_radius_attribute,asr_radius_manager.group_isp_manager,1,1,1,1
+access_product_radius_attribute_provisioning,product.radius.attribute provisioning,model_product_radius_attribute,asr_radius_manager.group_isp_provisioning,1,1,1,0
+access_product_radius_attribute_sales,product.radius.attribute sales,model_product_radius_attribute,asr_radius_manager.group_isp_sales,1,0,0,0
+access_product_radius_attribute_noc,product.radius.attribute noc,model_product_radius_attribute,asr_radius_manager.group_isp_noc,1,0,0,0
+access_radius_provision_wizard_all,radius.provision.wizard all,model_radius_provision_wizard,,1,1,1,1
