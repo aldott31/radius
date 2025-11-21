@@ -73,11 +73,13 @@
     <field name="limit">80</field>
   </record>
 
-  <!-- Menu -->
+  <!-- Menu - HIDDEN: Technical debug tool, not needed for daily use -->
+  <!--
   <menuitem id="menu_asr_radius_user_remote"
             name="Users (MySQL)"
             parent="menu_asr_radius_root"
             action="action_asr_radius_user_remote"
             sequence="29"/>
+  -->
 
 </odoo>

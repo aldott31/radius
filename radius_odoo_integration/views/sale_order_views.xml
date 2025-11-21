@@ -120,6 +120,8 @@
     </record>
 
     <!-- Extend sale order line tree view to show RADIUS info -->
+    <!-- TODO: Re-enable after verifying Odoo 18 sale.order.line tree view structure -->
+    <!--
     <record id="view_sale_order_line_tree_radius" model="ir.ui.view">
         <field name="name">sale.order.line.tree.radius</field>
         <field name="model">sale.order.line</field>
@@ -133,5 +135,6 @@
             </xpath>
         </field>
     </record>
+    -->
 
 </odoo>

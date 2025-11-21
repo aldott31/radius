@@ -4,6 +4,19 @@
     <!-- PRODUCT.TEMPLATE - RADIUS SERVICE EXTENSION VIEWS -->
     <!-- ============================================================ -->
 
+    <!-- RADIUS Attribute List View (separate definition) -->
+    <record id="view_product_radius_attribute_list" model="ir.ui.view">
+        <field name="name">product.radius.attribute.list</field>
+        <field name="model">product.radius.attribute</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="attribute" placeholder="e.g., Session-Timeout"/>
+                <field name="op"/>
+                <field name="value" placeholder="e.g., 3600"/>
+            </list>
+        </field>
+    </record>
+
     <!-- Add RADIUS fields to product form -->
     <record id="view_product_template_form_radius" model="ir.ui.view">
         <field name="name">product.template.form.radius</field>
@@ -45,13 +58,7 @@
                     </group>
 
                     <group string="Custom RADIUS Attributes">
-                        <field name="radius_attribute_ids" nolabel="1" colspan="2" context="{'default_op': ':='}">
-                            <tree editable="bottom">
-                                <field name="attribute" placeholder="e.g., Session-Timeout"/>
-                                <field name="op"/>
-                                <field name="value" placeholder="e.g., 3600"/>
-                            </tree>
-                        </field>
+                        <field name="radius_attribute_ids" nolabel="1" colspan="2" context="{'default_op': ':='}"/>
                     </group>
 
                     <div class="alert alert-info" role="alert">
@@ -126,21 +133,21 @@
         </field>
     </record>
 
-    <!-- Add menu item: RADIUS Services -->
+    <!-- Add menu item: Service Plans -->
     <record id="action_radius_services" model="ir.actions.act_window">
-        <field name="name">RADIUS Services</field>
+        <field name="name">Service Plans</field>
         <field name="res_model">product.template</field>
-        <field name="view_mode">tree,kanban,form</field>
+        <field name="view_mode">list,kanban,form</field>
         <field name="domain">[('is_radius_service', '=', True)]</field>
         <field name="context">{'default_is_radius_service': True, 'default_type': 'service'}</field>
         <field name="search_view_id" ref="product.product_template_search_view"/>
     </record>
 
-    <menuitem id="menu_radius_services"
-              name="RADIUS Services"
-              parent="asr_radius_manager.menu_asr_radius_root"
+    <menuitem id="menu_isp_service_plans"
+              name="Service Plans"
+              parent="radius_odoo_integration.menu_isp_management_root"
               action="action_radius_services"
-              sequence="15"
+              sequence="20"
               groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
 
 </odoo>
