@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- SALE.ORDER - RADIUS PROVISIONING EXTENSION VIEWS -->
+    <!-- ============================================================ -->
+
+    <!-- Add RADIUS fields to sale order form -->
+    <record id="view_sale_order_form_radius" model="ir.ui.view">
+        <field name="name">sale.order.form.radius</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add RADIUS page -->
+            <xpath expr="//notebook" position="inside">
+                <page string="RADIUS Provisioning" invisible="not is_radius_order">
+                    <group>
+                        <group string="Provisioning Status">
+                            <field name="is_radius_order" readonly="1" widget="boolean"/>
+                            <field name="radius_provisioned" readonly="1" widget="boolean"/>
+                            <field name="radius_provision_date" readonly="1"/>
+                        </group>
+                        <group string="Customer RADIUS Info" invisible="not radius_provisioned">
+                            <field name="partner_id" readonly="1" invisible="1"/>
+                            <label for="partner_id" string="RADIUS Username" invisible="not partner_id.radius_username"/>
+                            <div invisible="not partner_id.radius_username">
+                                <field name="partner_id" readonly="1" context="{'show_address': 0}" options="{'no_open': True, 'no_create': True}"/>
+                                <div class="text-muted">
+                                    Username: <field name="partner_id" readonly="1" invisible="1"/>
+                                    <span class="badge badge-primary">
+                                        <field name="partner_id" readonly="1" widget="char" invisible="1"/>
+                                    </span>
+                                </div>
+                            </div>
+                        </group>
+                    </group>
+
+                    <group string="Provisioning Error" invisible="not radius_provision_error">
+                        <field name="radius_provision_error" readonly="1" nolabel="1" colspan="2" class="text-danger"/>
+                    </group>
+
+                    <div class="alert alert-info" role="alert" invisible="radius_provisioned">
+                        <strong>RADIUS Provisioning:</strong>
+                        <p>This order contains RADIUS service products. Click "Provision RADIUS" to:</p>
+                        <ul>
+                            <li>Enable customer as RADIUS user</li>
+                            <li>Auto-generate username (445XXXXXX) and password</li>
+                            <li>Link subscription package from order line</li>
+                            <li>Sync to FreeRADIUS MySQL database</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-success" role="alert" invisible="not radius_provisioned">
+                        <strong>✓ Provisioned Successfully</strong>
+                        <p>Customer has been provisioned and can now connect via PPPoE.</p>
+                    </div>
+
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Add action buttons to sale order form header -->
+    <record id="view_sale_order_form_radius_buttons" model="ir.ui.view">
+        <field name="name">sale.order.form.radius.buttons</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_provision_radius" type="object"
+                        string="Provision RADIUS"
+                        class="btn-primary"
+                        invisible="not is_radius_order or radius_provisioned or state not in ['sale', 'done']"
+                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"
+                        confirm="This will create a RADIUS user for the customer. Continue?"/>
+
+                <button name="action_update_radius_subscription" type="object"
+                        string="Update Subscription"
+                        class="btn-warning"
+                        invisible="not is_radius_order or not radius_provisioned or state != 'sale'"
+                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"
+                        confirm="This will update the customer's RADIUS subscription. Continue?"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add smart button for provisioning status -->
+    <record id="view_sale_order_form_radius_stats" model="ir.ui.view">
+        <field name="name">sale.order.form.radius.stats</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority">98</field>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_provision_radius" type="object"
+                        class="oe_stat_button" icon="fa-wifi"
+                        invisible="not is_radius_order"
+                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager">
+                    <field name="radius_provisioned" widget="boolean_button"
+                           options="{'terminology': {'string_true': 'Provisioned', 'string_false': 'Not Provisioned', 'hover_true': 'Provisioned', 'hover_false': 'Click to Provision'}}"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add RADIUS filter to sale order list -->
+    <record id="view_sale_order_search_radius" model="ir.ui.view">
+        <field name="name">sale.order.search.radius</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <filter string="RADIUS Orders" name="radius_orders" domain="[('is_radius_order', '=', True)]"/>
+                <filter string="Provisioned" name="provisioned" domain="[('is_radius_order', '=', True), ('radius_provisioned', '=', True)]"/>
+                <filter string="Not Provisioned" name="not_provisioned" domain="[('is_radius_order', '=', True), ('radius_provisioned', '=', False)]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Extend sale order line tree view to show RADIUS info -->
+    <record id="view_sale_order_line_tree_radius" model="ir.ui.view">
+        <field name="name">sale.order.line.tree.radius</field>
+        <field name="model">sale.order.line</field>
+        <field name="inherit_id" ref="sale.view_order_line_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='product_id']" position="after">
+                <field name="is_radius_service" invisible="1"/>
+                <field name="radius_plan_code" optional="show" invisible="not is_radius_service"/>
+                <field name="radius_rate_limit" optional="show" invisible="not is_radius_service"/>
+                <field name="sla_level" optional="show" invisible="not is_radius_service"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

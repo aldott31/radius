@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================ -->
+    <!-- RES.PARTNER (Contact) - RADIUS EXTENSION VIEWS -->
+    <!-- ============================================================ -->
+
+    <!-- Add RADIUS fields to contact form -->
+    <record id="view_partner_form_radius" model="ir.ui.view">
+        <field name="name">res.partner.form.radius</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Add RADIUS page after Sales & Purchases -->
+            <xpath expr="//notebook" position="inside">
+                <page string="RADIUS / ISP" invisible="not is_radius_customer">
+                    <group>
+                        <group string="RADIUS Authentication">
+                            <field name="is_radius_customer" invisible="1"/>
+                            <field name="radius_username" readonly="radius_synced"/>
+                            <field name="radius_password" password="True" readonly="radius_synced"/>
+                            <field name="radius_synced" invisible="1"/>
+                            <field name="last_sync_date" readonly="1"/>
+                            <field name="last_sync_error" readonly="1" invisible="not last_sync_error"/>
+                        </group>
+                        <group string="Subscription & Status">
+                            <field name="subscription_id"/>
+                            <field name="sla_level" readonly="1"/>
+                            <field name="device_id"/>
+                            <field name="current_radius_group" readonly="1"/>
+                            <field name="is_suspended" readonly="1" widget="boolean"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="PPPoE Status (Live)">
+                            <field name="pppoe_status" widget="badge" decoration-success="pppoe_status == 'up'" decoration-danger="pppoe_status == 'down'"/>
+                            <field name="last_session_start" readonly="1"/>
+                            <field name="current_framed_ip" readonly="1"/>
+                            <field name="current_interface" readonly="1"/>
+                        </group>
+                        <group string="Sessions">
+                            <field name="active_sessions_count" readonly="1"/>
+                            <field name="total_sessions_count" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="Infrastructure">
+                            <field name="access_device_id"/>
+                            <field name="pop_id" readonly="1"/>
+                            <field name="city_id" readonly="1"/>
+                            <field name="olt_login_port"/>
+                        </group>
+                        <group string="Fiber & ONT">
+                            <field name="fiber_closure_id"/>
+                            <field name="fiber_core_number"/>
+                            <field name="fiber_color"/>
+                            <field name="ont_serial"/>
+                            <field name="olt_pon_port"/>
+                            <field name="olt_ont_id"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="Contract">
+                            <field name="contract_start_date"/>
+                            <field name="contract_end_date"/>
+                            <field name="billing_day"/>
+                        </group>
+                        <group string="Business Info" invisible="sla_level == '1'">
+                            <field name="is_business" invisible="1"/>
+                            <field name="nipt"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="Installation">
+                            <field name="installation_date"/>
+                            <field name="installation_technician_id"/>
+                        </group>
+                        <group string="Geolocation">
+                            <field name="partner_latitude"/>
+                            <field name="partner_longitude"/>
+                        </group>
+                    </group>
+
+                    <group string="Notes">
+                        <field name="internal_notes" colspan="2" nolabel="1" placeholder="Internal notes (private)"/>
+                        <field name="customer_notes" colspan="2" nolabel="1" placeholder="Customer visible notes"/>
+                    </group>
+
+                </page>
+            </xpath>
+
+            <!-- Add RADIUS checkbox to main form -->
+            <xpath expr="//field[@name='company_type']" position="after">
+                <field name="is_radius_customer" widget="boolean_toggle"/>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Add action buttons to form header -->
+    <record id="view_partner_form_radius_buttons" model="ir.ui.view">
+        <field name="name">res.partner.form.radius.buttons</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_sync_to_radius" type="object"
+                        string="Sync to RADIUS"
+                        class="btn-primary"
+                        invisible="not is_radius_customer or not subscription_id"
+                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
+
+                <button name="action_suspend" type="object"
+                        string="Suspend"
+                        class="btn-warning"
+                        invisible="not is_radius_customer or is_suspended"
+                        groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"
+                        confirm="Are you sure you want to suspend this customer?"/>
+
+                <button name="action_reactivate" type="object"
+                        string="Reactivate"
+                        class="btn-success"
+                        invisible="not is_radius_customer or not is_suspended"
+                        groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"/>
+
+                <button name="action_view_active_sessions" type="object"
+                        string="Active Sessions"
+                        class="btn-info"
+                        invisible="not is_radius_customer or not active_sessions_count"
+                        groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
+
+                <button name="action_open_map" type="object"
+                        string="Open Map"
+                        icon="fa-map-marker"
+                        invisible="not partner_latitude or not partner_longitude"
+                        groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add smart buttons (stat buttons) -->
+    <record id="view_partner_form_radius_stats" model="ir.ui.view">
+        <field name="name">res.partner.form.radius.stats</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="priority">98</field>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_active_sessions" type="object"
+                        class="oe_stat_button" icon="fa-wifi"
+                        invisible="not is_radius_customer"
+                        groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager">
+                    <field name="active_sessions_count" widget="statinfo" string="Active"/>
+                </button>
+                <button name="action_view_all_sessions" type="object"
+                        class="oe_stat_button" icon="fa-history"
+                        invisible="not is_radius_customer"
+                        groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager">
+                    <field name="total_sessions_count" widget="statinfo" string="Total Sessions"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add RADIUS filter to contact list -->
+    <record id="view_partner_search_radius" model="ir.ui.view">
+        <field name="name">res.partner.search.radius</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <filter string="RADIUS Customers" name="radius_customers" domain="[('is_radius_customer', '=', True)]"/>
+                <filter string="Synced" name="synced" domain="[('is_radius_customer', '=', True), ('radius_synced', '=', True)]"/>
+                <filter string="Not Synced" name="not_synced" domain="[('is_radius_customer', '=', True), ('radius_synced', '=', False)]"/>
+                <filter string="Suspended" name="suspended" domain="[('is_radius_customer', '=', True), ('is_suspended', '=', True)]"/>
+                <filter string="Active Online" name="active_online" domain="[('is_radius_customer', '=', True), ('pppoe_status', '=', 'up')]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add menu item: RADIUS Customers -->
+    <record id="action_radius_customers" model="ir.actions.act_window">
+        <field name="name">RADIUS Customers</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">kanban,tree,form</field>
+        <field name="domain">[('is_radius_customer', '=', True)]</field>
+        <field name="context">{'default_is_radius_customer': True}</field>
+        <field name="search_view_id" ref="base.view_res_partner_filter"/>
+    </record>
+
+    <menuitem id="menu_radius_customers"
+              name="RADIUS Customers"
+              parent="asr_radius_manager.menu_radius_root"
+              action="action_radius_customers"
+              sequence="5"
+              groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_manager"/>
+
+</odoo>
