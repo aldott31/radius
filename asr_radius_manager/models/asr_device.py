@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 class AsrDevice(models.Model):
     _name = 'asr.device'
     _description = 'RADIUS Network Device (NAS)'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread']
     _rec_name = 'name'
     _order = 'name'
     _check_company_auto = True  # izolim auto për multi-company

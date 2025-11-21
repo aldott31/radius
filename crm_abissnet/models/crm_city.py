@@ -7,7 +7,7 @@ class CrmCity(models.Model):
     _name = 'crm.city'
     _description = 'City / Municipality'
     _order = 'name'
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread']
 
     name = fields.Char(string="City Name", required=True, tracking=True)
     code = fields.Char(string="City Code", help="Short code (e.g., TIR, DUR, VLO)")

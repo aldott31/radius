@@ -28,7 +28,7 @@ class AsrRadiusUser(models.Model):
     _description = 'RADIUS User'
     _order = 'username'
     _check_company_auto = True
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread']
 
     active = fields.Boolean(default=True, tracking=True)
     name = fields.Char(string="Name", help="Optional display name")

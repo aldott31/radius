@@ -17,7 +17,7 @@ class AsrSubscription(models.Model):
     _name = "asr.subscription"
     _description = "RADIUS Service Plan (Subscription)"
     _order = "id desc"
-    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _inherit = ['mail.thread']
     _check_company_auto = True
 
     # ---- Basic Fields ----
