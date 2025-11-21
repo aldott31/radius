@@ -4,6 +4,19 @@
     <!-- PRODUCT.TEMPLATE - RADIUS SERVICE EXTENSION VIEWS -->
     <!-- ============================================================ -->
 
+    <!-- RADIUS Attribute Tree View (separate definition) -->
+    <record id="view_product_radius_attribute_tree" model="ir.ui.view">
+        <field name="name">product.radius.attribute.tree</field>
+        <field name="model">product.radius.attribute</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="attribute" placeholder="e.g., Session-Timeout"/>
+                <field name="op"/>
+                <field name="value" placeholder="e.g., 3600"/>
+            </tree>
+        </field>
+    </record>
+
     <!-- Add RADIUS fields to product form -->
     <record id="view_product_template_form_radius" model="ir.ui.view">
         <field name="name">product.template.form.radius</field>
@@ -45,13 +58,7 @@
                     </group>
 
                     <group string="Custom RADIUS Attributes">
-                        <field name="radius_attribute_ids" nolabel="1" colspan="2" context="{'default_op': ':='}">
-                            <tree editable="bottom">
-                                <field name="attribute" placeholder="e.g., Session-Timeout"/>
-                                <field name="op"/>
-                                <field name="value" placeholder="e.g., 3600"/>
-                            </tree>
-                        </field>
+                        <field name="radius_attribute_ids" nolabel="1" colspan="2" context="{'default_op': ':='}"/>
                     </group>
 
                     <div class="alert alert-info" role="alert">
