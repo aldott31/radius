@@ -340,13 +340,10 @@ class ResPartner(models.Model):
                         'radius_synced': False,
                     }
 
-                    # Only create if subscription is set (required field)
-                    if radius_user_vals['subscription_id']:
-                        radius_user = self.env['asr.radius.user'].sudo().create(radius_user_vals)
-                        partner.sudo().write({'radius_user_id': radius_user.id})
-                        _logger.info("Auto-created asr.radius.user %s for partner %s", radius_user.username, partner.name)
-                    else:
-                        _logger.warning("Cannot auto-create asr.radius.user for partner %s: missing subscription", partner.name)
+                    # Create asr.radius.user (subscription can be set later)
+                    radius_user = self.env['asr.radius.user'].sudo().create(radius_user_vals)
+                    partner.sudo().write({'radius_user_id': radius_user.id})
+                    _logger.info("Auto-created asr.radius.user %s for partner %s", radius_user.username, partner.name)
 
                 except Exception as e:
                     _logger.error("Failed to auto-create asr.radius.user for partner %s: %s", partner.name, e)
@@ -527,12 +524,8 @@ class ResPartner(models.Model):
             if rec.billing_day and not (1 <= rec.billing_day <= 28):
                 raise ValidationError(_('Billing day must be between 1 and 28'))
 
-    @api.constrains('subscription_id', 'is_radius_customer')
-    def _check_subscription_required(self):
-        """Subscription is required for RADIUS customers"""
-        for rec in self:
-            if rec.is_radius_customer and not rec.subscription_id:
-                raise ValidationError(_('Subscription package is required for RADIUS customers'))
+    # Note: Subscription is NOT required when creating a RADIUS customer
+    # It can be set later. However, syncing to RADIUS requires a subscription.
 
     # ==================== RADIUS CONNECTION HELPER ====================
     def _get_radius_conn(self):

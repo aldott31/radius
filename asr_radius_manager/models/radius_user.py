@@ -36,7 +36,8 @@ class AsrRadiusUser(models.Model):
                           help="Auto-generated if left empty (format: 445XXXXXX)")
     radius_password = fields.Char(string="RADIUS Password", copy=False,
                                   help="Auto-generated if left empty")
-    subscription_id = fields.Many2one('asr.subscription', string="Subscription", required=True, ondelete='restrict')
+    subscription_id = fields.Many2one('asr.subscription', string="Subscription", required=False, ondelete='restrict',
+                                     help="Service plan - required before syncing to RADIUS")
     device_id = fields.Many2one('asr.device', string="Device (optional)", ondelete='set null')
     company_id = fields.Many2one('res.company', required=True, default=lambda self: self.env.company, index=True)
 
