@@ -33,6 +33,15 @@
                     </group>
 
                     <group>
+                        <group string="Contact Information">
+                            <field name="mobile"/>
+                            <field name="phone_secondary"/>
+                            <field name="email"/>
+                        </group>
+                        <group/>
+                    </group>
+
+                    <group>
                         <group string="PPPoE Status (Live)">
                             <field name="pppoe_status" widget="badge" decoration-success="pppoe_status == 'up'" decoration-danger="pppoe_status == 'down'"/>
                             <field name="last_session_start" readonly="1"/>
@@ -110,6 +119,22 @@
                                 class="btn-success"
                                 invisible="not is_suspended"
                                 groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"/>
+
+                        <button name="action_disconnect_user" type="object"
+                                string="Disconnect PPPoE"
+                                class="btn-danger"
+                                icon="fa-plug"
+                                invisible="pppoe_status != 'up'"
+                                groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"
+                                confirm="⚠️ This will immediately disconnect the user from the network. Their PPPoE session will be terminated. Continue?"/>
+
+                        <button name="action_remove_from_radius" type="object"
+                                string="Remove from RADIUS"
+                                class="btn-danger"
+                                icon="fa-trash"
+                                invisible="not radius_synced"
+                                groups="asr_radius_manager.group_isp_manager"
+                                confirm="⚠️ WARNING: This will permanently delete the user from FreeRADIUS database. This action CANNOT be undone and the user will lose internet access immediately. Are you absolutely sure?"/>
 
                         <button name="action_view_active_sessions" type="object"
                                 string="View Active Sessions"
