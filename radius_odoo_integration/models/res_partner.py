@@ -266,6 +266,12 @@ class ResPartner(models.Model):
         ('violet', 'Violet'), ('rose', 'Rose'), ('aqua', 'Aqua'),
     ], string='Fiber Color', tracking=True)
 
+    # Phone Secondary
+    phone_secondary = fields.Char(
+        string="Secondary Phone",
+        help="Alternative contact number"
+    )
+
     # ONT Info
     ont_serial = fields.Char(
         string='ONT Serial Number',
@@ -309,13 +315,25 @@ class ResPartner(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        # gjenerimi i username/password mbetet siç është
+        """Override create to auto-create asr.radius.user for RADIUS customers"""
+        # Skip radius_user creation if flag is set (to prevent recursion)
+        skip_radius_creation = self.env.context.get('_skip_partner_creation')
+
         partners = super(ResPartner, self).create(vals_list)
+
+        if skip_radius_creation:
+            return partners
 
         for partner in partners:
             if partner.is_radius_customer and not partner.radius_user_id:
                 try:
-                    # Gjej company: ose ajo te partneri, ose env.company
+                    # Auto-generate username/password if not set
+                    if not partner.radius_username:
+                        partner.sudo().write({'radius_username': partner._generate_username()})
+                    if not partner.radius_password:
+                        partner.sudo().write({'radius_password': partner._generate_password()})
+
+                    # Get company: partner's company or env.company
                     company = partner.company_id or self.env.company
 
                     radius_user_vals = {
@@ -324,69 +342,150 @@ class ResPartner(models.Model):
                         'radius_password': partner.radius_password,
                         'subscription_id': partner.subscription_id.id if partner.subscription_id else False,
                         'device_id': partner.device_id.id if partner.device_id else False,
-                        'company_id': company.id,  # KJO ËSHTË NDRYSHIMI KRYESOR
+                        'company_id': company.id,  # Ensure company_id is set
                         'partner_id': partner.id,
                         'radius_synced': False,
                     }
 
-                    radius_user = self.env['asr.radius.user'].sudo().create(radius_user_vals)
+                    # Create with context flag to prevent recursion
+                    radius_user = self.env['asr.radius.user'].with_context(
+                        _skip_partner_creation=True
+                    ).sudo().create(radius_user_vals)
+
                     partner.sudo().write({'radius_user_id': radius_user.id})
-                    _logger.info(
-                        "Auto-created asr.radius.user %s for partner %s",
-                        radius_user.username,
-                        partner.name,
-                    )
+                    _logger.info("Auto-created asr.radius.user %s for partner %s",
+                                radius_user.username, partner.name)
+
                 except Exception as e:
-                    _logger.error(
-                        "Failed to auto-create asr.radius.user for partner %s: %s",
-                        partner.name,
-                        e,
-                    )
+                    _logger.error("Failed to auto-create asr.radius.user for partner %s: %s",
+                                 partner.name, e)
 
         return partners
 
     def write(self, vals):
-        res = super(ResPartner, self).write(vals)
+        """Override write to sync bidirectionally with asr.radius.user"""
+        # Skip if we're coming from radius_user.write()
+        if self.env.context.get('_from_radius_write'):
+            return super(ResPartner, self).write(vals)
 
+        # Step 1: Handle is_radius_customer flag FIRST (before sync)
         if 'is_radius_customer' in vals and vals['is_radius_customer']:
             for partner in self:
                 if partner.is_radius_customer and not partner.radius_user_id:
-                    # Ruaj company si fallback
-                    company = partner.company_id or self.env.company
-
+                    # Auto-generate username/password if not set
                     updates = {}
                     if not partner.radius_username:
                         updates['radius_username'] = partner._generate_username()
-                        _logger.info(
-                            "Auto-generated RADIUS username (write): %s",
-                            updates['radius_username'],
-                        )
+                        _logger.info("Auto-generated RADIUS username (write): %s", updates['radius_username'])
                     if not partner.radius_password:
                         updates['radius_password'] = partner._generate_password()
-                        _logger.info(
-                            "Auto-generated RADIUS password (write) for: %s",
-                            updates.get('radius_username') or partner.radius_username,
-                        )
+                        _logger.info("Auto-generated RADIUS password (write) for: %s",
+                                    updates.get('radius_username') or partner.radius_username)
                     if updates:
                         partner.sudo().write(updates)
 
+                    # Create asr.radius.user with _skip_partner_creation flag
+                    company = partner.company_id or self.env.company
                     radius_user_vals = {
                         'name': partner.name,
                         'username': partner.radius_username,
                         'radius_password': partner.radius_password,
                         'subscription_id': partner.subscription_id.id if partner.subscription_id else False,
                         'device_id': partner.device_id.id if partner.device_id else False,
-                        'company_id': company.id,  # KËTU DHE JO partner.company_id.id
+                        'company_id': company.id,
                         'partner_id': partner.id,
                         'radius_synced': False,
                     }
-                    radius_user = self.env['asr.radius.user'].sudo().create(radius_user_vals)
+
+                    # Create with context flag to prevent recursion
+                    radius_user = self.env['asr.radius.user'].with_context(
+                        _skip_partner_creation=True,
+                        _from_partner_write=True
+                    ).sudo().create(radius_user_vals)
+
                     partner.sudo().write({'radius_user_id': radius_user.id})
-                    _logger.info(
-                        "Auto-created asr.radius.user %s for partner %s (write)",
-                        radius_user.username,
-                        partner.name,
-                    )
+                    _logger.info("Auto-created asr.radius.user %s for partner %s (write)",
+                                radius_user.username, partner.name)
+
+        # Step 2: Execute parent write
+        res = super(ResPartner, self).write(vals)
+
+        # Step 3: Sync to asr.radius.user (if linked and is RADIUS customer)
+        for partner in self.filtered(lambda p: p.is_radius_customer and p.radius_user_id):
+            radius_vals = {}
+
+            # Map Partner fields to RADIUS fields (only changed fields)
+            if 'radius_username' in vals:
+                radius_vals['username'] = vals['radius_username']
+            if 'radius_password' in vals:
+                radius_vals['radius_password'] = vals['radius_password']
+            if 'subscription_id' in vals:
+                radius_vals['subscription_id'] = vals['subscription_id']
+            if 'device_id' in vals:
+                radius_vals['device_id'] = vals['device_id']
+            if 'name' in vals:
+                radius_vals['name'] = vals['name']
+
+            # CRM fields mapping
+            if 'mobile' in vals or 'phone' in vals:
+                # Prefer mobile, fallback to phone
+                radius_vals['phone'] = vals.get('mobile') or vals.get('phone') or partner.mobile or partner.phone
+            if 'phone_secondary' in vals:
+                radius_vals['phone_secondary'] = vals['phone_secondary']
+            if 'email' in vals:
+                radius_vals['email'] = vals['email']
+            if 'street' in vals:
+                radius_vals['street'] = vals['street']
+            if 'street2' in vals:
+                radius_vals['street2'] = vals['street2']
+            if 'city' in vals:
+                radius_vals['city'] = vals['city']
+            if 'zip' in vals:
+                radius_vals['zip'] = vals['zip']
+            if 'country_id' in vals:
+                radius_vals['country_id'] = vals['country_id']
+            if 'partner_latitude' in vals:
+                radius_vals['partner_latitude'] = vals['partner_latitude']
+            if 'partner_longitude' in vals:
+                radius_vals['partner_longitude'] = vals['partner_longitude']
+            if 'access_device_id' in vals:
+                radius_vals['access_device_id'] = vals['access_device_id']
+            if 'olt_login_port' in vals:
+                radius_vals['olt_login_port'] = vals['olt_login_port']
+            if 'contract_start_date' in vals:
+                radius_vals['contract_start_date'] = vals['contract_start_date']
+            if 'contract_end_date' in vals:
+                radius_vals['contract_end_date'] = vals['contract_end_date']
+            if 'billing_day' in vals:
+                radius_vals['billing_day'] = vals['billing_day']
+            if 'nipt' in vals:
+                radius_vals['nipt'] = vals['nipt']
+            if 'installation_date' in vals:
+                radius_vals['installation_date'] = vals['installation_date']
+            if 'installation_technician_id' in vals:
+                radius_vals['installation_technician_id'] = vals['installation_technician_id']
+            if 'internal_notes' in vals:
+                radius_vals['internal_notes'] = vals['internal_notes']
+            if 'customer_notes' in vals:
+                radius_vals['customer_notes'] = vals['customer_notes']
+
+            # Fiber fields
+            if 'fiber_closure_id' in vals:
+                radius_vals['fiber_closure_id'] = vals['fiber_closure_id']
+            if 'fiber_core_number' in vals:
+                radius_vals['fiber_core_number'] = vals['fiber_core_number']
+            if 'fiber_color' in vals:
+                radius_vals['fiber_color'] = vals['fiber_color']
+            if 'ont_serial' in vals:
+                radius_vals['ont_serial'] = vals['ont_serial']
+            if 'olt_pon_port' in vals:
+                radius_vals['olt_pon_port'] = vals['olt_pon_port']
+            if 'olt_ont_id' in vals:
+                radius_vals['olt_ont_id'] = vals['olt_ont_id']
+
+            # Sync with context flag and sudo() to avoid recursion and permission issues
+            if radius_vals:
+                partner.radius_user_id.with_context(_from_partner_write=True).sudo().write(radius_vals)
 
         return res
 
@@ -952,6 +1051,22 @@ class ResPartner(models.Model):
                     'sticky': False
                 }
             }
+
+    def action_disconnect_user(self):
+        """
+        Disconnect PPPoE session (delegates to asr.radius.user)
+        Send RADIUS Disconnect-Request to terminate active session
+        """
+        self.ensure_one()
+
+        if not self.is_radius_customer:
+            raise UserError(_("This contact is not a RADIUS customer."))
+
+        if not self.radius_user_id:
+            raise UserError(_("No RADIUS user linked to this contact."))
+
+        # Delegate to asr.radius.user.action_disconnect_user()
+        return self.radius_user_id.action_disconnect_user()
 
     # ==================== SESSION ACTIONS ====================
     def _sessions_action_base(self, domain):

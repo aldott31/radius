@@ -116,3 +116,63 @@ class AsrRadiusUserCRM(models.Model):
             self.country_id.name or '',
         ]
         return ', '.join([p for p in parts if p])
+
+    def write(self, vals):
+        """Override write to sync CRM fields bidirectionally with res.partner"""
+        # Skip if we're coming from partner.write()
+        if self.env.context.get('_from_partner_write'):
+            return super(AsrRadiusUserCRM, self).write(vals)
+
+        res = super(AsrRadiusUserCRM, self).write(vals)
+
+        # Sync CRM fields to res.partner (if linked)
+        for rec in self.filtered(lambda r: r.partner_id):
+            partner_vals = {}
+
+            # Map CRM fields (only changed fields)
+            if 'phone' in vals:
+                partner_vals['mobile'] = vals['phone']  # radius.phone → partner.mobile
+            if 'phone_secondary' in vals:
+                partner_vals['phone_secondary'] = vals['phone_secondary']
+            if 'email' in vals:
+                partner_vals['email'] = vals['email']
+            if 'street' in vals:
+                partner_vals['street'] = vals['street']
+            if 'street2' in vals:
+                partner_vals['street2'] = vals['street2']
+            if 'city' in vals:
+                partner_vals['city'] = vals['city']
+            if 'zip' in vals:
+                partner_vals['zip'] = vals['zip']
+            if 'country_id' in vals:
+                partner_vals['country_id'] = vals['country_id']
+            if 'partner_latitude' in vals:
+                partner_vals['partner_latitude'] = vals['partner_latitude']
+            if 'partner_longitude' in vals:
+                partner_vals['partner_longitude'] = vals['partner_longitude']
+            if 'access_device_id' in vals:
+                partner_vals['access_device_id'] = vals['access_device_id']
+            if 'olt_login_port' in vals:
+                partner_vals['olt_login_port'] = vals['olt_login_port']
+            if 'contract_start_date' in vals:
+                partner_vals['contract_start_date'] = vals['contract_start_date']
+            if 'contract_end_date' in vals:
+                partner_vals['contract_end_date'] = vals['contract_end_date']
+            if 'billing_day' in vals:
+                partner_vals['billing_day'] = vals['billing_day']
+            if 'nipt' in vals:
+                partner_vals['nipt'] = vals['nipt']
+            if 'installation_date' in vals:
+                partner_vals['installation_date'] = vals['installation_date']
+            if 'installation_technician_id' in vals:
+                partner_vals['installation_technician_id'] = vals['installation_technician_id']
+            if 'internal_notes' in vals:
+                partner_vals['internal_notes'] = vals['internal_notes']
+            if 'customer_notes' in vals:
+                partner_vals['customer_notes'] = vals['customer_notes']
+
+            # Sync with sudo() to avoid permission issues
+            if partner_vals:
+                rec.partner_id.with_context(_from_radius_write=True).sudo().write(partner_vals)
+
+        return res

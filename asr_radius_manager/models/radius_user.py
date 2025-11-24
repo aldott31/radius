@@ -68,7 +68,8 @@ class AsrRadiusUser(models.Model):
     )
 
     _sql_constraints = [
-        ('uniq_username_company', 'unique(username, company_id)', 'RADIUS username must be unique per company.')
+        ('uniq_username_company', 'unique(username, company_id)', 'RADIUS username must be unique per company.'),
+        ('uniq_partner_company', 'unique(partner_id, company_id)', 'Each partner can have only one RADIUS user per company.')
     ]
 
     # ---- Auto-generation helpers ----
@@ -98,6 +99,12 @@ class AsrRadiusUser(models.Model):
 
         records = super(AsrRadiusUser, self).create(vals_list)
 
+        # Skip partner creation if flag is set (to prevent recursion)
+        skip_partner_creation = self.env.context.get('_skip_partner_creation')
+
+        if skip_partner_creation:
+            return records
+
         # Auto-create linked res.partner if not provided
         for record in records:
             if not record.partner_id:
@@ -113,7 +120,11 @@ class AsrRadiusUser(models.Model):
                         'radius_user_id': record.id,
                     }
 
-                    partner = self.env['res.partner'].sudo().create(partner_vals)
+                    # Create with context flag to prevent recursion
+                    partner = self.env['res.partner'].with_context(
+                        _skip_partner_creation=True
+                    ).sudo().create(partner_vals)
+
                     record.sudo().write({'partner_id': partner.id})
                     _logger.info("Auto-created res.partner %s for RADIUS user %s", partner.name, record.username)
 
@@ -479,6 +490,36 @@ class AsrRadiusUser(models.Model):
                 'params': {'title': _('RADIUS Removal (Partial/Failed)'), 'message': msg, 'type': 'warning',
                            'sticky': False}
             }
+
+    def write(self, vals):
+        """Override write to sync bidirectionally with res.partner"""
+        # Skip if we're coming from partner.write() to avoid recursion
+        if self.env.context.get('_from_partner_write'):
+            return super(AsrRadiusUser, self).write(vals)
+
+        res = super(AsrRadiusUser, self).write(vals)
+
+        # Sync to res.partner (if linked)
+        for rec in self.filtered(lambda r: r.partner_id):
+            partner_vals = {}
+
+            # Map RADIUS fields to Partner fields (only changed fields)
+            if 'username' in vals:
+                partner_vals['radius_username'] = vals['username']
+            if 'radius_password' in vals:
+                partner_vals['radius_password'] = vals['radius_password']
+            if 'subscription_id' in vals:
+                partner_vals['subscription_id'] = vals['subscription_id']
+            if 'device_id' in vals:
+                partner_vals['device_id'] = vals['device_id']
+            if 'name' in vals:
+                partner_vals['name'] = vals['name']
+
+            # Sync bidirectionally with sudo() to avoid permission issues
+            if partner_vals:
+                rec.partner_id.with_context(_from_radius_write=True).sudo().write(partner_vals)
+
+        return res
 
 
 # =========================
