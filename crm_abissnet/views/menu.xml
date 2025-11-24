@@ -17,11 +17,6 @@
             groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"
             sequence="30"/>
 
-  <!-- Monitoring submenu under ISP Management -->
-  <menuitem id="menu_isp_monitoring"
-            name="Monitoring"
-            parent="menu_isp_management_root"
-            groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"
-            sequence="40"/>
+  <!-- Note: Monitoring submenu is defined in asr_radius_manager/views/menu.xml -->
 
 </odoo>

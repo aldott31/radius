@@ -9,4 +9,11 @@
             web_icon="asr_radius_manager,static/description/icon.png"
             sequence="50"/>
 
+  <!-- Monitoring submenu (will be referenced by ISP Management in crm_abissnet) -->
+  <menuitem id="menu_isp_monitoring"
+            name="Monitoring"
+            parent="crm_abissnet.menu_isp_management_root"
+            groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"
+            sequence="40"/>
+
 </odoo>

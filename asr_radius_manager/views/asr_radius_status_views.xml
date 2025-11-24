@@ -49,7 +49,7 @@
 
   <menuitem id="menu_asr_radius_pppoe_status"
             name="Live Status"
-            parent="crm_abissnet.menu_isp_monitoring"
+            parent="menu_isp_monitoring"
             action="action_asr_radius_pppoe_status"
             sequence="10"/>
 
