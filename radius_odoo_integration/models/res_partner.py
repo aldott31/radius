@@ -306,49 +306,89 @@ class ResPartner(models.Model):
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
 
+
     @api.model_create_multi
     def create(self, vals_list):
-        """Override create to auto-generate RADIUS username and password AND create linked asr.radius.user"""
-        for vals in vals_list:
-            if vals.get('is_radius_customer'):
-                # Auto-generate username if empty
-                if not vals.get('radius_username'):
-                    vals['radius_username'] = self._generate_username()
-                    _logger.info("Auto-generated RADIUS username: %s", vals['radius_username'])
-
-                # Auto-generate password if empty
-                if not vals.get('radius_password'):
-                    vals['radius_password'] = self._generate_password()
-                    _logger.info("Auto-generated RADIUS password for: %s", vals['radius_username'])
-
+        # gjenerimi i username/password mbetet siç është
         partners = super(ResPartner, self).create(vals_list)
 
-        # Auto-create linked asr.radius.user for RADIUS customers
         for partner in partners:
             if partner.is_radius_customer and not partner.radius_user_id:
                 try:
-                    # Create asr.radius.user with synced data
+                    # Gjej company: ose ajo te partneri, ose env.company
+                    company = partner.company_id or self.env.company
+
                     radius_user_vals = {
                         'name': partner.name,
                         'username': partner.radius_username,
                         'radius_password': partner.radius_password,
                         'subscription_id': partner.subscription_id.id if partner.subscription_id else False,
                         'device_id': partner.device_id.id if partner.device_id else False,
-                        'company_id': partner.company_id.id,
+                        'company_id': company.id,  # KJO ËSHTË NDRYSHIMI KRYESOR
                         'partner_id': partner.id,
-                        # Don't auto-sync to RADIUS yet - user can sync manually
                         'radius_synced': False,
                     }
 
-                    # Create asr.radius.user (subscription can be set later)
                     radius_user = self.env['asr.radius.user'].sudo().create(radius_user_vals)
                     partner.sudo().write({'radius_user_id': radius_user.id})
-                    _logger.info("Auto-created asr.radius.user %s for partner %s", radius_user.username, partner.name)
-
+                    _logger.info(
+                        "Auto-created asr.radius.user %s for partner %s",
+                        radius_user.username,
+                        partner.name,
+                    )
                 except Exception as e:
-                    _logger.error("Failed to auto-create asr.radius.user for partner %s: %s", partner.name, e)
+                    _logger.error(
+                        "Failed to auto-create asr.radius.user for partner %s: %s",
+                        partner.name,
+                        e,
+                    )
 
         return partners
+
+    def write(self, vals):
+        res = super(ResPartner, self).write(vals)
+
+        if 'is_radius_customer' in vals and vals['is_radius_customer']:
+            for partner in self:
+                if partner.is_radius_customer and not partner.radius_user_id:
+                    # Ruaj company si fallback
+                    company = partner.company_id or self.env.company
+
+                    updates = {}
+                    if not partner.radius_username:
+                        updates['radius_username'] = partner._generate_username()
+                        _logger.info(
+                            "Auto-generated RADIUS username (write): %s",
+                            updates['radius_username'],
+                        )
+                    if not partner.radius_password:
+                        updates['radius_password'] = partner._generate_password()
+                        _logger.info(
+                            "Auto-generated RADIUS password (write) for: %s",
+                            updates.get('radius_username') or partner.radius_username,
+                        )
+                    if updates:
+                        partner.sudo().write(updates)
+
+                    radius_user_vals = {
+                        'name': partner.name,
+                        'username': partner.radius_username,
+                        'radius_password': partner.radius_password,
+                        'subscription_id': partner.subscription_id.id if partner.subscription_id else False,
+                        'device_id': partner.device_id.id if partner.device_id else False,
+                        'company_id': company.id,  # KËTU DHE JO partner.company_id.id
+                        'partner_id': partner.id,
+                        'radius_synced': False,
+                    }
+                    radius_user = self.env['asr.radius.user'].sudo().create(radius_user_vals)
+                    partner.sudo().write({'radius_user_id': radius_user.id})
+                    _logger.info(
+                        "Auto-created asr.radius.user %s for partner %s (write)",
+                        radius_user.username,
+                        partner.name,
+                    )
+
+        return res
 
     # ==================== COMPUTED METHODS ====================
     @api.depends('access_device_id')
