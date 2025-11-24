@@ -113,7 +113,7 @@
 
   <menuitem id="menu_asr_radius_sessions"
             name="Session History"
-            parent="crm_abissnet.menu_isp_monitoring"
+            parent="menu_isp_monitoring"
             action="action_asr_radius_session"
             sequence="20"/>
 
