@@ -23,6 +23,15 @@ class ProductTemplate(models.Model):
         help="Enable this to manage this product as a RADIUS subscription package"
     )
 
+    # Link to asr.subscription
+    radius_subscription_id = fields.Many2one(
+        'asr.subscription',
+        string="RADIUS Subscription",
+        ondelete='set null',
+        help="Linked RADIUS subscription record",
+        index=True
+    )
+
     # ==================== RADIUS PLAN FIELDS ====================
     radius_plan_code = fields.Char(
         string="RADIUS Plan Code",
@@ -112,6 +121,39 @@ class ProductTemplate(models.Model):
         for rec in self:
             if rec.is_radius_service and not rec.radius_plan_code:
                 rec.radius_plan_code = _slugify(rec.name)
+
+    # ==================== CREATE ====================
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Override create to auto-create linked asr.subscription for RADIUS services"""
+        products = super(ProductTemplate, self).create(vals_list)
+
+        # Auto-create linked asr.subscription for RADIUS services
+        for product in products:
+            if product.is_radius_service and not product.radius_subscription_id:
+                try:
+                    subscription_vals = {
+                        'name': product.name,
+                        'code': product.radius_plan_code or _slugify(product.name),
+                        'rate_limit': product.radius_rate_limit,
+                        'session_timeout': product.radius_session_timeout,
+                        'sla_level': product.sla_level or '1',
+                        'ip_pool_active': product.ip_pool_active,
+                        'ip_pool_expired': product.ip_pool_expired,
+                        'acct_interim_interval': product.acct_interim_interval or 300,
+                        'company_id': product.company_id.id,
+                        'product_tmpl_id': product.id,
+                        'radius_synced': False,
+                    }
+
+                    subscription = self.env['asr.subscription'].sudo().create(subscription_vals)
+                    product.sudo().write({'radius_subscription_id': subscription.id})
+                    _logger.info("Auto-created asr.subscription %s for product %s", subscription.code, product.name)
+
+                except Exception as e:
+                    _logger.error("Failed to auto-create asr.subscription for product %s: %s", product.name, e)
+
+        return products
 
     # ==================== COMPUTED METHODS ====================
     @api.model

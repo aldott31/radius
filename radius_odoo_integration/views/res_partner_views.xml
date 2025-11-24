@@ -124,6 +124,33 @@
                                 groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"/>
                     </div>
 
+                    <!-- OLT Tool Buttons (visible when access_device_id is set) -->
+                    <div class="oe_button_box" style="margin-top: 10px;" invisible="not access_device_id">
+                        <button type="action"
+                                name="%(asr_olt_telnet.action_open_olt_show_mac_wizard_from_device)d"
+                                string="Show MAC on OLT"
+                                class="btn-primary"
+                                context="{'default_olt_id': access_device_id}"
+                                icon="fa-search"
+                                groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
+
+                        <button type="action"
+                                name="%(asr_olt_telnet.action_open_onu_uncfg_wizard)d"
+                                string="Unregistered ONUs"
+                                class="btn-info"
+                                context="{'default_olt_id': access_device_id}"
+                                icon="fa-plug"
+                                groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
+
+                        <button type="action"
+                                name="%(asr_olt_telnet.action_olt_command_test_wizard)d"
+                                string="Test Commands"
+                                class="btn-secondary"
+                                context="{'default_olt_id': access_device_id}"
+                                icon="fa-terminal"
+                                groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
+                    </div>
+
                 </page>
             </xpath>
 
