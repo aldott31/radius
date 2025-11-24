@@ -173,21 +173,12 @@
         </field>
     </record>
 
-    <!-- Add menu item: Customers -->
-    <record id="action_radius_customers" model="ir.actions.act_window">
-        <field name="name">Customers</field>
-        <field name="res_model">res.partner</field>
-        <field name="view_mode">kanban,list,form</field>
-        <field name="domain">[('is_radius_customer', '=', True)]</field>
-        <field name="context">{'default_is_radius_customer': True}</field>
-        <field name="search_view_id" ref="base.view_res_partner_filter"/>
-    </record>
-
+    <!-- Add menu item: Customers (using asr.radius.user instead of res.partner) -->
     <menuitem id="menu_isp_customers"
               name="Customers"
               parent="crm_abissnet.menu_isp_management_root"
-              action="action_radius_customers"
+              action="crm_abissnet.action_asr_radius_user_crm"
               sequence="10"
-              groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_manager"/>
+              groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
 
 </odoo>

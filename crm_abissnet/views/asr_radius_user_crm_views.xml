@@ -35,21 +35,24 @@
           <field name="username" placeholder="Auto-generated (445XXXXXX) - leave empty"/>
           <field name="radius_password" password="True" placeholder="Auto-generated - leave empty"/>
           <field name="sla_level" widget="badge" readonly="1"/>
+          <field name="phone" widget="phone" placeholder="+355 69 123 4567"/>
+          <field name="email" widget="email"/>
         </group>
       </xpath>
 
-      <!-- Shto pas grupit të dytë -->
+      <!-- Shto pas grupit të dytë - Address & Business Info -->
       <xpath expr="//sheet/group/group[2]" position="after">
 
-        <!-- Contact Info -->
-        <group string="Contact Information">
-          <field name="phone" widget="phone" placeholder="+355 69 123 4567"/>
-          <field name="phone_secondary" placeholder="Alternative phone"/>
-          <field name="email" widget="email"/>
+        <!-- Address (compact) -->
+        <group string="Installation Address">
+          <field name="street" placeholder="Street address"/>
+          <field name="city" placeholder="City"/>
+          <field name="partner_latitude" placeholder="41.3275" string="Latitude"/>
+          <field name="partner_longitude" placeholder="19.8187" string="Longitude"/>
         </group>
 
         <!-- Business Info (conditional) -->
-        <group string="Business Information" invisible="not is_business">
+        <group string="Business Info" invisible="not is_business">
           <field name="is_business" invisible="1"/>
           <field name="company_name" placeholder="Business name" required="is_business"/>
           <field name="nipt" placeholder="K12345678X" required="is_business"/>
@@ -57,31 +60,11 @@
 
       </xpath>
 
-      <!-- Shto pas container-it kryesor -->
-      <xpath expr="//sheet/group" position="after">
-
-        <!-- Address -->
-        <group string="Installation Address" col="2">
-          <field name="street" placeholder="Street address" colspan="2"/>
-          <field name="street2" placeholder="Apartment, suite, etc." colspan="2"/>
-          <field name="city" placeholder="City"/>
-          <field name="zip" placeholder="Postal code"/>
-          <field name="country_id" options="{'no_create': True}"/>
-        </group>
-
-        <!-- Geolocation -->
-        <group string="Geolocation (for field service)" col="2">
-          <field name="partner_latitude" placeholder="41.3275"/>
-          <field name="partner_longitude" placeholder="19.8187"/>
-        </group>
-
-      </xpath>
-
       <!-- Notebook Pages CRM -->
       <xpath expr="//notebook" position="inside">
 
-        <!-- Infrastructure -->
-        <page string="Infrastructure">
+        <!-- Installation & Network (unified tab) -->
+        <page string="Installation &amp; Network">
           <group col="2">
             <group string="Network Location">
               <field name="access_device_id"
@@ -92,32 +75,21 @@
               <field name="city_id" readonly="1"/>
             </group>
 
-            <group string="Device Info" invisible="not access_device_id">
-              <field name="access_device_id" invisible="1"/>
-              <label for="access_device_id" string="Device Type" invisible="1"/>
-              <div invisible="not access_device_id">
-                <field name="access_device_id" readonly="1" options="{'no_open': False}"/>
-              </div>
+            <group string="Installation">
+              <field name="installation_date"/>
+              <field name="installation_technician_id"/>
+              <field name="contract_start_date"/>
             </group>
           </group>
 
-          <group string="Quick Info" invisible="not access_device_id" col="2">
-            <group>
-              <div class="o_form_label">Capacity Status</div>
-              <div>
-                <span>
-                  Ports:
-                  <field name="access_device_id" invisible="1"/>
-                  <!-- vendos këtu fusha related nëse i shton te modeli (p.sh. device_port_count) -->
-                </span>
-              </div>
-            </group>
-          </group>
-        </page>
-
-        <!-- Fiber Installation -->
-        <page string="Fiber Installation">
+          <separator string="ONU / Fiber Details"/>
           <group col="2">
+            <group string="ONU Info">
+              <field name="ont_serial" placeholder="HWTC12345678" string="ONU Serial"/>
+              <field name="olt_pon_port" placeholder="Auto-filled from OLT"/>
+              <field name="olt_ont_id" placeholder="e.g., 1, 2, 3..."/>
+            </group>
+
             <group string="Fiber Path">
               <field name="fiber_closure_id"
                      domain="[('access_device_id', '=', access_device_id), ('operational_status', '=', 'active')]"
@@ -125,68 +97,29 @@
               <field name="fiber_core_number" readonly="1"/>
               <field name="fiber_color" readonly="1" widget="badge"/>
             </group>
-
-            <group string="ONU Details">
-              <field name="ont_serial" placeholder="HWTC12345678" string="ONU Serial Nr."/>
-              <field name="olt_pon_port" placeholder="Auto-filled from OLT"/>
-              <field name="olt_ont_id" placeholder="e.g., 1, 2, 3..."/>
-            </group>
           </group>
 
-          <group col="2">
-            <group string="Fiber Quality">
-              <field name="fiber_splice_loss_db"/>
-              <field name="fiber_total_loss_db"/>
-            </group>
-          </group>
-
-          <group col="2">
-            <button name="action_open_closure" type="object"
-                    string="Open Fiber Closure" class="btn-link"
-                    invisible="not fiber_closure_id" icon="fa-external-link"/>
-            <button name="action_release_fiber" type="object"
-                    string="Release Fiber Core" class="btn-warning"
-                    invisible="not fiber_closure_id"
-                    confirm="Are you sure you want to release this fiber core?"/>
-          </group>
-
-          <div class="alert alert-info" role="alert" invisible="not fiber_closure_id">
-            <strong>📍 Installation Path:</strong><br/>
+          <div class="alert alert-info" role="alert" invisible="not fiber_closure_id" style="margin-top: 10px;">
+            <strong>Installation Path:</strong>
             OLT: <field name="access_device_id" readonly="1" nolabel="1"/>
-            → Kaseta: <field name="fiber_closure_id" readonly="1" nolabel="1"/>
+            → Closure: <field name="fiber_closure_id" readonly="1" nolabel="1"/>
             → Core #<field name="fiber_core_number" readonly="1" nolabel="1"/>
             (<field name="fiber_color" readonly="1" nolabel="1" widget="badge"/>)
           </div>
         </page>
 
-        <!-- Contract & Billing -->
-        <page string="Contract &amp; Billing">
+        <!-- Billing & Contract -->
+        <page string="Billing &amp; Contract">
           <group col="2">
-            <group string="Contract Period">
-              <field name="contract_start_date"/>
+            <group string="Contract">
               <field name="contract_end_date"/>
-              <field name="installation_date"/>
-              <field name="installation_technician_id"/>
+              <field name="billing_day" help="Day of month to generate invoice (1-28)"/>
             </group>
-            <group string="Billing">
-              <field name="billing_day"
-                     help="Day of month to generate invoice (1-28)"/>
+            <group string="Notes">
+              <field name="internal_notes" nolabel="1"
+                     placeholder="Internal notes..."
+                     widget="text"/>
             </group>
-          </group>
-        </page>
-
-        <!-- Notes -->
-        <page string="Notes">
-          <group col="2">
-            <field name="internal_notes" nolabel="1"
-                   placeholder="Internal notes (not visible to customer)..."
-                   widget="text"/>
-          </group>
-          <separator string="Customer Notes (visible in portal)"/>
-          <group col="2">
-            <field name="customer_notes" nolabel="1"
-                   placeholder="Customer-facing notes..."
-                   widget="text"/>
           </group>
         </page>
 
@@ -202,22 +135,12 @@
     <field name="inherit_id" ref="asr_radius_manager.view_asr_radius_user_list"/>
     <field name="arch" type="xml">
 
-      <!-- Kolonat shtesë -->
+      <!-- Kolonat shtesë - vetëm essentials -->
       <xpath expr="//field[@name='name']" position="after">
         <field name="phone" optional="show"/>
-        <field name="email" optional="hide"/>
-        <field name="sla_level" optional="show"/>
+        <field name="sla_level" optional="show" widget="badge"/>
         <field name="city" optional="hide"/>
-        <field name="city_id" string="City (Infra)" optional="hide"/>
-        <field name="pop_id" optional="hide"/>
         <field name="access_device_id" optional="hide"/>
-      </xpath>
-
-      <!-- Dekorimet standarde sipas SLA (Odoo 18: <list>) -->
-      <xpath expr="//list" position="attributes">
-        <attribute name="decoration-muted">sla_level == '1'</attribute>
-        <attribute name="decoration-warning">sla_level == '2'</attribute>
-        <attribute name="decoration-success">sla_level == '3'</attribute>
       </xpath>
 
     </field>

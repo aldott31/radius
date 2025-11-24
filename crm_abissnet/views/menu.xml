@@ -7,7 +7,7 @@
   <menuitem id="menu_isp_management_root"
             name="ISP Management"
             web_icon="crm_abissnet,static/description/icon.png"
-            groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"
+            groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"
             sequence="10"/>
 
   <!-- Infrastructure submenu under ISP Management -->
@@ -16,5 +16,12 @@
             parent="menu_isp_management_root"
             groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"
             sequence="30"/>
+
+  <!-- Monitoring submenu under ISP Management -->
+  <menuitem id="menu_isp_monitoring"
+            name="Monitoring"
+            parent="menu_isp_management_root"
+            groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"
+            sequence="40"/>
 
 </odoo>
