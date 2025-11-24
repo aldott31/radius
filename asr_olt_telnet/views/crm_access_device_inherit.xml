@@ -1,16 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-  <record id="view_crm_access_device_form_olt_mac" model="ir.ui.view">
-    <field name="name">crm.access.device.form.olt.mac</field>
+  <!-- Add OLT tools buttons to access device form -->
+  <record id="view_crm_access_device_form_olt_tools" model="ir.ui.view">
+    <field name="name">crm.access.device.form.olt.tools</field>
     <field name="model">crm.access.device</field>
     <field name="inherit_id" ref="crm_abissnet.view_crm_access_device_form"/>
     <field name="arch" type="xml">
+
+      <!-- Add OLT tool buttons to header -->
       <xpath expr="//header" position="inside">
         <button type="action"
                 name="%(asr_olt_telnet.action_open_olt_show_mac_wizard_from_device)d"
                 string="Show MAC on OLT"
-                class="oe_highlight"/>
+                class="btn-primary"
+                context="{'default_olt_id': active_id}"
+                invisible="device_type != 'olt'"/>
+
+        <button type="action"
+                name="%(asr_olt_telnet.action_open_onu_uncfg_wizard)d"
+                string="Unregistered ONUs"
+                class="btn-info"
+                context="{'default_olt_id': active_id}"
+                invisible="device_type != 'olt'"/>
+
+        <button type="action"
+                name="%(asr_olt_telnet.action_olt_command_test_wizard)d"
+                string="Test Commands"
+                class="btn-secondary"
+                context="{'default_olt_id': active_id}"
+                invisible="device_type != 'olt'"/>
       </xpath>
+
     </field>
   </record>
 </odoo>
