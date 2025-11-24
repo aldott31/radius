@@ -225,11 +225,29 @@
         </field>
     </record>
 
-    <!-- Add menu item: Customers (using asr.radius.user instead of res.partner) -->
+    <!-- ==================== ACTION: ISP Customers (res.partner with RADIUS fields) ==================== -->
+    <record id="action_isp_customers_partner" model="ir.actions.act_window">
+        <field name="name">Customers</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_radius_customers': 1, 'default_is_radius_customer': True}</field>
+        <field name="domain">[]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Add your first ISP customer
+            </p>
+            <p>
+                Customer records include contact info, RADIUS credentials, infrastructure details, and service subscriptions.<br/>
+                All RADIUS operations (sync, suspend, disconnect) can be performed directly from the customer form.
+            </p>
+        </field>
+    </record>
+
+    <!-- Add menu item: Customers (using res.partner with all RADIUS fields) -->
     <menuitem id="menu_isp_customers"
               name="Customers"
               parent="crm_abissnet.menu_isp_management_root"
-              action="crm_abissnet.action_asr_radius_user_crm"
+              action="action_isp_customers_partner"
               sequence="10"
               groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
 

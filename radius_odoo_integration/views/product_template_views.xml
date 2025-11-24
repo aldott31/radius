@@ -133,11 +133,29 @@
         </field>
     </record>
 
-    <!-- Add menu item: Service Plans (using asr.subscription instead of product.template) -->
+    <!-- ==================== ACTION: Service Plans (product.template with RADIUS fields) ==================== -->
+    <record id="action_isp_service_plans_product" model="ir.actions.act_window">
+        <field name="name">Service Plans</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_radius_services': 1, 'default_is_radius_service': True, 'default_type': 'service'}</field>
+        <field name="domain">[]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first RADIUS service plan
+            </p>
+            <p>
+                Service plans define speed packages, SLA levels, and IP pools that sync to FreeRADIUS.<br/>
+                Each plan generates Cisco AVPair attributes dynamically and can be assigned to customers.
+            </p>
+        </field>
+    </record>
+
+    <!-- Add menu item: Service Plans (using product.template with all RADIUS fields) -->
     <menuitem id="menu_isp_service_plans"
               name="Service Plans"
               parent="crm_abissnet.menu_isp_management_root"
-              action="asr_radius_manager.action_asr_subscription"
+              action="action_isp_service_plans_product"
               sequence="20"
               groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
 
