@@ -33,6 +33,16 @@ class ResPartner(models.Model):
         help="Enable this to manage this contact as a RADIUS/ISP customer"
     )
 
+    # Link to asr.radius.user
+    radius_user_id = fields.Many2one(
+        'asr.radius.user',
+        string="RADIUS User",
+        ondelete='set null',
+        help="Linked RADIUS user record",
+        index=True,
+        tracking=True
+    )
+
     # ==================== RADIUS AUTHENTICATION FIELDS ====================
     radius_username = fields.Char(
         string="RADIUS Username",
@@ -298,7 +308,7 @@ class ResPartner(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Override create to auto-generate RADIUS username and password"""
+        """Override create to auto-generate RADIUS username and password AND create linked asr.radius.user"""
         for vals in vals_list:
             if vals.get('is_radius_customer'):
                 # Auto-generate username if empty
@@ -311,7 +321,37 @@ class ResPartner(models.Model):
                     vals['radius_password'] = self._generate_password()
                     _logger.info("Auto-generated RADIUS password for: %s", vals['radius_username'])
 
-        return super(ResPartner, self).create(vals_list)
+        partners = super(ResPartner, self).create(vals_list)
+
+        # Auto-create linked asr.radius.user for RADIUS customers
+        for partner in partners:
+            if partner.is_radius_customer and not partner.radius_user_id:
+                try:
+                    # Create asr.radius.user with synced data
+                    radius_user_vals = {
+                        'name': partner.name,
+                        'username': partner.radius_username,
+                        'radius_password': partner.radius_password,
+                        'subscription_id': partner.subscription_id.id if partner.subscription_id else False,
+                        'device_id': partner.device_id.id if partner.device_id else False,
+                        'company_id': partner.company_id.id,
+                        'partner_id': partner.id,
+                        # Don't auto-sync to RADIUS yet - user can sync manually
+                        'radius_synced': False,
+                    }
+
+                    # Only create if subscription is set (required field)
+                    if radius_user_vals['subscription_id']:
+                        radius_user = self.env['asr.radius.user'].sudo().create(radius_user_vals)
+                        partner.sudo().write({'radius_user_id': radius_user.id})
+                        _logger.info("Auto-created asr.radius.user %s for partner %s", radius_user.username, partner.name)
+                    else:
+                        _logger.warning("Cannot auto-create asr.radius.user for partner %s: missing subscription", partner.name)
+
+                except Exception as e:
+                    _logger.error("Failed to auto-create asr.radius.user for partner %s: %s", partner.name, e)
+
+        return partners
 
     # ==================== COMPUTED METHODS ====================
     @api.depends('access_device_id')

@@ -40,6 +40,11 @@ class AsrRadiusUser(models.Model):
     device_id = fields.Many2one('asr.device', string="Device (optional)", ondelete='set null')
     company_id = fields.Many2one('res.company', required=True, default=lambda self: self.env.company, index=True)
 
+    # Link to res.partner (Contacts)
+    partner_id = fields.Many2one('res.partner', string="Contact", ondelete='set null',
+                                  help="Linked contact from Odoo Contacts",
+                                  index=True, tracking=True)
+
     radius_synced = fields.Boolean(string="Synced", default=False, copy=False, tracking=True)
     last_sync_date = fields.Datetime(string="Last Sync", copy=False)
     last_sync_error = fields.Text(string="Last Error", copy=False)
@@ -78,7 +83,7 @@ class AsrRadiusUser(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Override create to auto-generate username and password if not provided"""
+        """Override create to auto-generate username and password + create linked res.partner"""
         for vals in vals_list:
             # Auto-generate username if empty
             if not vals.get('username'):
@@ -90,7 +95,31 @@ class AsrRadiusUser(models.Model):
                 vals['radius_password'] = self._generate_password()
                 _logger.info("Auto-generated RADIUS password for user: %s", vals['username'])
 
-        return super(AsrRadiusUser, self).create(vals_list)
+        records = super(AsrRadiusUser, self).create(vals_list)
+
+        # Auto-create linked res.partner if not provided
+        for record in records:
+            if not record.partner_id:
+                try:
+                    partner_vals = {
+                        'name': record.name or record.username,
+                        'is_radius_customer': True,
+                        'radius_username': record.username,
+                        'radius_password': record.radius_password,
+                        'subscription_id': record.subscription_id.id if record.subscription_id else False,
+                        'device_id': record.device_id.id if record.device_id else False,
+                        'company_id': record.company_id.id,
+                        'radius_user_id': record.id,
+                    }
+
+                    partner = self.env['res.partner'].sudo().create(partner_vals)
+                    record.sudo().write({'partner_id': partner.id})
+                    _logger.info("Auto-created res.partner %s for RADIUS user %s", partner.name, record.username)
+
+                except Exception as e:
+                    _logger.error("Failed to auto-create res.partner for RADIUS user %s: %s", record.username, e)
+
+        return records
 
     @api.depends('subscription_id', 'company_id')
     def _compute_groupname(self):

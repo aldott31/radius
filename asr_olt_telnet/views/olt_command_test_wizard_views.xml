@@ -137,19 +137,6 @@
     <field name="context">{'default_olt_id': active_id}</field>
   </record>
 
-  <!-- Add button to Access Device form -->
-  <record id="view_crm_access_device_form_test_button" model="ir.ui.view">
-    <field name="name">crm.access.device.form.test.button</field>
-    <field name="model">crm.access.device</field>
-    <field name="inherit_id" ref="crm_abissnet.view_crm_access_device_form"/>
-    <field name="arch" type="xml">
-      <xpath expr="//header" position="inside">
-        <button name="%(action_olt_command_test_wizard)d" type="action"
-                string="Test Commands" class="btn-secondary"
-                icon="fa-terminal"
-                invisible="device_type != 'olt'"/>
-      </xpath>
-    </field>
-  </record>
+  <!-- Button is added via crm_access_device_inherit.xml (consolidated with other OLT tools) -->
 
 </odoo>

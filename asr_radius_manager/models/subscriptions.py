@@ -40,6 +40,11 @@ class AsrSubscription(models.Model):
     # Odoo-only multi-company
     company_id = fields.Many2one('res.company', default=lambda self: self.env.company, index=True)
 
+    # Link to product.template (Products)
+    product_tmpl_id = fields.Many2one('product.template', string="Product", ondelete='set null',
+                                       help="Linked product from Odoo Products",
+                                       index=True, tracking=True)
+
     # ---- IP Pool Management (DROPDOWN) ----
     ip_pool_active = fields.Selection(
         selection='_get_ip_pool_selection',
@@ -131,6 +136,43 @@ class AsrSubscription(models.Model):
         for rec in self:
             if not rec.code:
                 rec.code = _slugify(rec.name)
+
+    # -------------------------------------------------------------------------
+    # CREATE - Auto-create linked product.template
+    # -------------------------------------------------------------------------
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Override create to auto-create linked product.template"""
+        subscriptions = super(AsrSubscription, self).create(vals_list)
+
+        # Auto-create linked product.template
+        for subscription in subscriptions:
+            if not subscription.product_tmpl_id:
+                try:
+                    product_vals = {
+                        'name': subscription.name,
+                        'type': 'service',
+                        'is_radius_service': True,
+                        'radius_plan_code': subscription.code,
+                        'radius_rate_limit': subscription.rate_limit,
+                        'radius_session_timeout': subscription.session_timeout,
+                        'sla_level': subscription.sla_level or '1',
+                        'ip_pool_active': subscription.ip_pool_active,
+                        'ip_pool_expired': subscription.ip_pool_expired,
+                        'acct_interim_interval': subscription.acct_interim_interval or 300,
+                        'company_id': subscription.company_id.id,
+                        'radius_subscription_id': subscription.id,
+                        'list_price': subscription.price or 0.0,
+                    }
+
+                    product = self.env['product.template'].sudo().create(product_vals)
+                    subscription.sudo().write({'product_tmpl_id': product.id})
+                    _logger.info("Auto-created product.template %s for subscription %s", product.name, subscription.name)
+
+                except Exception as e:
+                    _logger.error("Failed to auto-create product.template for subscription %s: %s", subscription.name, e)
+
+        return subscriptions
 
     # -------------------------------------------------------------------------
     # Small helpers
