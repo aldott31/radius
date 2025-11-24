@@ -219,10 +219,13 @@
     </field>
   </record>
 
+  <!-- HIDDEN: Subscription menu moved to ISP Management -->
+  <!--
   <menuitem id="menu_asr_subscriptions"
             name="Subscriptions"
             parent="menu_asr_radius_root"
             action="action_asr_subscription"
             sequence="20"/>
+  -->
 
 </odoo>

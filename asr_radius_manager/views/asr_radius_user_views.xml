@@ -13,18 +13,19 @@
           decoration-warning="is_suspended or last_sync_error">
       <field name="username"/>
       <field name="name"/>
-      <field name="groupname" string="Planned Group"/>
-      <field name="current_radius_group" string="Current RADIUS Group"/>
-      <field name="current_framed_ip" string="IP (current)"/>
-      <field name="current_interface" string="If (current)"/>
       <field name="subscription_id" options="{'no_open': False}"/>
-      <field name="device_id" column_invisible="1"/>
-      <field name="company_id" groups="base.group_multi_company"/>
-      <field name="radius_synced" string="Synced"/>
-      <field name="last_sync_date" string="Last Sync"/>
+      <field name="pppoe_status" optional="show"/>
+      <field name="current_framed_ip" string="IP" optional="show"/>
+      <field name="groupname" string="Plan" optional="hide"/>
+      <field name="current_radius_group" string="RADIUS Group" optional="hide"/>
+      <field name="current_interface" string="Interface" optional="hide"/>
+      <field name="device_id" optional="hide"/>
+      <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+      <field name="radius_synced" string="Synced" optional="hide"/>
+      <field name="last_sync_date" string="Last Sync" optional="hide"/>
       <field name="active" column_invisible="1"/>
       <field name="is_suspended" column_invisible="1"/>
-      <field name="last_sync_error" column_invisible="1"/>  <!-- SHTO KËTË RRESHT -->
+      <field name="last_sync_error" column_invisible="1"/>
     </list>
   </field>
 </record>
