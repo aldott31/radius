@@ -373,6 +373,10 @@ class ResPartner(models.Model):
         # Execute parent write
         res = super(ResPartner, self).write(vals)
 
+        # ✅ NEW: Auto-add subscription product to active sale order
+        if 'subscription_id' in vals and vals['subscription_id']:
+            self._add_subscription_to_active_sale_order()
+
         # Sync to asr.radius.user (if linked)
         for partner in self.filtered(lambda p: p.radius_user_id):
             radius_vals = {}
@@ -1049,6 +1053,84 @@ class ResPartner(models.Model):
         if not self.radius_username:
             raise UserError(_("This contact has no RADIUS username."))
         return self._sessions_action_base([('username', '=', self.radius_username)])
+
+    # ==================== AUTO-ADD SUBSCRIPTION TO SALE ORDER ====================
+    def _add_subscription_to_active_sale_order(self):
+        """
+        Auto-add subscription product to active sale order when subscription changes.
+        This is triggered from partner form when opened from sale order.
+        """
+        for partner in self:
+            # Only process if partner has subscription
+            if not partner.subscription_id:
+                continue
+
+            # Check if subscription has linked product
+            subscription = partner.subscription_id
+            if not subscription.product_tmpl_id:
+                _logger.warning(
+                    "Subscription %s has no linked product.template",
+                    subscription.name
+                )
+                continue
+
+            # Get product.product from product.template (first variant)
+            product = subscription.product_tmpl_id.product_variant_ids[:1]
+            if not product:
+                _logger.warning(
+                    "Product template %s has no variants",
+                    subscription.product_tmpl_id.name
+                )
+                continue
+
+            # Check context for active sale order
+            sale_order_id = self.env.context.get('default_order_id') or self.env.context.get('active_order_id')
+            if not sale_order_id:
+                # No active sale order in context, check for recent draft orders
+                recent_order = self.env['sale.order'].search([
+                    ('partner_id', '=', partner.id),
+                    ('state', 'in', ['draft', 'sent'])
+                ], order='create_date desc', limit=1)
+
+                if recent_order:
+                    sale_order_id = recent_order.id
+
+            if not sale_order_id:
+                _logger.debug("No active sale order found for partner %s", partner.name)
+                continue
+
+            # Get sale order
+            sale_order = self.env['sale.order'].browse(sale_order_id)
+            if not sale_order.exists():
+                continue
+
+            # Check if order already has RADIUS products
+            existing_radius_products = sale_order.order_line.filtered(
+                lambda l: l.product_id.is_radius_service
+            )
+            if existing_radius_products:
+                _logger.debug(
+                    "Sale order %s already has RADIUS products, skipping auto-add",
+                    sale_order.name
+                )
+                continue
+
+            # Add subscription product to order lines
+            self.env['sale.order.line'].sudo().create({
+                'order_id': sale_order.id,
+                'product_id': product.id,
+                'name': product.name,
+                'product_uom_qty': 1,
+                'product_uom': product.uom_id.id,
+                'price_unit': product.list_price,
+            })
+
+            _logger.info(
+                "Auto-added subscription product %s to sale order %s for partner %s",
+                product.name,
+                sale_order.name,
+                partner.name
+            )
 
     # ==================== MAP ACTION ====================
     def action_open_map(self):
