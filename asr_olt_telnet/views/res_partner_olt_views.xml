@@ -4,11 +4,11 @@
   <record id="view_res_partner_form_olt" model="ir.ui.view">
     <field name="name">res.partner.form.olt</field>
     <field name="model">res.partner</field>
-    <field name="inherit_id" ref="base.view_partner_form"/>
+    <field name="inherit_id" ref="radius_odoo_integration.view_partner_form_isp_customer"/>
     <field name="arch" type="xml">
 
-      <!-- Add ONU info after the main group -->
-      <xpath expr="//sheet/group" position="after">
+      <!-- Add ONU info after the RADIUS fields group (which is after oe_title) -->
+      <xpath expr="//div[hasclass('oe_title')]/following-sibling::group[1]" position="after">
         <div class="alert alert-warning" role="alert" invisible="not olt_pon_port">
           <strong>📡 Registered ONU for this account:</strong><br/>
           <code><field name="olt_pon_port" readonly="1" nolabel="1" class="d-inline"/></code>
