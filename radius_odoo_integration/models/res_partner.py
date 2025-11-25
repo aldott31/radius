@@ -210,6 +210,7 @@ class ResPartner(models.Model):
     )
 
     # ==================== INTERNAL NOTES ====================
+
     internal_notes = fields.Text(
         string="Internal Notes",
         help="Private notes (not visible to customer)"
@@ -220,8 +221,6 @@ class ResPartner(models.Model):
     )
 
     # ==================== INFRASTRUCTURE LINK ====================
-    # Note: These fields depend on crm_abissnet models
-    # They are defined with _description to avoid loading errors if crm_abissnet is not installed
     access_device_id = fields.Many2one(
         'crm.access.device',
         string="Access Device",
@@ -276,15 +275,25 @@ class ResPartner(models.Model):
     # ONT Info
     ont_serial = fields.Char(
         string='ONT Serial Number',
-        tracking=True
+        tracking=True,
+        related='radius_user_id.ont_serial',
+        store=True,
+        readonly=False,
     )
+    # KJO ËSHTË DISPLAY FIELD – formatohet nga radius_user_id.olt_pon_port + OLT IP + VLAN
     olt_pon_port = fields.Char(
         string='PON Port',
-        tracking=True
+        tracking=True,
+        compute='_compute_olt_pon_port',
+        store=True,
+        readonly=False,
     )
     olt_ont_id = fields.Char(
         string='ONT ID',
-        tracking=True
+        tracking=True,
+        related='radius_user_id.olt_ont_id',
+        store=True,
+        readonly=False,
     )
 
     fiber_splice_loss_db = fields.Float(
@@ -313,6 +322,55 @@ class ResPartner(models.Model):
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
 
+    # ==================== PON PORT DISPLAY ====================
+    @api.depends('radius_user_id.olt_pon_port', 'access_device_id.ip_address')
+    def _compute_olt_pon_port(self):
+        """
+        Shfaq PON Port si:
+        '10.50.60.99 pon 1/9/6/33:1900'
+
+        Bazuar në:
+        - raw: asr.radius.user.olt_pon_port (p.sh. 'gpon-olt_1/9/6:33')
+        - access_device_id.ip_address
+        - VLAN nga access_device (internet_vlan / vlan_internet / vlan_id)
+        """
+        for rec in self:
+            raw = (rec.radius_user_id.olt_pon_port or '').strip() if rec.radius_user_id else ''
+            if not raw:
+                rec.olt_pon_port = False
+                continue
+
+            ip = ''
+            if rec.access_device_id and rec.access_device_id.ip_address:
+                ip = rec.access_device_id.ip_address.strip()
+
+            # Nëse raw është tashmë në formatin e ri me IP, e lëmë ashtu
+            if ip and raw.startswith(ip + ' pon '):
+                rec.olt_pon_port = raw
+                continue
+
+            # Prisja standarde 'gpon-olt_1/9/6:33'
+            m = re.match(r'^gpon-olt_(\d+/\d+/\d+):(\d+)$', raw)
+            if not m:
+                # Nëse nuk e gjejmë dot, shfaq raw
+                rec.olt_pon_port = raw
+                continue
+
+            path = m.group(1)   # 1/9/6
+            onu_id = m.group(2) # 33
+
+            # VLAN – supozojmë që e ke në access_device
+            vlan = getattr(rec.access_device_id, 'internet_vlan', False) \
+                or getattr(rec.access_device_id, 'vlan_internet', False) \
+                or getattr(rec.access_device_id, 'vlan_id', False)
+
+            if ip and vlan:
+                rec.olt_pon_port = f"{ip} pon {path}/{onu_id}:{vlan}"
+            elif ip:
+                rec.olt_pon_port = f"{ip} pon {path}/{onu_id}"
+            else:
+                # pa IP, të paktën path/onu
+                rec.olt_pon_port = f"{path}/{onu_id}"
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -355,12 +413,18 @@ class ResPartner(models.Model):
                     ).sudo().create(radius_user_vals)
 
                     partner.sudo().write({'radius_user_id': radius_user.id})
-                    _logger.info("Auto-created asr.radius.user %s for partner %s",
-                                radius_user.username, partner.name)
+                    _logger.info(
+                        "Auto-created asr.radius.user %s for partner %s",
+                        radius_user.username,
+                        partner.name
+                    )
 
                 except Exception as e:
-                    _logger.error("Failed to auto-create asr.radius.user for partner %s: %s",
-                                 partner.name, e)
+                    _logger.error(
+                        "Failed to auto-create asr.radius.user for partner %s: %s",
+                        partner.name,
+                        e
+                    )
 
         return partners
 
@@ -373,7 +437,7 @@ class ResPartner(models.Model):
         # Execute parent write
         res = super(ResPartner, self).write(vals)
 
-        # ✅ NEW: Auto-add subscription product to active sale order
+        # ✅ Auto-add subscription product to active sale order
         if 'subscription_id' in vals and vals['subscription_id']:
             self._add_subscription_to_active_sale_order()
 
@@ -436,21 +500,15 @@ class ResPartner(models.Model):
             if 'customer_notes' in vals:
                 radius_vals['customer_notes'] = vals['customer_notes']
 
-            # Fiber fields
+            # Fiber fields – VETËM NGA radius_user -> partner, JO anasjelltas
             if 'fiber_closure_id' in vals:
                 radius_vals['fiber_closure_id'] = vals['fiber_closure_id']
             if 'fiber_core_number' in vals:
                 radius_vals['fiber_core_number'] = vals['fiber_core_number']
             if 'fiber_color' in vals:
                 radius_vals['fiber_color'] = vals['fiber_color']
-            if 'ont_serial' in vals:
-                radius_vals['ont_serial'] = vals['ont_serial']
-            if 'olt_pon_port' in vals:
-                radius_vals['olt_pon_port'] = vals['olt_pon_port']
-            if 'olt_ont_id' in vals:
-                radius_vals['olt_ont_id'] = vals['olt_ont_id']
+            # mos dërgo ont_serial / olt_pon_port / olt_ont_id mbrapsht – janë të menaxhuara në asr.radius.user
 
-            # Sync with context flag and sudo() to avoid recursion and permission issues
             if radius_vals:
                 partner.radius_user_id.with_context(_from_partner_write=True).sudo().write(radius_vals)
 
@@ -464,8 +522,10 @@ class ResPartner(models.Model):
             # Check if crm_abissnet models are available
             if rec.access_device_id and 'crm.access.device' in self.env:
                 try:
-                    rec.pop_id = rec.access_device_id.pop_id.id if hasattr(rec.access_device_id, 'pop_id') and rec.access_device_id.pop_id else False
-                    rec.city_id = rec.access_device_id.city_id.id if hasattr(rec.access_device_id, 'city_id') and rec.access_device_id.city_id else False
+                    rec.pop_id = rec.access_device_id.pop_id.id if hasattr(
+                        rec.access_device_id, 'pop_id') and rec.access_device_id.pop_id else False
+                    rec.city_id = rec.access_device_id.city_id.id if hasattr(
+                        rec.access_device_id, 'city_id') and rec.access_device_id.city_id else False
                 except Exception:
                     rec.pop_id = False
                     rec.city_id = False
@@ -629,9 +689,6 @@ class ResPartner(models.Model):
         for rec in self:
             if rec.billing_day and not (1 <= rec.billing_day <= 28):
                 raise ValidationError(_('Billing day must be between 1 and 28'))
-
-    # Note: Subscription is NOT required when creating a RADIUS customer
-    # It can be set later. However, syncing to RADIUS requires a subscription.
 
     # ==================== RADIUS CONNECTION HELPER ====================
     def _get_radius_conn(self):
@@ -823,7 +880,8 @@ class ResPartner(models.Model):
 
         # Return notification
         if ok == len(self):
-            msg = (_("User '%s' suspended") % self.radius_username) if len(self) == 1 else (_("%d user(s) suspended") % ok)
+            msg = (_("User '%s' suspended") % self.radius_username) if len(self) == 1 else (
+                _("%d user(s) suspended") % ok)
             return {
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',

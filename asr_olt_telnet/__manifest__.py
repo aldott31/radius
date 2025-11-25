@@ -6,7 +6,7 @@
     'category': 'Network',
     'author': 'Abissnet',
     'license': 'LGPL-3',
-    'depends': ['ab_radius_connector','asr_radius_manager','crm_abissnet'],
+    'depends': ['ab_radius_connector','asr_radius_manager','crm_abissnet','radius_odoo_integration'],
     'data': [
         'security/ir.model.access.csv',
         'views/olt_show_mac_wizard_views.xml',
