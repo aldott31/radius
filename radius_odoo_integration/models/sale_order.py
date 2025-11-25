@@ -47,6 +47,66 @@ class SaleOrder(models.Model):
                 line.product_id.is_radius_service for line in rec.order_line
             )
 
+    # ==================== ONCHANGE: AUTO-ADD SUBSCRIPTION PRODUCT ====================
+    @api.onchange('partner_id')
+    def _onchange_partner_id_add_subscription(self):
+        """
+        Auto-add subscription product to order lines when partner has subscription
+        Triggered when:
+        1. Partner is selected/changed in sale order
+        2. Partner has a subscription_id set
+        3. Order lines are empty or contain no RADIUS products
+        """
+        if not self.partner_id:
+            return
+
+        # Check if partner has subscription
+        if not self.partner_id.subscription_id:
+            return
+
+        subscription = self.partner_id.subscription_id
+
+        # Check if subscription has linked product
+        if not subscription.product_tmpl_id:
+            _logger.warning(
+                "Partner %s has subscription %s but no linked product.template",
+                self.partner_id.name,
+                subscription.name
+            )
+            return
+
+        # Get product.product from product.template (first variant)
+        product = subscription.product_tmpl_id.product_variant_ids[:1]
+        if not product:
+            _logger.warning(
+                "Subscription %s has no product variants",
+                subscription.name
+            )
+            return
+
+        # Check if order already has RADIUS products
+        existing_radius_products = self.order_line.filtered(
+            lambda l: l.product_id.is_radius_service
+        )
+        if existing_radius_products:
+            # Don't add if RADIUS product already exists
+            return
+
+        # Add subscription product to order lines
+        self.order_line = [(0, 0, {
+            'product_id': product.id,
+            'name': product.name,
+            'product_uom_qty': 1,
+            'product_uom': product.uom_id.id,
+            'price_unit': product.list_price,
+        })]
+
+        _logger.info(
+            "Auto-added subscription product %s to order for partner %s",
+            product.name,
+            self.partner_id.name
+        )
+
     # ==================== RADIUS PROVISIONING ====================
     def action_provision_radius(self):
         """

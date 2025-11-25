@@ -4,6 +4,24 @@
     <!-- SALE.ORDER - RADIUS PROVISIONING EXTENSION VIEWS -->
     <!-- ============================================================ -->
 
+    <!-- Pass order context when creating partner -->
+    <record id="view_sale_order_form_partner_context" model="ir.ui.view">
+        <field name="name">sale.order.form.partner.context</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="priority">10</field>
+        <field name="arch" type="xml">
+            <!-- Pass active_order_id in context when creating partner -->
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="context">{
+                    'show_address': 1,
+                    'default_is_radius_customer': True,
+                    'active_order_id': id
+                }</attribute>
+            </xpath>
+        </field>
+    </record>
+
     <!-- Add RADIUS fields to sale order form -->
     <record id="view_sale_order_form_radius" model="ir.ui.view">
         <field name="name">sale.order.form.radius</field>
