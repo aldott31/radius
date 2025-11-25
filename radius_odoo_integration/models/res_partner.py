@@ -26,11 +26,12 @@ class ResPartner(models.Model):
     _inherit = 'res.partner'
 
     # ==================== RADIUS CUSTOMER FLAG ====================
+    # Note: All partners are RADIUS customers by default
     is_radius_customer = fields.Boolean(
         string="RADIUS Customer",
-        default=False,
+        default=True,
         tracking=True,
-        help="Enable this to manage this contact as a RADIUS/ISP customer"
+        help="All contacts are RADIUS/ISP customers by default"
     )
 
     # Link to asr.radius.user
@@ -315,7 +316,7 @@ class ResPartner(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Override create to auto-create asr.radius.user for RADIUS customers"""
+        """Override create to auto-create asr.radius.user for all partners"""
         # Skip radius_user creation if flag is set (to prevent recursion)
         skip_radius_creation = self.env.context.get('_skip_partner_creation')
 
@@ -324,8 +325,9 @@ class ResPartner(models.Model):
         if skip_radius_creation:
             return partners
 
+        # Auto-create asr.radius.user for all partners (all are RADIUS customers now)
         for partner in partners:
-            if partner.is_radius_customer and not partner.radius_user_id:
+            if not partner.radius_user_id:
                 try:
                     # Auto-generate username/password if not set
                     if not partner.radius_username:
@@ -368,50 +370,11 @@ class ResPartner(models.Model):
         if self.env.context.get('_from_radius_write'):
             return super(ResPartner, self).write(vals)
 
-        # Step 1: Handle is_radius_customer flag FIRST (before sync)
-        if 'is_radius_customer' in vals and vals['is_radius_customer']:
-            for partner in self:
-                if partner.is_radius_customer and not partner.radius_user_id:
-                    # Auto-generate username/password if not set
-                    updates = {}
-                    if not partner.radius_username:
-                        updates['radius_username'] = partner._generate_username()
-                        _logger.info("Auto-generated RADIUS username (write): %s", updates['radius_username'])
-                    if not partner.radius_password:
-                        updates['radius_password'] = partner._generate_password()
-                        _logger.info("Auto-generated RADIUS password (write) for: %s",
-                                    updates.get('radius_username') or partner.radius_username)
-                    if updates:
-                        partner.sudo().write(updates)
-
-                    # Create asr.radius.user with _skip_partner_creation flag
-                    company = partner.company_id or self.env.company
-                    radius_user_vals = {
-                        'name': partner.name,
-                        'username': partner.radius_username,
-                        'radius_password': partner.radius_password,
-                        'subscription_id': partner.subscription_id.id if partner.subscription_id else False,
-                        'device_id': partner.device_id.id if partner.device_id else False,
-                        'company_id': company.id,
-                        'partner_id': partner.id,
-                        'radius_synced': False,
-                    }
-
-                    # Create with context flag to prevent recursion
-                    radius_user = self.env['asr.radius.user'].with_context(
-                        _skip_partner_creation=True,
-                        _from_partner_write=True
-                    ).sudo().create(radius_user_vals)
-
-                    partner.sudo().write({'radius_user_id': radius_user.id})
-                    _logger.info("Auto-created asr.radius.user %s for partner %s (write)",
-                                radius_user.username, partner.name)
-
-        # Step 2: Execute parent write
+        # Execute parent write
         res = super(ResPartner, self).write(vals)
 
-        # Step 3: Sync to asr.radius.user (if linked and is RADIUS customer)
-        for partner in self.filtered(lambda p: p.is_radius_customer and p.radius_user_id):
+        # Sync to asr.radius.user (if linked)
+        for partner in self.filtered(lambda p: p.radius_user_id):
             radius_vals = {}
 
             # Map Partner fields to RADIUS fields (only changed fields)
@@ -525,7 +488,7 @@ class ResPartner(models.Model):
     def _compute_current_radius_group(self):
         for rec in self:
             cur_group = False
-            if rec.is_radius_customer and rec.radius_username:
+            if rec.radius_username:
                 conn = None
                 try:
                     conn = rec._get_radius_conn()
@@ -569,7 +532,7 @@ class ResPartner(models.Model):
             rec.current_framed_ip = False
             rec.current_interface = False
 
-            if not rec.is_radius_customer or not rec.radius_username:
+            if not rec.radius_username:
                 continue
 
             ip = None
@@ -640,7 +603,7 @@ class ResPartner(models.Model):
     def _compute_session_counts(self):
         Sess = self.env['asr.radius.session'].sudo()
         for rec in self:
-            if not rec.is_radius_customer or not rec.radius_username:
+            if not rec.radius_username:
                 rec.active_sessions_count = 0
                 rec.total_sessions_count = 0
                 continue
@@ -653,7 +616,7 @@ class ResPartner(models.Model):
     def _check_nipt_required(self):
         """NIPT is required for business customers (SLA 2/3)"""
         for rec in self:
-            if rec.is_radius_customer and rec.sla_level in ('2', '3') and not rec.nipt:
+            if rec.sla_level in ('2', '3') and not rec.nipt:
                 raise ValidationError(_('NIPT/VAT is required for Business customers (SLA 2/3)'))
 
     @api.constrains('billing_day')
@@ -714,8 +677,6 @@ class ResPartner(models.Model):
         last_error = None
 
         for rec in self:
-            if not rec.is_radius_customer:
-                raise UserError(_("This contact is not a RADIUS customer."))
             if not rec.radius_username:
                 raise UserError(_("Missing RADIUS username."))
             if not rec.radius_password:
@@ -807,8 +768,6 @@ class ResPartner(models.Model):
         last_error = None
 
         for rec in self:
-            if not rec.is_radius_customer:
-                raise UserError(_("This contact is not a RADIUS customer."))
             if not rec.radius_username:
                 raise UserError(_("Missing RADIUS username."))
 
@@ -893,8 +852,6 @@ class ResPartner(models.Model):
         last_error = None
 
         for rec in self:
-            if not rec.is_radius_customer:
-                raise UserError(_("This contact is not a RADIUS customer."))
             if not rec.radius_username or not rec.subscription_id:
                 raise UserError(_("Missing username or subscription."))
 
@@ -973,8 +930,6 @@ class ResPartner(models.Model):
         last_error = None
 
         for rec in self:
-            if not rec.is_radius_customer:
-                raise UserError(_("This contact is not a RADIUS customer."))
             if not rec.radius_username:
                 raise UserError(_("Missing RADIUS username."))
 
@@ -1059,9 +1014,6 @@ class ResPartner(models.Model):
         """
         self.ensure_one()
 
-        if not self.is_radius_customer:
-            raise UserError(_("This contact is not a RADIUS customer."))
-
         if not self.radius_user_id:
             raise UserError(_("No RADIUS user linked to this contact."))
 
@@ -1084,7 +1036,7 @@ class ResPartner(models.Model):
     def action_view_active_sessions(self):
         """View active RADIUS sessions for this customer"""
         self.ensure_one()
-        if not self.is_radius_customer or not self.radius_username:
+        if not self.radius_username:
             raise UserError(_("This contact has no RADIUS username."))
         return self._sessions_action_base([
             ('username', '=', self.radius_username),
@@ -1094,7 +1046,7 @@ class ResPartner(models.Model):
     def action_view_all_sessions(self):
         """View all RADIUS sessions for this customer"""
         self.ensure_one()
-        if not self.is_radius_customer or not self.radius_username:
+        if not self.radius_username:
             raise UserError(_("This contact has no RADIUS username."))
         return self._sessions_action_base([('username', '=', self.radius_username)])
 

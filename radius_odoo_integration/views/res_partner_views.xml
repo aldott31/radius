@@ -17,37 +17,44 @@
                 </h1>
             </xpath>
 
-            <!-- Fshi grupin e parë default (Contact / Tax ID / Phone / Mobile / ...) për RADIUS customers -->
+            <!-- Fshi grupin e parë default (Contact / Tax ID / Phone / Mobile / ...) -->
             <xpath expr="//sheet/group[1]" position="attributes">
-                <attribute name="invisible">is_radius_customer</attribute>
+                <attribute name="invisible">1</attribute>
             </xpath>
 
-            <!-- Fshi disa fusha default kur është RADIUS customer -->
+            <!-- Fshi disa fusha default -->
             <xpath expr="//field[@name='company_type']" position="attributes">
-                <attribute name="invisible">is_radius_customer</attribute>
+                <attribute name="invisible">1</attribute>
             </xpath>
             <xpath expr="//field[@name='parent_id']" position="attributes">
-                <attribute name="invisible">is_radius_customer</attribute>
+                <attribute name="invisible">1</attribute>
             </xpath>
             <xpath expr="//label[@for='street']" position="attributes">
-                <attribute name="invisible">is_radius_customer</attribute>
+                <attribute name="invisible">1</attribute>
             </xpath>
             <xpath expr="//div[@class='o_address_format']" position="attributes">
-                <attribute name="invisible">is_radius_customer</attribute>
+                <attribute name="invisible">1</attribute>
             </xpath>
             <xpath expr="//field[@name='category_id']" position="attributes">
-                <attribute name="invisible">is_radius_customer</attribute>
+                <attribute name="invisible">1</attribute>
             </xpath>
 
-            <!-- Internal flag -->
+            <!-- Internal flag - load it invisibly -->
             <xpath expr="//field[@name='name']" position="before">
                 <field name="is_radius_customer" invisible="1"/>
             </xpath>
 
+            <!-- Hide is_radius_customer field if it appears anywhere else in the form -->
+            <xpath expr="//field[@name='is_radius_customer']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+
+
             <!-- HEADER POSHTË OE_TITLE: VETËM RADIUS FIELDS -->
             <xpath expr="//div[hasclass('oe_title')]" position="after">
-                <!-- Shfaqet vetëm kur është ISP/RADIUS customer -->
-                <group invisible="not is_radius_customer" col="4">
+                <!-- RADIUS fields - always visible -->
+                <group col="4">
                     <field name="radius_username" readonly="1"/>
                     <field name="subscription_id" options="{'no_create': True}"/>
                     <field name="sla_level" readonly="1"/>
@@ -69,7 +76,7 @@
 
             <!-- Vetëm faqja RADIUS / ISP, pa Contact & Addresses custom -->
             <xpath expr="//notebook" position="inside">
-                <page string="RADIUS / ISP" invisible="not is_radius_customer">
+                <page string="RADIUS / ISP">
 
                     <group>
                         <group>
@@ -228,14 +235,12 @@
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_view_active_sessions" type="object"
                         string="Active"
-                        invisible="not is_radius_customer"
                         groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager">
                     <field name="active_sessions_count"/>
                 </button>
 
                 <button name="action_view_all_sessions" type="object"
                         string="Total Sessions"
-                        invisible="not is_radius_customer"
                         groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager">
                     <field name="total_sessions_count"/>
                 </button>
