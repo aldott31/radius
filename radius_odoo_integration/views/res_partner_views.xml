@@ -10,9 +10,11 @@
         <field name="arch" type="xml">
 
             <!-- Add statusbar for customer lifecycle -->
-            <xpath expr="//form/header" position="inside">
-                <field name="customer_status" widget="statusbar" statusbar_visible="lead,active,suspended,churned"
-                       options="{'clickable': '1'}"/>
+            <xpath expr="//sheet" position="before">
+                <header>
+                    <field name="customer_status" widget="statusbar" statusbar_visible="lead,active,suspended,churned"
+                           options="{'clickable': '1'}"/>
+                </header>
             </xpath>
 
             <!-- Header: vendos label "Name:" para fushës së emrit -->
