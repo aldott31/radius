@@ -10,6 +10,7 @@
         'base',                 # res.partner
         'contacts',             # Contact management
         'sale_management',      # sale.order
+        'account',              # Invoicing and payments
         'product',              # product.template/product.product
         'stock',                # Optional: for equipment tracking
         'mail',                 # Chatter

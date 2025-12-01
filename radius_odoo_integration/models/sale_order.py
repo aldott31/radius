@@ -57,6 +57,24 @@ class SaleOrder(models.Model):
         readonly=True
     )
 
+    # ==================== SUBSCRIPTION DURATION ====================
+    subscription_months = fields.Integer(
+        string="Subscription Duration (Months)",
+        default=1,
+        help="Number of months the customer is paying for"
+    )
+    service_start_date = fields.Date(
+        string="Service Start Date",
+        default=fields.Date.today,
+        help="Date when service starts"
+    )
+    service_end_date = fields.Date(
+        string="Service Paid Until",
+        compute='_compute_service_end_date',
+        store=True,
+        help="Calculated end date based on start date + subscription months"
+    )
+
     # ==================== COMPUTED METHODS ====================
     @api.depends('order_line.product_id.is_radius_service')
     def _compute_is_radius_order(self):
@@ -65,6 +83,16 @@ class SaleOrder(models.Model):
             rec.is_radius_order = any(
                 line.product_id.is_radius_service for line in rec.order_line
             )
+
+    @api.depends('service_start_date', 'subscription_months')
+    def _compute_service_end_date(self):
+        """Calculate service end date = start date + subscription months"""
+        from dateutil.relativedelta import relativedelta
+        for rec in self:
+            if rec.service_start_date and rec.subscription_months > 0:
+                rec.service_end_date = rec.service_start_date + relativedelta(months=rec.subscription_months)
+            else:
+                rec.service_end_date = False
 
     # ==================== ONCHANGE: AUTO-ADD SUBSCRIPTION PRODUCT ====================
     @api.onchange('partner_id')
