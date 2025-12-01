@@ -1330,3 +1330,19 @@ class ResPartner(models.Model):
             'view_mode': 'form',
             'target': 'current',
         }
+
+    def action_view_pppoe_status(self):
+        """Smart button: open PPPoE Status view filtered by username"""
+        self.ensure_one()
+        if not self.radius_username:
+            raise UserError(_("This customer has no RADIUS username."))
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('PPPoE Status: %s') % self.radius_username,
+            'res_model': 'asr.radius.pppoe_status',
+            'view_mode': 'list,form',
+            'domain': [('username', '=', self.radius_username)],
+            'context': {'search_default_username': self.radius_username},
+            'target': 'current',
+        }
