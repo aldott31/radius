@@ -38,6 +38,13 @@
                             <field name="radius_provisioned" readonly="1" widget="boolean"/>
                             <field name="radius_provision_date" readonly="1"/>
                         </group>
+                        <group string="Subscription Duration">
+                            <field name="subscription_months" string="Months Paid"/>
+                            <field name="service_start_date"/>
+                            <field name="service_end_date" readonly="1" string="Service Paid Until"/>
+                        </group>
+                    </group>
+                    <group>
                         <group string="Customer RADIUS Info" invisible="not radius_provisioned">
                             <field name="partner_radius_username" readonly="1" string="RADIUS Username"/>
                             <field name="partner_subscription_name" readonly="1" string="Service Plan"/>
