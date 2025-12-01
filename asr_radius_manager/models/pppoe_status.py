@@ -30,11 +30,88 @@ class AsrRadiusPPPoeStatus(models.Model):
     # NEW: kolonë e re për portën e loginit (pa prekur 'circuit_id_mac')
     login_port = fields.Char(readonly=True)
 
+    # Location & Authentication fields (computed from asr.radius.user)
+    location = fields.Char(string="Location", compute='_compute_user_details', readonly=True)
+    mac_address = fields.Char(string="MAC Address", compute='_compute_user_details', readonly=True)
+    mac_auth_enabled = fields.Boolean(string="MAC Auth Enabled", compute='_compute_user_details', readonly=True)
+    port_auth_enabled = fields.Boolean(string="Port Auth Enabled", compute='_compute_user_details', readonly=True)
+    vlan_id = fields.Char(string="VLAN ID", compute='_compute_user_details', readonly=True)
+    vlan_auth_enabled = fields.Boolean(string="VLAN Auth Enabled", compute='_compute_user_details', readonly=True)
+
+    # Related user info
+    radius_user_id = fields.Many2one('asr.radius.user', string="RADIUS User", compute='_compute_user_details', readonly=True)
+    partner_id = fields.Many2one('res.partner', string="Customer", compute='_compute_user_details', readonly=True)
+
     def _get_radius_conn(self):
         try:
             return self.env.company._get_direct_conn()
         except Exception as e:
             raise UserError(_('Cannot connect to RADIUS: %s') % e)
+
+    def _compute_user_details(self):
+        """Compute location, MAC, and authentication details from asr.radius.user"""
+        for rec in self:
+            # Default values
+            rec.location = ''
+            rec.mac_address = ''
+            rec.mac_auth_enabled = False
+            rec.port_auth_enabled = False
+            rec.vlan_id = ''
+            rec.vlan_auth_enabled = False
+            rec.radius_user_id = False
+            rec.partner_id = False
+
+            if not rec.username:
+                continue
+
+            # Find RADIUS user
+            user = self.env['asr.radius.user'].sudo().search([('username', '=', rec.username)], limit=1)
+            if not user:
+                continue
+
+            rec.radius_user_id = user.id
+            rec.partner_id = user.partner_id.id if user.partner_id else False
+
+            # Build location string: City, POP, Device, Port
+            location_parts = []
+            if user.partner_id:
+                if user.partner_id.city_id:
+                    location_parts.append(user.partner_id.city_id.name)
+                if user.partner_id.pop_id:
+                    location_parts.append(user.partner_id.pop_id.name)
+                if user.partner_id.access_device_id:
+                    device_name = user.partner_id.access_device_id.name or ''
+                    location_parts.append(device_name)
+                if user.partner_id.olt_pon_port:
+                    location_parts.append(user.partner_id.olt_pon_port)
+            rec.location = ', '.join(location_parts) if location_parts else 'N/A'
+
+            # MAC Address (from ONT serial or calling station id)
+            mac = ''
+            if hasattr(user, 'ont_mac') and user.ont_mac:
+                mac = user.ont_mac
+            elif rec.circuit_id_mac:
+                # Extract MAC from circuit_id_mac (format: "called / calling")
+                parts = rec.circuit_id_mac.split('/')
+                if len(parts) > 1:
+                    mac = parts[1].strip()
+            rec.mac_address = mac
+
+            # Authentication options (assuming enabled if values are set)
+            rec.mac_auth_enabled = bool(mac)
+            rec.port_auth_enabled = bool(rec.login_port or user.olt_login_port)
+
+            # VLAN ID (extract from login_port or nas_port)
+            vlan = ''
+            if rec.login_port and ':' in rec.login_port:
+                vlan = rec.login_port.split(':')[-1]
+            elif user.partner_id and user.partner_id.access_device_id:
+                # Try to get VLAN from access device
+                device = user.partner_id.access_device_id
+                if hasattr(device, 'internet_vlan') and device.internet_vlan:
+                    vlan = str(device.internet_vlan)
+            rec.vlan_id = vlan
+            rec.vlan_auth_enabled = bool(vlan)
 
     @api.model
     def _domain_to_filters(self, domain):
@@ -242,10 +319,36 @@ class AsrRadiusPPPoeStatus(models.Model):
         return self.browse([])
 
     def read(self, fields=None, load='_classic_read'):
-        """Read për form view."""
+        """Read për form view with computed fields support."""
         if not self.ids:
             return []
-        return []
+
+        # Get basic data from search_read
+        data = self.search_read(domain=[('id', 'in', self.ids)], fields=fields)
+        if not data:
+            return []
+
+        # Create temporary recordsets to compute fields
+        for rec_data in data:
+            # Create a browse record with the data
+            rec = self.browse(rec_data['id'])
+            # Manually set the data (simulating a real record)
+            rec._cache.update(rec_data)
+            # Compute user details
+            rec._compute_user_details()
+            # Update the data dict with computed values
+            rec_data.update({
+                'location': rec.location,
+                'mac_address': rec.mac_address,
+                'mac_auth_enabled': rec.mac_auth_enabled,
+                'port_auth_enabled': rec.port_auth_enabled,
+                'vlan_id': rec.vlan_id,
+                'vlan_auth_enabled': rec.vlan_auth_enabled,
+                'radius_user_id': rec.radius_user_id.id if rec.radius_user_id else False,
+                'partner_id': rec.partner_id.id if rec.partner_id else False,
+            })
+
+        return data
 
     # Access control bypass
     def check_access_rights(self, operation, raise_exception=True):
@@ -256,3 +359,28 @@ class AsrRadiusPPPoeStatus(models.Model):
 
     def _check_company_auto(self):
         return
+
+    def action_view_customer(self):
+        """Navigate to customer/partner record"""
+        self.ensure_one()
+        # Compute user details first
+        self._compute_user_details()
+
+        if not self.partner_id:
+            # Try to find partner by username
+            user = self.env['asr.radius.user'].sudo().search([('username', '=', self.username)], limit=1)
+            if user and user.partner_id:
+                partner_id = user.partner_id.id
+            else:
+                raise UserError(_("No customer found for this username."))
+        else:
+            partner_id = self.partner_id.id
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer: %s') % self.username,
+            'res_model': 'res.partner',
+            'res_id': partner_id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
