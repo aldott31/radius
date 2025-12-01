@@ -49,14 +49,14 @@
             </button>
 
             <button type="object"
-                    name="action_view_pops"
+                    name="action_view_devices"
                     class="oe_stat_button"
                     icon="fa-server">
               <field name="device_count" widget="statinfo" string="Devices"/>
             </button>
 
             <button type="object"
-                    name="action_view_pops"
+                    name="action_view_customers"
                     class="oe_stat_button"
                     icon="fa-users">
               <field name="customer_count" widget="statinfo" string="Customers"/>

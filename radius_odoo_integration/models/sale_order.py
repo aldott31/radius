@@ -38,6 +38,25 @@ class SaleOrder(models.Model):
         copy=False
     )
 
+    # ==================== RELATED FIELDS FOR DISPLAY ====================
+    partner_radius_username = fields.Char(
+        string="Partner RADIUS Username",
+        related='partner_id.radius_username',
+        readonly=True
+    )
+
+    partner_subscription_name = fields.Char(
+        string="Partner Subscription",
+        related='partner_id.subscription_id.name',
+        readonly=True
+    )
+
+    partner_pppoe_status = fields.Selection(
+        string="Partner PPPoE Status",
+        related='partner_id.pppoe_status',
+        readonly=True
+    )
+
     # ==================== COMPUTED METHODS ====================
     @api.depends('order_line.product_id.is_radius_service')
     def _compute_is_radius_order(self):
@@ -316,6 +335,22 @@ class SaleOrder(models.Model):
             except Exception as e:
                 _logger.exception("Failed to update RADIUS subscription for order %s", rec.name)
                 raise UserError(_("Failed to update subscription:\n%s") % str(e))
+
+    def action_view_radius_customer(self):
+        """Smart button: view provisioned RADIUS customer"""
+        self.ensure_one()
+        if not self.partner_id:
+            raise UserError(_("No customer found for this order."))
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('RADIUS Customer: %s') % self.partner_id.name,
+            'res_model': 'res.partner',
+            'res_id': self.partner_id.id,
+            'view_mode': 'form',
+            'view_id': self.env.ref('radius_odoo_integration.view_partner_form_isp_customer').id,
+            'target': 'current',
+        }
 
 
 class SaleOrderLine(models.Model):

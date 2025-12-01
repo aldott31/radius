@@ -39,17 +39,9 @@
                             <field name="radius_provision_date" readonly="1"/>
                         </group>
                         <group string="Customer RADIUS Info" invisible="not radius_provisioned">
-                            <field name="partner_id" readonly="1" invisible="1"/>
-                            <label for="partner_id" string="RADIUS Username" invisible="not partner_id.radius_username"/>
-                            <div invisible="not partner_id.radius_username">
-                                <field name="partner_id" readonly="1" context="{'show_address': 0}" options="{'no_open': True, 'no_create': True}"/>
-                                <div class="text-muted">
-                                    Username: <field name="partner_id" readonly="1" invisible="1"/>
-                                    <span class="badge badge-primary">
-                                        <field name="partner_id" readonly="1" widget="char" invisible="1"/>
-                                    </span>
-                                </div>
-                            </div>
+                            <field name="partner_radius_username" readonly="1" string="RADIUS Username"/>
+                            <field name="partner_subscription_name" readonly="1" string="Service Plan"/>
+                            <field name="partner_pppoe_status" readonly="1" string="PPPoE Status" widget="badge" decoration-success="partner_pppoe_status == 'up'" decoration-danger="partner_pppoe_status == 'down'"/>
                         </group>
                     </group>
 
@@ -104,7 +96,7 @@
         </field>
     </record>
 
-    <!-- Add smart button for provisioning status -->
+    <!-- Add smart buttons for provisioning status and customer view -->
     <record id="view_sale_order_form_radius_stats" model="ir.ui.view">
         <field name="name">sale.order.form.radius.stats</field>
         <field name="model">sale.order</field>
@@ -118,6 +110,16 @@
                         groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager">
                     <field name="radius_provisioned" widget="boolean_button"
                            options="{'terminology': {'string_true': 'Provisioned', 'string_false': 'Not Provisioned', 'hover_true': 'Provisioned', 'hover_false': 'Click to Provision'}}"/>
+                </button>
+
+                <button name="action_view_radius_customer" type="object"
+                        class="oe_stat_button" icon="fa-user"
+                        invisible="not is_radius_order or not radius_provisioned"
+                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_text">View</span>
+                        <span class="o_stat_value">RADIUS User</span>
+                    </div>
                 </button>
             </xpath>
         </field>

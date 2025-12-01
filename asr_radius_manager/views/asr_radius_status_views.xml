@@ -23,6 +23,49 @@
     </field>
   </record>
 
+  <!-- Form -->
+  <record id="view_asr_radius_pppoe_status_form" model="ir.ui.view">
+    <field name="name">asr.radius.pppoe_status.form</field>
+    <field name="model">asr.radius.pppoe_status</field>
+    <field name="arch" type="xml">
+      <form string="PPPoE Status" create="0" edit="0" delete="0">
+        <sheet>
+          <div class="oe_button_box" name="button_box"/>
+
+          <widget name="web_ribbon" title="ONLINE" bg_color="text-bg-success"
+                  invisible="status != 'ONLINE'"/>
+          <widget name="web_ribbon" title="OFFLINE" bg_color="text-bg-danger"
+                  invisible="status == 'ONLINE'"/>
+
+          <group>
+            <group string="Session Information">
+              <field name="username"/>
+              <field name="status"/>
+              <field name="login_on" string="Session Start"/>
+              <field name="ip_address"/>
+            </group>
+            <group string="Network Details">
+              <field name="nas_ip" string="PPPoE Server"/>
+              <field name="nas_port"/>
+              <field name="login_port"/>
+              <field name="virtual_interface"/>
+            </group>
+          </group>
+
+          <group>
+            <group string="Service Plans">
+              <field name="attached_plans" nolabel="1"/>
+            </group>
+            <group string="Device Information">
+              <field name="circuit_id_mac"/>
+            </group>
+          </group>
+
+        </sheet>
+      </form>
+    </field>
+  </record>
+
   <!-- Search -->
   <record id="view_asr_radius_pppoe_status_search" model="ir.ui.view">
     <field name="name">asr.radius.pppoe_status.search</field>
@@ -44,7 +87,7 @@
   <record id="action_asr_radius_pppoe_status" model="ir.actions.act_window">
     <field name="name">PPPoE Status</field>
     <field name="res_model">asr.radius.pppoe_status</field>
-    <field name="view_mode">list</field>
+    <field name="view_mode">list,form</field>
   </record>
 
   <menuitem id="menu_asr_radius_pppoe_status"
