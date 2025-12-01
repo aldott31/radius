@@ -30,36 +30,113 @@
     <field name="arch" type="xml">
       <form string="PPPoE Status" create="0" edit="0" delete="0">
         <sheet>
-          <div class="oe_button_box" name="button_box"/>
+          <div class="oe_button_box" name="button_box">
+            <button name="%(action_asr_radius_session)d" type="action"
+                    class="oe_stat_button" icon="fa-history"
+                    context="{'search_default_username': username}">
+              <div class="o_field_widget o_stat_info">
+                <span class="o_stat_text">Session</span>
+                <span class="o_stat_text">History</span>
+              </div>
+            </button>
+            <button name="action_view_customer" type="object"
+                    class="oe_stat_button" icon="fa-user"
+                    invisible="not partner_id">
+              <div class="o_field_widget o_stat_info">
+                <span class="o_stat_text">View</span>
+                <span class="o_stat_text">Customer</span>
+              </div>
+            </button>
+          </div>
 
           <widget name="web_ribbon" title="ONLINE" bg_color="text-bg-success"
                   invisible="status != 'ONLINE'"/>
           <widget name="web_ribbon" title="OFFLINE" bg_color="text-bg-danger"
                   invisible="status == 'ONLINE'"/>
 
-          <group>
+          <div class="oe_title">
+            <h1>
+              <field name="username" readonly="1"/>
+            </h1>
+          </div>
+
+          <group string="PPPoE Status">
             <group string="Session Information">
-              <field name="username"/>
-              <field name="status"/>
-              <field name="login_on" string="Session Start"/>
-              <field name="ip_address"/>
+              <field name="status" widget="badge"
+                     decoration-success="status == 'ONLINE'"
+                     decoration-muted="status != 'ONLINE'"/>
+              <field name="login_on" string="Login on"/>
+              <field name="username" invisible="1"/>
+              <field name="nas_ip" string="PPPoE Server"/>
+              <field name="ip_address" string="IP Address"/>
             </group>
             <group string="Network Details">
-              <field name="nas_ip" string="PPPoE Server"/>
-              <field name="nas_port"/>
-              <field name="login_port"/>
+              <field name="attached_plans" string="Attached Plans"/>
+              <field name="nas_port" string="Nas Port"/>
+              <field name="login_port" string="Login Port (OLT)"/>
               <field name="virtual_interface"/>
             </group>
           </group>
 
-          <group>
-            <group string="Service Plans">
-              <field name="attached_plans" nolabel="1"/>
-            </group>
-            <group string="Device Information">
-              <field name="circuit_id_mac"/>
+          <group string="Active Authentication Options">
+            <group string="Location">
+              <field name="location" nolabel="1"/>
             </group>
           </group>
+
+          <group>
+            <group string="MAC ID Authentication">
+              <label for="mac_address"/>
+              <div class="o_row">
+                <field name="mac_address" readonly="1" class="oe_inline"/>
+                <span class="badge text-bg-success ml-2" invisible="not mac_auth_enabled">Enabled</span>
+                <span class="badge text-bg-secondary ml-2" invisible="mac_auth_enabled">Disabled</span>
+              </div>
+            </group>
+            <group string="Port ID Authentication">
+              <label for="login_port"/>
+              <div class="o_row">
+                <field name="login_port" readonly="1" class="oe_inline" invisible="1"/>
+                <span class="oe_inline" style="display: block;">
+                  <field name="login_port" readonly="1" nolabel="1"/>
+                </span>
+                <span class="badge text-bg-success ml-2" invisible="not port_auth_enabled">Enabled</span>
+                <span class="badge text-bg-secondary ml-2" invisible="port_auth_enabled">Disabled</span>
+              </div>
+            </group>
+          </group>
+
+          <group>
+            <group string="VLAN ID Authentication">
+              <label for="vlan_id"/>
+              <div class="o_row">
+                <field name="vlan_id" readonly="1" class="oe_inline"/>
+                <span class="badge text-bg-success ml-2" invisible="not vlan_auth_enabled">Enabled</span>
+                <span class="badge text-bg-secondary ml-2" invisible="vlan_auth_enabled">Disabled</span>
+              </div>
+            </group>
+            <group/>
+          </group>
+
+          <!-- Hidden fields for computed values -->
+          <field name="mac_auth_enabled" invisible="1"/>
+          <field name="port_auth_enabled" invisible="1"/>
+          <field name="vlan_auth_enabled" invisible="1"/>
+          <field name="radius_user_id" invisible="1"/>
+          <field name="partner_id" invisible="1"/>
+
+          <notebook>
+            <page string="Login Attempts">
+              <group>
+                <group>
+                  <p style="font-style: italic; color: #6c757d;">
+                    Login attempts history is available in Session History.
+                    Click the "Session History" button above to view all login attempts for this user.
+                  </p>
+                </group>
+              </group>
+            </page>
+          </notebook>
 
         </sheet>
       </form>
