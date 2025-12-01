@@ -218,7 +218,11 @@ class ResPartner(models.Model):
         digits=(10, 7)
     )
 
-    # ==================== INTERNAL NOTES ====================
+    # ==================== DESCRIPTION & NOTES ====================
+    description = fields.Text(
+        string="Description",
+        help="Customer description/notes"
+    )
 
     internal_notes = fields.Text(
         string="Internal Notes",
@@ -227,6 +231,51 @@ class ResPartner(models.Model):
     customer_notes = fields.Text(
         string="Customer Notes",
         help="Notes visible to customer (e.g., in portal)"
+    )
+
+    # ==================== PAYMENT TRACKING ====================
+    service_paid_until = fields.Date(
+        string="Service Paid Until",
+        tracking=True,
+        help="Date until which service is paid for"
+    )
+    last_payment_date = fields.Date(
+        string="Last Payment Date",
+        readonly=True,
+        help="Date of most recent payment"
+    )
+    last_payment_amount = fields.Float(
+        string="Last Payment Amount",
+        readonly=True,
+        help="Amount of most recent payment"
+    )
+    total_paid_amount = fields.Float(
+        string="Total Paid Amount",
+        compute='_compute_payment_totals',
+        store=True,
+        help="Total amount paid by customer"
+    )
+    first_payment_date = fields.Date(
+        string="First Payment Date",
+        readonly=True,
+        help="Date of first payment"
+    )
+    payment_balance = fields.Float(
+        string="Payment Balance",
+        compute='_compute_payment_balance',
+        store=True,
+        help="Current payment balance"
+    )
+
+    # ==================== REFERRAL/LINKS ====================
+    referral_code = fields.Char(
+        string="Referral Code",
+        help="Referral link/code for this customer"
+    )
+    referred_by_id = fields.Many2one(
+        'res.partner',
+        string="Referred By",
+        help="Customer who referred this customer"
     )
 
     # ==================== INFRASTRUCTURE LINK ====================
@@ -508,6 +557,8 @@ class ResPartner(models.Model):
                 radius_vals['internal_notes'] = vals['internal_notes']
             if 'customer_notes' in vals:
                 radius_vals['customer_notes'] = vals['customer_notes']
+            if 'description' in vals:
+                radius_vals['description'] = vals.get('description', '')
 
             # Fiber fields – VETËM NGA radius_user -> partner, JO anasjelltas
             if 'fiber_closure_id' in vals:
@@ -683,6 +734,23 @@ class ResPartner(models.Model):
             rec.active_sessions_count = Sess.search_count(
                 [('username', '=', rec.radius_username), ('acctstoptime', '=', False)])
             rec.total_sessions_count = Sess.search_count([('username', '=', rec.radius_username)])
+
+    @api.depends('last_payment_amount')
+    def _compute_payment_totals(self):
+        """Compute total paid amount from invoice/payment records"""
+        for rec in self:
+            # This will integrate with account.payment when available
+            # For now, we'll use the manually tracked last_payment_amount
+            # In future: sum all paid invoices from account.payment
+            rec.total_paid_amount = 0.0  # Placeholder for payment integration
+
+    @api.depends('service_paid_until')
+    def _compute_payment_balance(self):
+        """Compute payment balance"""
+        for rec in self:
+            # This will integrate with account module when available
+            # Balance = prepaid amount - used services
+            rec.payment_balance = 0.0  # Placeholder for payment integration
 
     # ==================== CONSTRAINTS ====================
     @api.constrains('nipt', 'sla_level')

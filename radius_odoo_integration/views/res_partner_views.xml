@@ -59,14 +59,91 @@
 
 
 
-            <!-- HEADER POSHTË OE_TITLE: KEY RADIUS FIELDS ONLY -->
+            <!-- ACCOUNT PROFILE OVERVIEW -->
             <xpath expr="//div[hasclass('oe_title')]" position="after">
-                <!-- Only essential fields visible in header -->
-                <group col="4">
-                    <field name="radius_username" readonly="1"/>
-                    <field name="subscription_id" options="{'no_create': True}"/>
-                    <field name="pppoe_status"/>
+
+                <!-- Account Information Group -->
+                <group string="Account Profile">
+                    <group>
+                        <label for="create_date" string="Account First Added"/>
+                        <div>
+                            <field name="create_date" readonly="1" class="oe_inline"/>
+                        </div>
+                        <label for="write_date" string="Account Last Update"/>
+                        <div>
+                            <field name="write_date" readonly="1" class="oe_inline"/>
+                            <span class="ml8">from</span>
+                            <field name="write_uid" readonly="1" class="oe_inline ml4"/>
+                        </div>
+                    </group>
+                    <group>
+                        <field name="description" placeholder="Additional customer information..." nolabel="1"/>
+                    </group>
                 </group>
+
+                <!-- Contact Information -->
+                <group string="Contact Information">
+                    <group>
+                        <field name="street" placeholder="e.g. Rruga e Kavajes"/>
+                        <field name="street2" placeholder="Address line 2"/>
+                        <field name="zip" placeholder="ZIP Code"/>
+                        <field name="city" placeholder="e.g. Tirane"/>
+                        <field name="country_id" options="{'no_create': True}"/>
+                    </group>
+                    <group>
+                        <field name="mobile" placeholder="e.g. 0688602356"/>
+                        <field name="phone" placeholder="Alternate phone"/>
+                        <field name="email" placeholder="customer@example.com"/>
+                        <field name="company_id" invisible="1"/>
+                    </group>
+                </group>
+
+                <!-- Internet Service Status -->
+                <group string="Internet Status">
+                    <group>
+                        <field name="customer_status" widget="badge"
+                               decoration-success="customer_status == 'active'"
+                               decoration-info="customer_status == 'lead'"
+                               decoration-warning="customer_status == 'suspended'"
+                               decoration-danger="customer_status == 'churned'"/>
+                        <field name="subscription_id" options="{'no_create': True}" string="Plan Name"/>
+                        <field name="pop_id" string="Technology (POP)"/>
+                        <field name="city_id"/>
+                    </group>
+                    <group>
+                        <field name="radius_username" readonly="1" string="RADIUS Username"/>
+                        <field name="pppoe_status" widget="badge"
+                               decoration-success="pppoe_status == 'up'"
+                               decoration-muted="pppoe_status == 'down'"/>
+                        <field name="current_framed_ip" string="IP Address"/>
+                        <field name="sla_level"/>
+                    </group>
+                </group>
+
+                <!-- Payment Information -->
+                <group string="Payment Information">
+                    <group>
+                        <field name="last_payment_date"/>
+                        <field name="service_paid_until"/>
+                        <field name="last_payment_amount"/>
+                        <field name="total_paid_amount"/>
+                    </group>
+                    <group>
+                        <field name="first_payment_date"/>
+                        <field name="payment_balance"/>
+                        <field name="contract_start_date"/>
+                        <field name="billing_day"/>
+                    </group>
+                </group>
+
+                <!-- Referral/Links -->
+                <group string="Referrals &amp; Links" invisible="not referral_code and not referred_by_id">
+                    <group>
+                        <field name="referral_code" placeholder="e.g. friends campaign code"/>
+                        <field name="referred_by_id" options="{'no_create': True}"/>
+                    </group>
+                </group>
+
             </xpath>
 
         </field>
@@ -83,35 +160,26 @@
             <xpath expr="//notebook" position="inside">
                 <page string="RADIUS / ISP">
                     <notebook>
-                        <!-- PAGE 1: ACCOUNT & SUBSCRIPTION -->
-                        <page string="Account &amp; Subscription">
+                        <!-- PAGE 1: RADIUS CREDENTIALS & SYNC -->
+                        <page string="RADIUS Credentials">
                             <group>
-                                <group string="RADIUS Credentials">
+                                <group string="RADIUS Authentication">
                                     <field name="radius_username" readonly="radius_synced"/>
                                     <field name="radius_password" password="True" readonly="radius_synced"/>
                                     <field name="radius_synced" invisible="1"/>
                                     <field name="last_sync_date" readonly="1"/>
                                     <field name="last_sync_error" readonly="1" invisible="not last_sync_error"/>
-                                </group>
-                                <group string="Service Plan">
-                                    <field name="subscription_id"/>
-                                    <field name="sla_level" readonly="1"/>
-                                    <field name="device_id"/>
                                     <field name="current_radius_group" readonly="1"/>
                                     <field name="is_suspended" readonly="1"/>
                                 </group>
-                            </group>
-                            <group>
-                                <group string="Contact Information">
-                                    <field name="mobile"/>
-                                    <field name="phone_secondary"/>
-                                    <field name="email"/>
-                                </group>
-                                <group string="Notes">
-                                    <field name="internal_notes" nolabel="1"/>
+                                <group string="NAS Device">
+                                    <field name="device_id"/>
                                 </group>
                             </group>
-                            <group string="Actions">
+                            <group string="Internal Notes">
+                                <field name="internal_notes" nolabel="1" placeholder="Private notes for staff only..."/>
+                            </group>
+                            <group string="RADIUS Actions">
                                 <button name="action_sync_to_radius" type="object"
                                         string="Sync to RADIUS"
                                         class="oe_highlight"
@@ -195,8 +263,8 @@
                                             groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"/>
                                 </group>
                             </group>
-                            <group>
-                                <field name="customer_notes" string="Customer Notes" nolabel="1"/>
+                            <group string="Customer Notes">
+                                <field name="customer_notes" nolabel="1" placeholder="Notes visible to customer..."/>
                             </group>
                         </page>
 
@@ -206,7 +274,6 @@
                                 <group string="Contract Information">
                                     <field name="contract_start_date"/>
                                     <field name="contract_end_date"/>
-                                    <field name="billing_day"/>
                                 </group>
                                 <group string="Business Information" invisible="sla_level == '1'">
                                     <field name="is_business" invisible="1"/>
@@ -218,10 +285,8 @@
                         <!-- PAGE 5: SESSION HISTORY & MONITORING -->
                         <page string="Session History">
                             <group>
-                                <group string="Current Session Status">
-                                    <field name="pppoe_status"/>
+                                <group string="Current Session Details">
                                     <field name="last_session_start" readonly="1"/>
-                                    <field name="current_framed_ip" readonly="1"/>
                                     <field name="current_interface" readonly="1"/>
                                 </group>
                                 <group string="Session Statistics">
