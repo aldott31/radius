@@ -343,6 +343,19 @@
                         groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager">
                     <field name="total_sessions_count" widget="statinfo" string="Sessions"/>
                 </button>
+
+                <button name="action_view_pppoe_status" type="object"
+                        class="oe_stat_button" icon="fa-plug"
+                        invisible="not radius_username"
+                        groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_text">PPPoE</span>
+                        <span class="o_stat_text">Status</span>
+                    </div>
+                    <field name="pppoe_status" widget="badge"
+                           decoration-success="pppoe_status == 'up'"
+                           decoration-muted="pppoe_status == 'down'"/>
+                </button>
             </xpath>
         </field>
     </record>
