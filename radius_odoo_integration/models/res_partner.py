@@ -34,6 +34,15 @@ class ResPartner(models.Model):
         help="All contacts are RADIUS/ISP customers by default"
     )
 
+    # Customer lifecycle status
+    customer_status = fields.Selection([
+        ('lead', 'Lead'),
+        ('active', 'Active'),
+        ('suspended', 'Suspended'),
+        ('churned', 'Churned')
+    ], string="Customer Status", default='lead', tracking=True,
+        help="Customer lifecycle stage")
+
     # Link to asr.radius.user
     radius_user_id = fields.Many2one(
         'asr.radius.user',
@@ -1236,4 +1245,20 @@ class ResPartner(models.Model):
                 'type': 'success',
                 'sticky': False
             }
+        }
+
+    # ==================== NAVIGATION ACTIONS ====================
+    def action_view_radius_user(self):
+        """Smart button: navigate to linked asr.radius.user record"""
+        self.ensure_one()
+        if not self.radius_user_id:
+            raise UserError(_("No RADIUS user linked to this contact."))
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('RADIUS User: %s') % self.radius_username,
+            'res_model': 'asr.radius.user',
+            'res_id': self.radius_user_id.id,
+            'view_mode': 'form',
+            'target': 'current',
         }

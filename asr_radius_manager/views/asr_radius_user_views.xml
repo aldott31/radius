@@ -59,6 +59,17 @@
           <!-- Smart Buttons -->
           <div class="oe_button_box" name="button_box">
             <button type="object"
+                    name="action_view_partner"
+                    class="oe_stat_button"
+                    icon="fa-user"
+                    invisible="not partner_id">
+              <div class="o_field_widget o_stat_info">
+                <span class="o_stat_text">View</span>
+                <span class="o_stat_value">Customer Profile</span>
+              </div>
+            </button>
+
+            <button type="object"
                     name="action_view_active_sessions"
                     class="oe_stat_button"
                     icon="fa-circle"

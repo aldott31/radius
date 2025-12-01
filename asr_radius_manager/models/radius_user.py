@@ -834,3 +834,19 @@ class AsrRadiusUserProvision(models.Model):
             raise UserError(_("SSH connection timed out."))
         except Exception as e:
             raise UserError(_("Disconnect failed: %s") % str(e))
+
+    # ==================== NAVIGATION ACTIONS ====================
+    def action_view_partner(self):
+        """Smart button: navigate to linked res.partner record"""
+        self.ensure_one()
+        if not self.partner_id:
+            raise UserError(_("No contact/partner linked to this RADIUS user."))
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer: %s') % (self.partner_id.name or self.username),
+            'res_model': 'res.partner',
+            'res_id': self.partner_id.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }

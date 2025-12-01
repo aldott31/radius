@@ -61,6 +61,36 @@ class CrmCity(models.Model):
             'context': {'default_city_id': self.id},
         }
 
+    def action_view_devices(self):
+        """Smart button: view devices in this city"""
+        self.ensure_one()
+        device_ids = self.env['crm.access.device'].search([
+            ('pop_id', 'in', self.pop_ids.ids)
+        ])
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Devices in %s') % self.name,
+            'res_model': 'crm.access.device',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', device_ids.ids)],
+            'context': {'search_default_city_id': self.id},
+        }
+
+    def action_view_customers(self):
+        """Smart button: view customers in this city"""
+        self.ensure_one()
+        device_ids = self.env['crm.access.device'].search([
+            ('pop_id', 'in', self.pop_ids.ids)
+        ])
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Customers in %s') % self.name,
+            'res_model': 'res.partner',
+            'view_mode': 'list,form',
+            'domain': [('access_device_id', 'in', device_ids.ids)],
+            'context': {'search_default_radius_customers': 1},
+        }
+
     def action_open_map(self):
         """Open city on Google Maps"""
         self.ensure_one()
