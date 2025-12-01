@@ -356,6 +356,16 @@
                            decoration-success="pppoe_status == 'up'"
                            decoration-muted="pppoe_status == 'down'"/>
                 </button>
+
+                <button name="action_view_sale_orders" type="object"
+                        class="oe_stat_button" icon="fa-shopping-cart">
+                    <field name="sale_order_count" widget="statinfo" string="Quotations"/>
+                </button>
+
+                <button name="action_view_invoices" type="object"
+                        class="oe_stat_button" icon="fa-file-text-o">
+                    <field name="invoice_count" widget="statinfo" string="Invoices"/>
+                </button>
             </xpath>
         </field>
     </record>

@@ -241,11 +241,15 @@ class ResPartner(models.Model):
     )
     last_payment_date = fields.Date(
         string="Last Payment Date",
+        compute='_compute_payment_totals',
+        store=True,
         readonly=True,
         help="Date of most recent payment"
     )
     last_payment_amount = fields.Float(
         string="Last Payment Amount",
+        compute='_compute_payment_totals',
+        store=True,
         readonly=True,
         help="Amount of most recent payment"
     )
@@ -257,6 +261,8 @@ class ResPartner(models.Model):
     )
     first_payment_date = fields.Date(
         string="First Payment Date",
+        compute='_compute_payment_totals',
+        store=True,
         readonly=True,
         help="Date of first payment"
     )
@@ -264,7 +270,7 @@ class ResPartner(models.Model):
         string="Payment Balance",
         compute='_compute_payment_balance',
         store=True,
-        help="Current payment balance"
+        help="Current payment balance (receivable)"
     )
 
     # ==================== REFERRAL/LINKS ====================
@@ -276,6 +282,18 @@ class ResPartner(models.Model):
         'res.partner',
         string="Referred By",
         help="Customer who referred this customer"
+    )
+
+    # ==================== SALES & INVOICES COUNTS ====================
+    sale_order_count = fields.Integer(
+        string="Sale Orders",
+        compute='_compute_sale_invoice_counts',
+        help="Number of sale orders"
+    )
+    invoice_count = fields.Integer(
+        string="Invoices",
+        compute='_compute_sale_invoice_counts',
+        help="Number of invoices"
     )
 
     # ==================== INFRASTRUCTURE LINK ====================
@@ -735,22 +753,76 @@ class ResPartner(models.Model):
                 [('username', '=', rec.radius_username), ('acctstoptime', '=', False)])
             rec.total_sessions_count = Sess.search_count([('username', '=', rec.radius_username)])
 
-    @api.depends('last_payment_amount')
     def _compute_payment_totals(self):
-        """Compute total paid amount from invoice/payment records"""
+        """Compute payment statistics from invoices"""
         for rec in self:
-            # This will integrate with account.payment when available
-            # For now, we'll use the manually tracked last_payment_amount
-            # In future: sum all paid invoices from account.payment
-            rec.total_paid_amount = 0.0  # Placeholder for payment integration
+            # Initialize defaults
+            rec.total_paid_amount = 0.0
+            rec.last_payment_date = False
+            rec.last_payment_amount = 0.0
+            rec.first_payment_date = False
+
+            # Check if account module is installed
+            if 'account.move' not in self.env:
+                continue
+
+            # Get all paid invoices for this customer
+            invoices = self.env['account.move'].search([
+                ('partner_id', '=', rec.id),
+                ('move_type', 'in', ['out_invoice', 'out_refund']),
+                ('state', '=', 'posted'),
+                ('payment_state', 'in', ['paid', 'in_payment'])
+            ])
+
+            if not invoices:
+                continue
+
+            # Sum all paid amounts
+            rec.total_paid_amount = sum(invoices.mapped('amount_total'))
+
+            # Sort by date to get first and last
+            sorted_invoices = invoices.sorted(key=lambda inv: inv.invoice_date or inv.date or fields.Date.today())
+
+            # First payment
+            if sorted_invoices:
+                first_inv = sorted_invoices[0]
+                rec.first_payment_date = first_inv.invoice_date or first_inv.date
+
+            # Last payment
+            if sorted_invoices:
+                latest_inv = sorted_invoices[-1]
+                rec.last_payment_date = latest_inv.invoice_date or latest_inv.date
+                rec.last_payment_amount = latest_inv.amount_total
 
     @api.depends('service_paid_until')
     def _compute_payment_balance(self):
-        """Compute payment balance"""
+        """Compute payment balance from account receivable"""
         for rec in self:
-            # This will integrate with account module when available
-            # Balance = prepaid amount - used services
-            rec.payment_balance = 0.0  # Placeholder for payment integration
+            if 'account.move' in self.env:
+                # Get unpaid balance (account receivable)
+                rec.payment_balance = rec.credit - rec.debit
+            else:
+                rec.payment_balance = 0.0
+
+    def _compute_sale_invoice_counts(self):
+        """Compute counts of sale orders and invoices"""
+        for rec in self:
+            # Sale orders count
+            if 'sale.order' in self.env:
+                rec.sale_order_count = self.env['sale.order'].search_count([
+                    ('partner_id', 'child_of', rec.id)
+                ])
+            else:
+                rec.sale_order_count = 0
+
+            # Invoices count
+            if 'account.move' in self.env:
+                rec.invoice_count = self.env['account.move'].search_count([
+                    ('partner_id', 'child_of', rec.id),
+                    ('move_type', 'in', ['out_invoice', 'out_refund'])
+                ])
+            else:
+                rec.invoice_count = 0
 
     # ==================== CONSTRAINTS ====================
     @api.constrains('nipt', 'sla_level')
@@ -1344,5 +1416,40 @@ class ResPartner(models.Model):
             'view_mode': 'list,form',
             'domain': [('username', '=', self.radius_username)],
             'context': {'search_default_username': self.radius_username},
+            'target': 'current',
+        }
+
+    def action_view_sale_orders(self):
+        """Smart button: view all sale orders for this customer"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Sale Orders'),
+            'res_model': 'sale.order',
+            'view_mode': 'list,form',
+            'domain': [('partner_id', 'child_of', self.id)],
+            'context': {
+                'default_partner_id': self.id,
+                'search_default_partner_id': self.id
+            },
+            'target': 'current',
+        }
+
+    def action_view_invoices(self):
+        """Smart button: view all invoices for this customer"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Invoices'),
+            'res_model': 'account.move',
+            'view_mode': 'list,form',
+            'domain': [
+                ('partner_id', 'child_of', self.id),
+                ('move_type', 'in', ['out_invoice', 'out_refund'])
+            ],
+            'context': {
+                'default_partner_id': self.id,
+                'default_move_type': 'out_invoice'
+            },
             'target': 'current',
         }
