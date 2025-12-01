@@ -20,7 +20,7 @@
         </record>
 
         <!-- Update Product Category: RADIUS Services with accounts -->
-        <record id="product_category_radius_internet" model="product.category">
+        <record id="product_category_radius_service" model="product.category">
             <field name="property_account_income_categ_id" ref="account_income_radius_services"/>
             <field name="property_account_expense_categ_id" ref="account_expense_radius_services"/>
         </record>
