@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Income Account for RADIUS Services -->
+        <record id="account_income_radius_services" model="account.account">
+            <field name="name">RADIUS Services Income</field>
+            <field name="code">400100</field>
+            <field name="account_type">income</field>
+            <field name="reconcile">False</field>
+            <field name="tag_ids" eval="[(6, 0, [])]"/>
+        </record>
+
+        <!-- Expense Account for RADIUS Services (COGS) -->
+        <record id="account_expense_radius_services" model="account.account">
+            <field name="name">RADIUS Services Expense</field>
+            <field name="code">500100</field>
+            <field name="account_type">expense</field>
+            <field name="reconcile">False</field>
+            <field name="tag_ids" eval="[(6, 0, [])]"/>
+        </record>
+
+        <!-- Update Product Category: RADIUS Services with accounts -->
+        <record id="product_category_radius_internet" model="product.category">
+            <field name="property_account_income_categ_id" ref="account_income_radius_services"/>
+            <field name="property_account_expense_categ_id" ref="account_expense_radius_services"/>
+        </record>
+    </data>
+</odoo>

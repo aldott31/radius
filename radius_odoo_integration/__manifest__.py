@@ -27,6 +27,7 @@
         # 2️⃣ DATA
         'data/ir_sequence.xml',
         'data/product_category.xml',
+        'data/account_account.xml',  # Income/Expense accounts for RADIUS products
 
         # 3️⃣ MENU ROOT
         'views/menu.xml',
