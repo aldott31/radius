@@ -22,6 +22,48 @@
     </field>
   </record>
 
+  <!-- KANBAN -->
+  <record id="view_asr_subscription_kanban" model="ir.ui.view">
+    <field name="name">asr.subscription.kanban</field>
+    <field name="model">asr.subscription</field>
+    <field name="arch" type="xml">
+      <kanban class="o_kanban_mobile">
+        <field name="name"/>
+        <field name="code"/>
+        <field name="sla_level"/>
+        <field name="rate_limit"/>
+        <field name="price"/>
+        <field name="user_count"/>
+        <field name="radius_synced"/>
+        <templates>
+          <t t-name="kanban-box">
+            <div class="oe_kanban_global_click">
+              <div class="o_kanban_record_top">
+                <div class="o_kanban_record_headings">
+                  <strong class="o_kanban_record_title"><field name="name"/></strong>
+                  <span class="o_kanban_record_subtitle">
+                    <field name="code"/> - SLA <field name="sla_level"/>
+                  </span>
+                </div>
+                <span class="float-end">
+                  <span t-if="record.radius_synced.raw_value" class="badge text-bg-success">Synced</span>
+                  <span t-else="" class="badge text-bg-danger">Not Synced</span>
+                </span>
+              </div>
+              <div class="o_kanban_record_body">
+                <field name="rate_limit" widget="badge"/>
+                <div class="text-muted">
+                  <i class="fa fa-money"/> <field name="price"/> |
+                  <i class="fa fa-users"/> <field name="user_count"/> users
+                </div>
+              </div>
+            </div>
+          </t>
+        </templates>
+      </kanban>
+    </field>
+  </record>
+
   <!-- FORM -->
   <record id="view_asr_subscription_form" model="ir.ui.view">
     <field name="name">asr.subscription.form</field>
@@ -173,8 +215,8 @@
           </notebook>
         </sheet>
 
-        <!-- Chatter me activities disabled (pa fusha dokumentesh) -->
-        <chatter followers="1" activities="0" log_note="1" tracking="1"/>
+        <!-- Chatter with activities enabled for task/appointment scheduling -->
+        <chatter followers="1" activities="1" log_note="1" tracking="1"/>
       </form>
     </field>
   </record>
@@ -207,7 +249,7 @@
   <record id="action_asr_subscription" model="ir.actions.act_window">
     <field name="name">Subscriptions</field>
     <field name="res_model">asr.subscription</field>
-    <field name="view_mode">list,form</field>
+    <field name="view_mode">kanban,list,form</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">
         Create your first RADIUS service plan
