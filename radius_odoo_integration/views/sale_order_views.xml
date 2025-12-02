@@ -39,7 +39,8 @@
                             <field name="radius_provision_date" readonly="1"/>
                         </group>
                         <group string="Subscription Duration">
-                            <field name="subscription_months" string="Months Paid"/>
+                            <field name="subscription_months" string="Months Paid" readonly="1"
+                                   help="Computed from RADIUS product quantity"/>
                             <field name="service_start_date"/>
                             <field name="service_end_date" readonly="1" string="Service Paid Until"/>
                         </group>
@@ -55,6 +56,12 @@
                     <group string="Provisioning Error" invisible="not radius_provision_error">
                         <field name="radius_provision_error" readonly="1" nolabel="1" colspan="2" class="text-danger"/>
                     </group>
+
+                    <div class="alert alert-warning" role="alert" invisible="not is_radius_order">
+                        <strong>💡 Subscription Duration:</strong>
+                        <p>The <strong>Quantity</strong> of the RADIUS product in Order Lines determines the number of months.</p>
+                        <p>Example: Quantity = 3 means 3 months subscription.</p>
+                    </div>
 
                     <div class="alert alert-info" role="alert" invisible="radius_provisioned">
                         <strong>RADIUS Provisioning:</strong>
