@@ -24,32 +24,37 @@ class AccountMove(models.Model):
             orders = invoice.invoice_line_ids.mapped('sale_line_ids.order_id')
             invoice.sale_order_ids = orders
 
-    def write(self, vals):
-        """Override write to detect payment and update service_paid_until"""
-        # Store old payment states before write
+    @api.depends('line_ids.amount_residual')
+    def _compute_payment_state(self):
+        """
+        Override payment_state computation to detect when invoice becomes paid
+        This is the correct hook point in Odoo 18 since payment_state is a computed field
+        """
+        # Store old payment states BEFORE computation
         old_states = {}
-        for invoice in self:
-            old_states[invoice.id] = invoice.payment_state
+        for move in self:
+            old_states[move.id] = move.payment_state
 
-        res = super(AccountMove, self).write(vals)
+        # Call parent computation
+        res = super(AccountMove, self)._compute_payment_state()
 
-        # Check if payment_state changed to 'paid' or 'in_payment'
-        for invoice in self:
-            old_state = old_states.get(invoice.id)
-            new_state = invoice.payment_state
+        # Check if any invoice's payment state changed to paid/in_payment
+        for move in self:
+            old_state = old_states.get(move.id)
+            new_state = move.payment_state
 
-            # Trigger update if payment_state changed to paid/in_payment
+            # Only trigger for customer invoices that just became paid/in_payment
             if (old_state != new_state and
                 new_state in ['paid', 'in_payment'] and
-                invoice.move_type == 'out_invoice'):
+                move.move_type == 'out_invoice'):
 
                 _logger.info(
-                    "Payment state changed for invoice %s: %s → %s, triggering service_paid_until update",
-                    invoice.name,
+                    "✅ Payment state changed for invoice %s: %s → %s, triggering service_paid_until update",
+                    move.name,
                     old_state,
                     new_state
                 )
-                invoice._update_partner_service_paid_until()
+                move._update_partner_service_paid_until()
 
         return res
 
