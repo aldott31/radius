@@ -26,13 +26,30 @@ class AccountMove(models.Model):
 
     def write(self, vals):
         """Override write to detect payment and update service_paid_until"""
+        # Store old payment states before write
+        old_states = {}
+        for invoice in self:
+            old_states[invoice.id] = invoice.payment_state
+
         res = super(AccountMove, self).write(vals)
 
-        # Check if payment_state changed to 'paid'
-        if 'payment_state' in vals:
-            for invoice in self:
-                if invoice.payment_state in ['paid', 'in_payment'] and invoice.move_type == 'out_invoice':
-                    invoice._update_partner_service_paid_until()
+        # Check if payment_state changed to 'paid' or 'in_payment'
+        for invoice in self:
+            old_state = old_states.get(invoice.id)
+            new_state = invoice.payment_state
+
+            # Trigger update if payment_state changed to paid/in_payment
+            if (old_state != new_state and
+                new_state in ['paid', 'in_payment'] and
+                invoice.move_type == 'out_invoice'):
+
+                _logger.info(
+                    "Payment state changed for invoice %s: %s → %s, triggering service_paid_until update",
+                    invoice.name,
+                    old_state,
+                    new_state
+                )
+                invoice._update_partner_service_paid_until()
 
         return res
 
