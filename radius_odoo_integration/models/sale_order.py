@@ -60,8 +60,9 @@ class SaleOrder(models.Model):
     # ==================== SUBSCRIPTION DURATION ====================
     subscription_months = fields.Integer(
         string="Subscription Duration (Months)",
-        default=1,
-        help="Number of months the customer is paying for"
+        compute='_compute_subscription_months',
+        store=True,
+        help="Number of months the customer is paying for (computed from RADIUS product quantity)"
     )
     service_start_date = fields.Date(
         string="Service Start Date",
@@ -83,6 +84,26 @@ class SaleOrder(models.Model):
             rec.is_radius_order = any(
                 line.product_id.is_radius_service for line in rec.order_line
             )
+
+    @api.depends('order_line.product_id.is_radius_service', 'order_line.product_uom_qty')
+    def _compute_subscription_months(self):
+        """
+        Compute subscription months from RADIUS product quantity
+        Logic: quantity of RADIUS product = number of months
+        Example: quantity=3 means 3 months subscription
+        """
+        for rec in self:
+            # Find RADIUS service line
+            radius_line = rec.order_line.filtered(
+                lambda l: l.product_id.is_radius_service
+            )[:1]  # Get first RADIUS line only
+
+            if radius_line:
+                # Quantity = months (convert to int, minimum 1)
+                rec.subscription_months = max(1, int(radius_line.product_uom_qty))
+            else:
+                # Default to 1 if no RADIUS product
+                rec.subscription_months = 1
 
     @api.depends('service_start_date', 'subscription_months')
     def _compute_service_end_date(self):
