@@ -134,6 +134,13 @@
                         <field name="contract_start_date"/>
                         <field name="billing_day"/>
                     </group>
+                    <group colspan="2">
+                        <button name="action_refresh_payment_stats" type="object"
+                                string="Refresh Payment Statistics"
+                                class="btn-secondary"
+                                icon="fa-refresh"
+                                help="Manually update payment statistics from all paid invoices"/>
+                    </group>
                 </group>
 
                 <!-- Referral/Links -->

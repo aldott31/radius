@@ -93,6 +93,9 @@ class AccountMove(models.Model):
             'contract_start_date': self.partner_id.contract_start_date or payment_date,
         })
 
+        # Update payment statistics
+        self.partner_id._update_payment_statistics()
+
         _logger.info(
             "Updated partner %s service_paid_until to %s (added %d months from %s)",
             self.partner_id.name,
@@ -103,9 +106,10 @@ class AccountMove(models.Model):
 
         # Post message to partner chatter
         self.partner_id.message_post(
-            body=_("Service extended by %d month(s). Paid until: %s") % (
+            body=_("Service extended by %d month(s). Paid until: %s<br/>Payment: %.2f") % (
                 subscription_months,
-                new_service_end.strftime('%d %B, %Y')
+                new_service_end.strftime('%d %B, %Y'),
+                self.amount_total
             ),
             subtype_xmlid='mail.mt_note'
         )
