@@ -40,14 +40,24 @@ class AccountMove(models.Model):
         """
         Update partner's service_paid_until when invoice is paid
         Logic:
-        1. Get related sale orders
-        2. Find subscription_months from sale order
+        1. Try to get subscription_months from related sale order
+        2. If no sale order, check if partner has RADIUS subscription (use default 1 month)
         3. Calculate: service_paid_until = payment_date + subscription_months
         4. Update partner.service_paid_until
         """
         self.ensure_one()
 
         if not self.partner_id:
+            _logger.warning("Invoice %s has no partner, cannot update service_paid_until", self.name)
+            return
+
+        # Skip if partner is not a RADIUS customer
+        if not self.partner_id.is_radius_customer:
+            _logger.debug(
+                "Partner %s is not a RADIUS customer, skipping service_paid_until update for invoice %s",
+                self.partner_id.name,
+                self.name
+            )
             return
 
         # Get payment date (invoice_date or date)
@@ -56,24 +66,63 @@ class AccountMove(models.Model):
         # Find related sale orders
         sale_orders = self.invoice_line_ids.mapped('sale_line_ids.order_id')
 
-        if not sale_orders:
-            _logger.debug(
-                "No sale orders found for invoice %s, cannot update service_paid_until",
+        subscription_months = None
+
+        if sale_orders:
+            # Get subscription months from first RADIUS order
+            radius_order = sale_orders.filtered(lambda so: so.is_radius_order)[:1]
+
+            if radius_order:
+                subscription_months = radius_order.subscription_months or 1
+                _logger.info(
+                    "Found RADIUS sale order %s for invoice %s with %d months",
+                    radius_order.name,
+                    self.name,
+                    subscription_months
+                )
+            else:
+                _logger.debug(
+                    "Sale orders found for invoice %s but none are RADIUS orders: %s",
+                    self.name,
+                    ', '.join(sale_orders.mapped('name'))
+                )
+        else:
+            _logger.warning(
+                "No sale orders found for invoice %s (this may happen if invoice was created manually)",
                 self.name
             )
-            return
 
-        # Get subscription months from first RADIUS order
-        radius_order = sale_orders.filtered(lambda so: so.is_radius_order)[:1]
-
-        if not radius_order:
-            _logger.debug(
-                "No RADIUS orders found for invoice %s",
-                self.name
+        # FALLBACK: If no sale order found, check invoice lines for RADIUS products
+        if subscription_months is None:
+            # Check if invoice contains RADIUS service products
+            radius_invoice_lines = self.invoice_line_ids.filtered(
+                lambda l: l.product_id.is_radius_service if hasattr(l.product_id, 'is_radius_service') else False
             )
-            return
 
-        subscription_months = radius_order.subscription_months or 1
+            if radius_invoice_lines:
+                # Get quantity from first RADIUS product line (quantity = months)
+                first_radius_line = radius_invoice_lines[0]
+                subscription_months = max(1, int(first_radius_line.quantity))
+                _logger.info(
+                    "Fallback: Using quantity from invoice line for %s: %d months",
+                    self.name,
+                    subscription_months
+                )
+            else:
+                # Last fallback: If partner has subscription, use 1 month default
+                if self.partner_id.subscription_id:
+                    subscription_months = 1
+                    _logger.warning(
+                        "Fallback: No RADIUS products in invoice %s, using default 1 month for partner %s",
+                        self.name,
+                        self.partner_id.name
+                    )
+                else:
+                    _logger.error(
+                        "Cannot determine subscription_months for invoice %s - no sale order, no RADIUS products, no partner subscription",
+                        self.name
+                    )
+                    return
 
         # Calculate new service_paid_until
         # If partner already has service_paid_until and it's in the future, extend from that date
@@ -83,9 +132,21 @@ class AccountMove(models.Model):
         if current_service_end and current_service_end > fields.Date.today():
             # Extend from current end date
             new_service_end = current_service_end + relativedelta(months=subscription_months)
+            _logger.info(
+                "Extending service from existing end date %s + %d months = %s",
+                current_service_end,
+                subscription_months,
+                new_service_end
+            )
         else:
             # Start from payment date
             new_service_end = payment_date + relativedelta(months=subscription_months)
+            _logger.info(
+                "Starting new service from payment date %s + %d months = %s",
+                payment_date,
+                subscription_months,
+                new_service_end
+            )
 
         # Update partner
         self.partner_id.write({
@@ -97,11 +158,10 @@ class AccountMove(models.Model):
         self.partner_id._update_payment_statistics()
 
         _logger.info(
-            "Updated partner %s service_paid_until to %s (added %d months from %s)",
+            "✅ Updated partner %s: service_paid_until=%s, payment_amount=%.2f",
             self.partner_id.name,
             new_service_end,
-            subscription_months,
-            current_service_end or payment_date
+            self.amount_total
         )
 
         # Post message to partner chatter
