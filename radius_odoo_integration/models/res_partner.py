@@ -241,35 +241,30 @@ class ResPartner(models.Model):
     )
     last_payment_date = fields.Date(
         string="Last Payment Date",
-        compute='_compute_payment_totals',
-        store=True,
         readonly=True,
-        help="Date of most recent payment"
+        tracking=True,
+        help="Date of most recent payment (updated automatically when invoice is paid)"
     )
     last_payment_amount = fields.Float(
         string="Last Payment Amount",
-        compute='_compute_payment_totals',
-        store=True,
         readonly=True,
-        help="Amount of most recent payment"
+        tracking=True,
+        help="Amount of most recent payment (updated automatically when invoice is paid)"
     )
     total_paid_amount = fields.Float(
         string="Total Paid Amount",
-        compute='_compute_payment_totals',
-        store=True,
-        help="Total amount paid by customer"
+        readonly=True,
+        tracking=True,
+        help="Total amount paid by customer (updated automatically when invoice is paid)"
     )
     first_payment_date = fields.Date(
         string="First Payment Date",
-        compute='_compute_payment_totals',
-        store=True,
         readonly=True,
-        help="Date of first payment"
+        help="Date of first payment (updated automatically when invoice is paid)"
     )
     payment_balance = fields.Float(
         string="Payment Balance",
         compute='_compute_payment_balance',
-        store=True,
         help="Current payment balance (receivable)"
     )
 
@@ -753,8 +748,11 @@ class ResPartner(models.Model):
                 [('username', '=', rec.radius_username), ('acctstoptime', '=', False)])
             rec.total_sessions_count = Sess.search_count([('username', '=', rec.radius_username)])
 
-    def _compute_payment_totals(self):
-        """Compute payment statistics from invoices"""
+    def _update_payment_statistics(self):
+        """
+        Update payment statistics from all paid invoices
+        Called when invoice is paid to refresh payment totals
+        """
         for rec in self:
             # Initialize defaults
             rec.total_paid_amount = 0.0
@@ -794,7 +792,13 @@ class ResPartner(models.Model):
                 rec.last_payment_date = latest_inv.invoice_date or latest_inv.date
                 rec.last_payment_amount = latest_inv.amount_total
 
-    @api.depends('service_paid_until')
+            _logger.info(
+                "Updated payment statistics for partner %s: total=%.2f, last_payment=%.2f on %s",
+                rec.name,
+                rec.total_paid_amount,
+                rec.last_payment_amount,
+                rec.last_payment_date
+            )
     def _compute_payment_balance(self):
         """Compute payment balance from account receivable"""
         for rec in self:
@@ -1230,6 +1234,24 @@ class ResPartner(models.Model):
 
         # Delegate to asr.radius.user.action_disconnect_user()
         return self.radius_user_id.action_disconnect_user()
+
+    def action_refresh_payment_stats(self):
+        """
+        Manually refresh payment statistics from invoices
+        Useful for syncing historical data or troubleshooting
+        """
+        self._update_payment_statistics()
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Payment Statistics Refreshed'),
+                'message': _('Payment information has been updated from invoices'),
+                'type': 'success',
+                'sticky': False
+            }
+        }
 
     # ==================== SESSION ACTIONS ====================
     def _sessions_action_base(self, domain):
