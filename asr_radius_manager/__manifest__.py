@@ -36,6 +36,7 @@
     'wizards/pppoe_config_wizard_views.xml',
     'wizards/asr_radius_test_wizard_views.xml',
 ],
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': True,
     'auto_install': False,
