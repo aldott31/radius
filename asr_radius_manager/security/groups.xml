@@ -20,7 +20,7 @@
       Workflow: Create quotation → Confirm → Finance creates invoice
       Cannot: Create invoices, register payments, provision RADIUS, access network devices.
     </field>
-    <field name="implied_ids" eval="[(4, ref('sales.group_sale_user'))]"/>
+    <field name="implied_ids" eval="[(4, ref('sale.group_sale_user'))]"/>
   </record>
 
   <!-- ============================================================ -->
@@ -104,7 +104,7 @@
       (4, ref('group_isp_field_tech')),
       (4, ref('group_isp_noc')),
       (4, ref('group_isp_finance')),
-      (4, ref('sales.group_sale_manager')),
+      (4, ref('sale.group_sale_manager')),
       (4, ref('account.group_account_manager'))
     ]"/>
   </record>
