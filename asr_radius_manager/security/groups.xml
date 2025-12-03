@@ -19,8 +19,8 @@
       Sales team: Create quotations, confirm sale orders, manage customers.
       Workflow: Create quotation → Confirm → Finance creates invoice
       Cannot: Create invoices, register payments, provision RADIUS, access network devices.
+      Note: Access rights for sale.order are defined in ir.model.access.csv
     </field>
-    <field name="implied_ids" eval="[(4, ref('sale.group_sale_user'))]"/>
   </record>
 
   <!-- ============================================================ -->
@@ -83,8 +83,8 @@
       Finance team: Create invoices from confirmed sale orders, register payments, manage billing.
       Workflow: Review confirmed orders → Create invoice → Register payment
       Cannot: Edit sale order prices/discounts, provision RADIUS, configure devices.
+      Note: Access rights for account.move and account.payment are defined in ir.model.access.csv
     </field>
-    <field name="implied_ids" eval="[(4, ref('account.group_account_invoice'))]"/>
   </record>
 
   <!-- ============================================================ -->
@@ -103,9 +103,7 @@
       (4, ref('group_isp_provisioning')),
       (4, ref('group_isp_field_tech')),
       (4, ref('group_isp_noc')),
-      (4, ref('group_isp_finance')),
-      (4, ref('sale.group_sale_manager')),
-      (4, ref('account.group_account_manager'))
+      (4, ref('group_isp_finance'))
     ]"/>
   </record>
 
