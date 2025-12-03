@@ -78,4 +78,18 @@ def post_init_hook(env):
     except Exception as e:
         _logger.warning(f"Could not link manager groups: {e}")
 
+    try:
+        # Ensure Sales menu is active
+        # In some installations, the Sales menu might be deactivated
+        sale_menu = env.ref('sale.sale_menu_root', raise_if_not_found=False)
+        if sale_menu and not sale_menu.active:
+            sale_menu.write({'active': True})
+            _logger.info("✅ Activated Sales menu (sale.sale_menu_root)")
+        elif sale_menu:
+            _logger.info("✓ Sales menu already active")
+        else:
+            _logger.warning("⚠️ Sales menu not found (sale module not installed?)")
+    except Exception as e:
+        _logger.warning(f"Could not activate Sales menu: {e}")
+
     _logger.info("✅ Post-init hook completed for asr_radius_manager")

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+        <!--
+        Ensure the Sales menu is active
+        In some Odoo installations, the Sales menu (sale.sale_menu_root) might be
+        deactivated, causing it to not appear for users even if they have the correct groups.
+        This data file ensures it's always active.
+        -->
+        <record id="sale.sale_menu_root" model="ir.ui.menu">
+            <field name="active">True</field>
+        </record>
+    </data>
+</odoo>

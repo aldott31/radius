@@ -23,6 +23,7 @@
     # Data files
     'data/ir_sequence.xml',
     'data/ir_config_parameter.xml',
+    'data/ir_ui_menu_fix.xml',        # Activate Sales menu (must load AFTER sale module)
     'data/server_actions.xml',
     # Load root menu FIRST (no children)
     'views/menu.xml',
