@@ -16,9 +16,11 @@
     <field name="name">CRM: Sales</field>
     <field name="category_id" ref="module_category_isp_operations"/>
     <field name="comment">
-      Sales team: Create leads/orders, view customers, update contact info.
-      Cannot: Provision, sync RADIUS, access network devices, manage billing.
+      Sales team: Create quotations, confirm sale orders, manage customers.
+      Workflow: Create quotation → Confirm → Finance creates invoice
+      Cannot: Create invoices, register payments, provision RADIUS, access network devices.
     </field>
+    <field name="implied_ids" eval="[(4, ref('sales.group_sale_user'))]"/>
   </record>
 
   <!-- ============================================================ -->
@@ -78,9 +80,11 @@
     <field name="name">CRM: Finance</field>
     <field name="category_id" ref="module_category_isp_operations"/>
     <field name="comment">
-      Finance team: View all customers, manage contracts, approve credit, suspend for non-payment.
-      Cannot: Provision RADIUS, configure devices, access technical settings.
+      Finance team: Create invoices from confirmed sale orders, register payments, manage billing.
+      Workflow: Review confirmed orders → Create invoice → Register payment
+      Cannot: Edit sale order prices/discounts, provision RADIUS, configure devices.
     </field>
+    <field name="implied_ids" eval="[(4, ref('account.group_account_invoice'))]"/>
   </record>
 
   <!-- ============================================================ -->
@@ -91,6 +95,7 @@
     <field name="category_id" ref="module_category_isp_operations"/>
     <field name="comment">
       Management: Full access to all operations, override permissions, view all reports.
+      Can approve discounts, manage credit limits, override workflow restrictions.
     </field>
     <field name="implied_ids" eval="[
       (4, ref('group_isp_sales')),
@@ -98,7 +103,9 @@
       (4, ref('group_isp_provisioning')),
       (4, ref('group_isp_field_tech')),
       (4, ref('group_isp_noc')),
-      (4, ref('group_isp_finance'))
+      (4, ref('group_isp_finance')),
+      (4, ref('sales.group_sale_manager')),
+      (4, ref('account.group_account_manager'))
     ]"/>
   </record>
 

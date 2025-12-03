@@ -3,4 +3,5 @@ access_product_radius_attribute_manager,product.radius.attribute manager,model_p
 access_product_radius_attribute_provisioning,product.radius.attribute provisioning,model_product_radius_attribute,asr_radius_manager.group_isp_provisioning,1,1,1,0
 access_product_radius_attribute_sales,product.radius.attribute sales,model_product_radius_attribute,asr_radius_manager.group_isp_sales,1,0,0,0
 access_product_radius_attribute_noc,product.radius.attribute noc,model_product_radius_attribute,asr_radius_manager.group_isp_noc,1,0,0,0
+access_product_radius_attribute_finance,product.radius.attribute finance,model_product_radius_attribute,asr_radius_manager.group_isp_finance,1,0,0,0
 access_radius_provision_wizard_all,radius.provision.wizard all,model_radius_provision_wizard,,1,1,1,1
