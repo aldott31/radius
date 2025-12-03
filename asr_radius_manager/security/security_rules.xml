@@ -128,4 +128,67 @@
     <field name="global" eval="True"/>
   </record>
 
+  <!-- ============================================================ -->
+  <!-- SALES & FINANCE WORKFLOW SEPARATION -->
+  <!-- ============================================================ -->
+
+  <!-- SALES: Can read sale orders, but CANNOT create/edit invoices -->
+  <record id="rule_invoice_sales_no_create" model="ir.rule">
+    <field name="name">Sales: Cannot Create/Edit Invoices</field>
+    <field name="model_id" ref="account.model_account_move"/>
+    <field name="groups" eval="[(4, ref('group_isp_sales'))]"/>
+    <field name="domain_force">[(0, '=', 1)]</field><!-- Always False = No Access -->
+    <field name="perm_read" eval="False"/>
+    <field name="perm_write" eval="False"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- SALES: Can read payments (to see if customer paid), but CANNOT create/edit -->
+  <record id="rule_payment_sales_readonly" model="ir.rule">
+    <field name="name">Sales: Can View Payments (Read-Only)</field>
+    <field name="model_id" ref="account.model_account_payment"/>
+    <field name="groups" eval="[(4, ref('group_isp_sales'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="False"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- FINANCE: Can read sale orders (to create invoices), but CANNOT edit prices -->
+  <record id="rule_sale_order_finance_readonly" model="ir.rule">
+    <field name="name">Finance: Can View Sale Orders (Read-Only)</field>
+    <field name="model_id" ref="sale.model_sale_order"/>
+    <field name="groups" eval="[(4, ref('group_isp_finance'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="False"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- FINANCE: Full access to invoices and payments -->
+  <record id="rule_invoice_finance_all" model="ir.rule">
+    <field name="name">Finance: Full Access to Invoices</field>
+    <field name="model_id" ref="account.model_account_move"/>
+    <field name="groups" eval="[(4, ref('group_isp_finance'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="True"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <record id="rule_payment_finance_all" model="ir.rule">
+    <field name="name">Finance: Full Access to Payments</field>
+    <field name="model_id" ref="account.model_account_payment"/>
+    <field name="groups" eval="[(4, ref('group_isp_finance'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="True"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
 </odoo>
