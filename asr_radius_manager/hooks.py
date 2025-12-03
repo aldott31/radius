@@ -13,10 +13,10 @@ def post_init_hook(env):
     Post-installation hook to link custom groups with Odoo standard groups.
     This ensures that users in custom ISP groups get proper menu access.
 
-    Maps:
-    - group_isp_sales → sale.group_sale_user (Sales menu access)
+    Maps (Odoo 18):
+    - group_isp_sales → sales_team.group_sale_salesman_all_leads (Sales menu access)
     - group_isp_finance → account.group_account_invoice (Invoicing menu access)
-    - group_isp_manager → sale.group_sale_manager + account.group_account_manager
+    - group_isp_manager → sales_team.group_sale_manager + account.group_account_manager
     """
     _logger.info("Running post_init_hook for asr_radius_manager")
 
@@ -24,17 +24,17 @@ def post_init_hook(env):
     IrModelData = env['ir.model.data']
 
     try:
-        # Sales group
+        # Sales group - In Odoo 18, the group is sales_team.group_sale_salesman_all_leads
         group_isp_sales = env.ref('asr_radius_manager.group_isp_sales', raise_if_not_found=False)
-        group_sale_user = env.ref('sale.group_sale_user', raise_if_not_found=False)
+        group_sale_user = env.ref('sales_team.group_sale_salesman_all_leads', raise_if_not_found=False)
 
         if group_isp_sales and group_sale_user:
-            # Add sale.group_sale_user as implied group
+            # Add sales_team.group_sale_salesman_all_leads as implied group
             if group_sale_user.id not in group_isp_sales.implied_ids.ids:
                 group_isp_sales.write({
                     'implied_ids': [(4, group_sale_user.id)]
                 })
-                _logger.info("✅ Linked group_isp_sales → sale.group_sale_user")
+                _logger.info("✅ Linked group_isp_sales → sales_team.group_sale_salesman_all_leads")
         else:
             _logger.warning("⚠️ Could not link sales groups (modules not installed?)")
     except Exception as e:
@@ -58,9 +58,9 @@ def post_init_hook(env):
         _logger.warning(f"Could not link finance groups: {e}")
 
     try:
-        # Manager group
+        # Manager group - In Odoo 18, sales manager is in sales_team module
         group_isp_manager = env.ref('asr_radius_manager.group_isp_manager', raise_if_not_found=False)
-        group_sale_manager = env.ref('sale.group_sale_manager', raise_if_not_found=False)
+        group_sale_manager = env.ref('sales_team.group_sale_manager', raise_if_not_found=False)
         group_account_manager = env.ref('account.group_account_manager', raise_if_not_found=False)
 
         if group_isp_manager:
@@ -72,7 +72,7 @@ def post_init_hook(env):
 
             if implied_to_add:
                 group_isp_manager.write({'implied_ids': implied_to_add})
-                _logger.info("✅ Linked group_isp_manager → sale.group_sale_manager + account.group_account_manager")
+                _logger.info("✅ Linked group_isp_manager → sales_team.group_sale_manager + account.group_account_manager")
         else:
             _logger.warning("⚠️ Could not link manager groups (modules not installed?)")
     except Exception as e:
