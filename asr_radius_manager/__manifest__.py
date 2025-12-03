@@ -27,6 +27,8 @@
     'data/server_actions.xml',
     # Load root menu FIRST (no children)
     'views/menu.xml',
+    # Security views - hide/show buttons based on groups
+    'views/sale_order_security_views.xml',
     # Load views with actions FIRST
     'views/asr_device_views.xml',
     'views/asr_subscription_views.xml',

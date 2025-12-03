@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+    Hide "Create Invoice" button from Sales group
+    Only Finance and Manager can create invoices from Sale Orders
+    -->
+    <record id="view_order_form_hide_create_invoice" model="ir.ui.view">
+        <field name="name">sale.order.form.hide.create.invoice</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="groups_id" eval="[(4, ref('asr_radius_manager.group_isp_sales'))]"/>
+        <field name="arch" type="xml">
+            <!-- Hide the "Create Invoice" button for Sales group -->
+            <xpath expr="//button[@name='action_view_invoice']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+            <!-- Also hide the "Create Invoice" menu action button (if exists) -->
+            <xpath expr="//button[@name='%(sale.action_view_sale_advance_payment_inv)d']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!--
+    Separate view for Finance & Manager - shows the button
+    This ensures Finance and Manager can still see and use the Create Invoice button
+    -->
+    <record id="view_order_form_show_create_invoice" model="ir.ui.view">
+        <field name="name">sale.order.form.show.create.invoice</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="groups_id" eval="[(4, ref('asr_radius_manager.group_isp_finance')), (4, ref('asr_radius_manager.group_isp_manager'))]"/>
+        <field name="arch" type="xml">
+            <!-- Make sure the button is visible for Finance & Manager -->
+            <xpath expr="//button[@name='action_view_invoice']" position="attributes">
+                <attribute name="invisible">0</attribute>
+            </xpath>
+
+            <xpath expr="//button[@name='%(sale.action_view_sale_advance_payment_inv)d']" position="attributes">
+                <attribute name="invisible">0</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>
