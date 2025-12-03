@@ -133,7 +133,7 @@
   <!-- Note: Blocking access via record rules doesn't work because
        Odoo requires at least one permission to be True. Instead,
        we block Sales from invoices by NOT giving them access rights
-       in ir.model.access.csv. These rules only grant access to Finance.
+       in ir.model.access.csv. These rules only grant access to Finance. -->
   <!-- ============================================================ -->
 
   <!-- FINANCE: Can read sale orders (to create invoices), but CANNOT edit prices -->
