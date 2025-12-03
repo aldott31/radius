@@ -10,7 +10,8 @@
         'base',                 # res.users, res.company
         'mail',                 # chatter (mail.thread)
         'product',              # product.product link
-        'sale',                 # sale.order, sales.group_sale_user
+        'sale',                 # sale.order
+        'sales_team',           # sales_team.group_sale_salesman_all_leads
         'account',              # account.move, account.group_account_invoice
         'ab_radius_connector'   # DSN & MySQL connector te res.company
     ],
