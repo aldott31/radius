@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Record rules for multi-company isolation -->
+    <!-- ============================================================ -->
+    <!-- MULTI-COMPANY ISOLATION -->
+    <!-- ============================================================ -->
 
     <!-- Product Radius Attributes: Multi-company -->
     <record id="rule_product_radius_attribute_multi_company" model="ir.rule">
@@ -8,5 +10,23 @@
         <field name="model_id" ref="model_product_radius_attribute"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+
+    <!-- ============================================================ -->
+    <!-- WORKFLOW SEPARATION: Sales vs Finance -->
+    <!-- ============================================================ -->
+
+    <!--
+    Finance can READ sale orders (to create invoices) but CANNOT WRITE
+    This is already enforced by Odoo's default access rights
+    account.group_account_invoice has read-only access to sale.order
+    No additional rule needed here.
+    -->
+
+    <!--
+    Sales can CREATE/WRITE sale orders but CANNOT CREATE invoices
+    This is already enforced by Odoo's default access rights
+    sales.group_sale_user has no access to account.move
+    No additional rule needed here.
+    -->
 
 </odoo>
