@@ -31,14 +31,14 @@
         # 3️⃣ MENU ROOT
         'views/menu.xml',
 
-        # 4️⃣ VIEWS (with actions and menu items)
+        # 4️⃣ WIZARDS (must load before views that reference them)
+        'wizards/radius_provision_wizard_views.xml',
+        'wizards/grace_days_wizard_views.xml',
+
+        # 5️⃣ VIEWS (with actions and menu items)
         'views/res_partner_views.xml',
         'views/product_template_views.xml',
         'views/sale_order_views.xml',
-
-        # 5️⃣ WIZARDS
-        'wizards/radius_provision_wizard_views.xml',
-        'wizards/grace_days_wizard_views.xml',
     ],
     'installable': True,
     'application': False,
