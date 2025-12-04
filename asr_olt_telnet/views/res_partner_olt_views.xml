@@ -25,6 +25,30 @@
                 confirm="Are you sure you want to delete this ONU from the OLT? This will disconnect the customer!"/>
       </xpath>
 
+      <!-- Add OLT Tools group after ONU/ONT Information -->
+      <xpath expr="//page[@string='Network &amp; Infrastructure']//group[.//field[@name='olt_ont_id']]" position="after">
+        <group string="OLT Tools" invisible="not access_device_id">
+          <button type="action"
+                  name="%(asr_olt_telnet.action_open_olt_show_mac_wizard_from_device)d"
+                  string="Show MAC on OLT"
+                  icon="fa-search"
+                  context="{'default_olt_id': access_device_id}"
+                  groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
+          <button type="action"
+                  name="%(asr_olt_telnet.action_open_onu_uncfg_wizard)d"
+                  string="Unregistered ONUs"
+                  icon="fa-list"
+                  context="{'default_olt_id': access_device_id}"
+                  groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
+          <button type="action"
+                  name="%(asr_olt_telnet.action_olt_command_test_wizard)d"
+                  string="Test OLT Commands"
+                  icon="fa-terminal"
+                  context="{'default_olt_id': access_device_id}"
+                  groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
+        </group>
+      </xpath>
+
     </field>
   </record>
 </odoo>
