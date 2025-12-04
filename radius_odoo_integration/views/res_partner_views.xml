@@ -480,7 +480,7 @@
               parent="crm_abissnet.menu_isp_management_root"
               action="action_isp_customers_partner"
               sequence="10"
-              groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
+              groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"/>
 
     <menuitem id="menu_installation_calendar"
               name="Installation Schedule"
