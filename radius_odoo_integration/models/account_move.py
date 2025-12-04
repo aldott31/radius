@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 from dateutil.relativedelta import relativedelta
+from datetime import timedelta
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -196,6 +197,12 @@ class AccountMove(models.Model):
             update_vals['grace_days_debt'] = 0
             _logger.info("Cleared %d days of grace debt for customer %s", grace_days_debt, self.partner_id.name)
 
+        # Auto-update customer_status to 'paid' when payment is received
+        # Only update if current status is 'lead' (don't override active/for_installation/etc)
+        if self.partner_id.customer_status == 'lead':
+            update_vals['customer_status'] = 'paid'
+            _logger.info("Auto-updated customer_status from 'lead' to 'paid' for %s", self.partner_id.name)
+
         self.partner_id.write(update_vals)
 
         # Update payment statistics
@@ -209,11 +216,17 @@ class AccountMove(models.Model):
         )
 
         # Post message to partner chatter
+        message_body = _("Service extended by %d month(s). Paid until: %s<br/>Payment: %.2f") % (
+            subscription_months,
+            new_service_end.strftime('%d %B, %Y'),
+            self.amount_total
+        )
+
+        # Add status change note if applicable
+        if 'customer_status' in update_vals:
+            message_body += _("<br/>Customer status updated: Lead → Paid")
+
         self.partner_id.message_post(
-            body=_("Service extended by %d month(s). Paid until: %s<br/>Payment: %.2f") % (
-                subscription_months,
-                new_service_end.strftime('%d %B, %Y'),
-                self.amount_total
-            ),
+            body=message_body,
             subtype_xmlid='mail.mt_note'
         )

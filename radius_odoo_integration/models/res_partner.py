@@ -37,9 +37,10 @@ class ResPartner(models.Model):
     # Customer lifecycle status
     customer_status = fields.Selection([
         ('lead', 'Lead'),
-        ('active', 'Active'),
-        ('suspended', 'Suspended'),
-        ('churned', 'Churned')
+        ('paid', 'Paid'),
+        ('for_installation', 'For Installation'),
+        ('for_registration', 'For Registration'),
+        ('active', 'Active')
     ], string="Customer Status", default='lead', tracking=True,
         help="Customer lifecycle stage")
 
@@ -511,6 +512,16 @@ class ResPartner(models.Model):
         # Skip if we're coming from radius_user.write()
         if self.env.context.get('_from_radius_write'):
             return super(ResPartner, self).write(vals)
+
+        # Check permission for changing status to 'for_installation'
+        if 'customer_status' in vals and vals['customer_status'] == 'for_installation':
+            # Only allow Finance and Manager groups to set 'for_installation' status
+            if not (self.env.user.has_group('asr_radius_manager.group_isp_finance') or
+                    self.env.user.has_group('asr_radius_manager.group_isp_manager')):
+                raise UserError(_(
+                    "Only Finance and Manager users can set customer status to 'For Installation'.\n"
+                    "Please contact your manager if you need to change this status."
+                ))
 
         # Execute parent write
         res = super(ResPartner, self).write(vals)
@@ -1255,6 +1266,32 @@ class ResPartner(models.Model):
             'params': {
                 'title': _('Payment Statistics Refreshed'),
                 'message': _('Payment information has been updated from invoices'),
+                'type': 'success',
+                'sticky': False
+            }
+        }
+
+    def action_update_status_from_payments(self):
+        """
+        Update customer_status to 'paid' if customer has payments but status is still 'lead'
+        Useful for historical data after implementing auto-status feature
+        """
+        for rec in self:
+            # Only update if status is 'lead' and customer has made payments
+            if rec.customer_status == 'lead' and rec.last_payment_date:
+                rec.write({'customer_status': 'paid'})
+                rec.message_post(
+                    body=_("Customer status updated from 'Lead' to 'Paid' based on payment history"),
+                    subtype_xmlid='mail.mt_note'
+                )
+                _logger.info("Manually updated customer_status to 'paid' for %s based on payment history", rec.name)
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Status Updated'),
+                'message': _('Customer status has been updated based on payment history'),
                 'type': 'success',
                 'sticky': False
             }

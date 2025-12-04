@@ -12,7 +12,7 @@
             <!-- Add statusbar for customer lifecycle -->
             <xpath expr="//sheet" position="before">
                 <header>
-                    <field name="customer_status" widget="statusbar" statusbar_visible="lead,active,suspended,churned"
+                    <field name="customer_status" widget="statusbar" statusbar_visible="lead,paid,for_installation,for_registration,active"
                            options="{'clickable': '1'}"/>
                 </header>
             </xpath>
@@ -102,10 +102,11 @@
                 <group string="Internet Status">
                     <group>
                         <field name="customer_status" widget="badge"
-                               decoration-success="customer_status == 'active'"
                                decoration-info="customer_status == 'lead'"
-                               decoration-warning="customer_status == 'suspended'"
-                               decoration-danger="customer_status == 'churned'"/>
+                               decoration-primary="customer_status == 'paid'"
+                               decoration-warning="customer_status == 'for_installation'"
+                               decoration-muted="customer_status == 'for_registration'"
+                               decoration-success="customer_status == 'active'"/>
                         <field name="subscription_id" options="{'no_create': True}" string="Plan Name"/>
                         <field name="pop_id" string="Technology (POP)"/>
                         <field name="city_id"/>
@@ -148,6 +149,12 @@
                                 class="btn-secondary"
                                 icon="fa-refresh"
                                 help="Manually update payment statistics from all paid invoices"/>
+                        <button name="action_update_status_from_payments" type="object"
+                                string="Update Status from Payments"
+                                class="btn-primary"
+                                icon="fa-check"
+                                invisible="customer_status != 'lead' or not last_payment_date"
+                                help="Update status to 'Paid' based on payment history"/>
                     </group>
                 </group>
 
@@ -402,10 +409,12 @@
                                 <field name="subscription_id"/>
                                 <div class="text-muted">
                                     <i class="fa fa-map-marker"/> <field name="city_id"/> |
-                                    <span t-if="record.customer_status.raw_value == 'active'" class="text-success">Active</span>
-                                    <span t-elif="record.customer_status.raw_value == 'lead'" class="text-info">Lead</span>
-                                    <span t-elif="record.customer_status.raw_value == 'suspended'" class="text-warning">Suspended</span>
-                                    <span t-else="" class="text-danger">Churned</span>
+                                    <span t-if="record.customer_status.raw_value == 'lead'" class="text-info">Lead</span>
+                                    <span t-elif="record.customer_status.raw_value == 'paid'" class="text-primary">Paid</span>
+                                    <span t-elif="record.customer_status.raw_value == 'for_installation'" class="text-warning">For Installation</span>
+                                    <span t-elif="record.customer_status.raw_value == 'for_registration'" class="text-muted">For Registration</span>
+                                    <span t-elif="record.customer_status.raw_value == 'active'" class="text-success">Active</span>
+                                    <span t-else="" class="text-secondary">Unknown</span>
                                 </div>
                             </div>
                         </div>
