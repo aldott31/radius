@@ -239,6 +239,13 @@ class ResPartner(models.Model):
         tracking=True,
         help="Date until which service is paid for"
     )
+    grace_days_debt = fields.Integer(
+        string="Grace Days (Debt)",
+        default=0,
+        tracking=True,
+        help="Number of days customer owes due to grace period extensions. "
+             "When customer pays, subscription is calculated from original expiry date (service_paid_until - grace_days_debt)"
+    )
     last_payment_date = fields.Date(
         string="Last Payment Date",
         readonly=True,
