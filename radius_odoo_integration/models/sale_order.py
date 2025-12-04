@@ -78,11 +78,16 @@ class SaleOrder(models.Model):
 
     # ==================== DUMMY FIELDS FOR COMPATIBILITY ====================
     # These fields are expected by standard Odoo views but only exist when
-    # the 'documents' module is installed
+    # certain modules (documents, sign, etc.) are installed
     quotation_document_ids = fields.Many2many(
         'ir.attachment',
         string='Quotation Documents',
         help='Dummy field to maintain compatibility with standard views'
+    )
+
+    customizable_pdf_form_fields = fields.Text(
+        string='Customizable PDF Form Fields',
+        help='Dummy field to maintain compatibility with standard views (sign module)'
     )
 
     # ==================== COMPUTED METHODS ====================
