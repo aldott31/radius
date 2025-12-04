@@ -26,7 +26,8 @@
       </xpath>
 
       <!-- Add OLT Tools group after ONU/ONT Information -->
-      <xpath expr="//page[@string='Network &amp; Infrastructure']//group[.//field[@name='olt_ont_id']]" position="after">
+      <!-- Target the group containing olt_ont_id field directly without using @string selector -->
+      <xpath expr="//group[field[@name='olt_ont_id']]" position="after">
         <group string="OLT Tools" invisible="not access_device_id">
           <button type="action"
                   name="%(asr_olt_telnet.action_open_olt_show_mac_wizard_from_device)d"
