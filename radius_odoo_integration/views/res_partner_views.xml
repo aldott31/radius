@@ -125,6 +125,7 @@
                     <group>
                         <field name="last_payment_date"/>
                         <field name="service_paid_until"/>
+                        <field name="grace_days_debt" attrs="{'invisible': [('grace_days_debt', '=', 0)]}"/>
                         <field name="last_payment_amount"/>
                         <field name="total_paid_amount"/>
                     </group>
@@ -135,6 +136,13 @@
                         <field name="billing_day"/>
                     </group>
                     <group colspan="2">
+                        <button name="%(radius_odoo_integration.action_add_grace_days_wizard)d"
+                                type="action"
+                                string="Add Grace Days"
+                                class="btn-warning"
+                                groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"
+                                context="{'default_partner_id': active_id}"
+                                attrs="{'invisible': [('service_paid_until', '=', False)]}"/>
                         <button name="action_refresh_payment_stats" type="object"
                                 string="Refresh Payment Statistics"
                                 class="btn-secondary"

@@ -38,6 +38,7 @@
 
         # 5️⃣ WIZARDS
         'wizards/radius_provision_wizard_views.xml',
+        'wizards/grace_days_wizard_views.xml',
     ],
     'installable': True,
     'application': False,

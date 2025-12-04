@@ -147,13 +147,27 @@ class AccountMove(models.Model):
                     return
 
         # Calculate new service_paid_until
-        # If partner already has service_paid_until and it's in the future, extend from that date
-        # Otherwise, start from payment_date
+        # IMPORTANT: If customer has grace_days_debt, calculate from ORIGINAL expiry date
+        # (not from the extended date), so grace days don't become "free days"
         current_service_end = self.partner_id.service_paid_until
+        grace_days_debt = self.partner_id.grace_days_debt or 0
 
-        if current_service_end and current_service_end > fields.Date.today():
-            # Extend from current end date
+        # If customer has grace days debt, calculate the original expiry date
+        if grace_days_debt > 0 and current_service_end:
+            original_expiry = current_service_end - timedelta(days=grace_days_debt)
+            _logger.info(
+                "Customer has %d days of grace debt. Calculating from original expiry: %s (extended was: %s)",
+                grace_days_debt,
+                original_expiry,
+                current_service_end
+            )
+            # Extend from original expiry date
+            new_service_end = original_expiry + relativedelta(months=subscription_months)
+            grace_cleared = True
+        elif current_service_end and current_service_end > fields.Date.today():
+            # Extend from current end date (no debt)
             new_service_end = current_service_end + relativedelta(months=subscription_months)
+            grace_cleared = False
             _logger.info(
                 "Extending service from existing end date %s + %d months = %s",
                 current_service_end,
@@ -161,8 +175,9 @@ class AccountMove(models.Model):
                 new_service_end
             )
         else:
-            # Start from payment date
+            # Start from payment date (service expired or no previous service)
             new_service_end = payment_date + relativedelta(months=subscription_months)
+            grace_cleared = False
             _logger.info(
                 "Starting new service from payment date %s + %d months = %s",
                 payment_date,
@@ -171,10 +186,17 @@ class AccountMove(models.Model):
             )
 
         # Update partner
-        self.partner_id.write({
+        update_vals = {
             'service_paid_until': new_service_end,
             'contract_start_date': self.partner_id.contract_start_date or payment_date,
-        })
+        }
+
+        # Clear grace days debt if customer paid
+        if grace_cleared:
+            update_vals['grace_days_debt'] = 0
+            _logger.info("Cleared %d days of grace debt for customer %s", grace_days_debt, self.partner_id.name)
+
+        self.partner_id.write(update_vals)
 
         # Update payment statistics
         self.partner_id._update_payment_statistics()

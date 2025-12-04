@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Grace Days Wizard Form -->
+    <record id="view_grace_days_wizard_form" model="ir.ui.view">
+        <field name="name">grace.days.wizard.form</field>
+        <field name="model">grace.days.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Add Grace Days">
+                <group>
+                    <group>
+                        <field name="partner_id" invisible="1"/>
+                        <field name="current_expiry" readonly="1"/>
+                        <field name="current_debt_days" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="days_to_add" class="oe_inline"/>
+                        <field name="new_expiry" readonly="1" class="text-success font-weight-bold"/>
+                        <field name="new_debt_days" readonly="1" class="text-warning font-weight-bold"/>
+                    </group>
+                </group>
+                <group>
+                    <field name="reason" placeholder="e.g., Customer requested extension due to financial difficulties..."/>
+                </group>
+                <div class="alert alert-info" role="alert">
+                    <strong>⚠️ Important:</strong> These days will be tracked as DEBT.
+                    When the customer pays, the subscription will be calculated from the
+                    <strong>original expiry date</strong> (current expiry - debt days),
+                    not from the extended date.
+                </div>
+                <footer>
+                    <button name="action_add_grace_days"
+                            string="Add Grace Days"
+                            type="object"
+                            class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action to open wizard -->
+    <record id="action_add_grace_days_wizard" model="ir.actions.act_window">
+        <field name="name">Add Grace Days</field>
+        <field name="res_model">grace.days.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">form</field>
+        <field name="groups_id" eval="[(4, ref('asr_radius_manager.group_isp_finance')), (4, ref('asr_radius_manager.group_isp_manager'))]"/>
+    </record>
+</odoo>
