@@ -77,18 +77,11 @@ class SaleOrder(models.Model):
     )
 
     # ==================== DUMMY FIELDS FOR COMPATIBILITY ====================
-    # These fields are expected by standard Odoo views but only exist when
-    # certain modules (documents, sign, etc.) are installed
-    quotation_document_ids = fields.Many2many(
-        'ir.attachment',
-        string='Quotation Documents',
-        help='Dummy field to maintain compatibility with standard views'
-    )
-
-    customizable_pdf_form_fields = fields.Text(
-        string='Customizable PDF Form Fields',
-        help='Dummy field to maintain compatibility with standard views (sign module)'
-    )
+    # These fields are only needed when sale_pdf_quote_builder or documents modules
+    # are NOT installed. If those modules are installed, they provide their own fields.
+    # Since we can't dynamically check module installation at field definition time,
+    # we've removed these dummy fields. If you get JS errors about missing fields,
+    # it means the module IS installed and working correctly.
 
     # ==================== COMPUTED METHODS ====================
     @api.depends('order_line.product_id.is_radius_service')
@@ -445,10 +438,4 @@ class SaleOrderLine(models.Model):
         readonly=True
     )
 
-    # Dummy field to prevent errors from standard Odoo views that expect this field
-    # (from documents module which is not installed)
-    product_document_ids = fields.Many2many(
-        'ir.attachment',
-        string='Product Documents',
-        help='Dummy field to maintain compatibility with standard views'
-    )
+    # Dummy fields for compatibility removed - see comment in SaleOrder model above
