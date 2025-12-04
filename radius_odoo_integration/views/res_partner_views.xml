@@ -125,7 +125,7 @@
                     <group>
                         <field name="last_payment_date"/>
                         <field name="service_paid_until"/>
-                        <field name="grace_days_debt" attrs="{'invisible': [('grace_days_debt', '=', 0)]}"/>
+                        <field name="grace_days_debt" invisible="grace_days_debt == 0"/>
                         <field name="last_payment_amount"/>
                         <field name="total_paid_amount"/>
                     </group>
@@ -142,7 +142,7 @@
                                 class="btn-warning"
                                 groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"
                                 context="{'default_partner_id': id}"
-                                attrs="{'invisible': [('service_paid_until', '=', False)]}"/>
+                                invisible="not service_paid_until"/>
                         <button name="action_refresh_payment_stats" type="object"
                                 string="Refresh Payment Statistics"
                                 class="btn-secondary"
