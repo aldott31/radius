@@ -430,3 +430,11 @@ class SaleOrderLine(models.Model):
         string="SLA",
         readonly=True
     )
+
+    # Dummy field to prevent errors from standard Odoo views that expect this field
+    # (from documents module which is not installed)
+    product_document_ids = fields.Many2many(
+        'ir.attachment',
+        string='Product Documents',
+        help='Dummy field to maintain compatibility with standard views'
+    )
