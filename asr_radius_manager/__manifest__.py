@@ -29,12 +29,12 @@
     'views/menu.xml',
     # Security views - hide/show buttons based on groups
     'views/sale_order_security_views.xml',
-    # Load views with actions FIRST
+    # Load views with actions FIRST (in dependency order)
     'views/asr_device_views.xml',
     'views/asr_subscription_views.xml',
-    'views/asr_radius_status_views.xml',      # KETE E LEVIZ KETU (para asr_radius_user_views.xml)
-    'views/asr_radius_user_views.xml',        # Tani mund ta referencoje action_asr_radius_pppoe_status
-    'views/asr_radius_session_views.xml',
+    'views/asr_radius_session_views.xml',     # 1st: Defines action_asr_radius_session
+    'views/asr_radius_status_views.xml',      # 2nd: References action_asr_radius_session, defines action_asr_radius_pppoe_status
+    'views/asr_radius_user_views.xml',        # 3rd: References action_asr_radius_pppoe_status
     'views/asr_radius_user_remote_views.xml',
     'views/asr_radius_config_views.xml',
     'wizards/pppoe_config_wizard_views.xml',
