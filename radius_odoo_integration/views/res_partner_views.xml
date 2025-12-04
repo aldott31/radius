@@ -239,26 +239,7 @@
                                 </group>
                                 <group/>
                             </group>
-                            <group string="OLT Tools" invisible="not access_device_id">
-                                <button type="action"
-                                        name="%(asr_olt_telnet.action_open_olt_show_mac_wizard_from_device)d"
-                                        string="Show MAC on OLT"
-                                        icon="fa-search"
-                                        context="{'default_olt_id': access_device_id}"
-                                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
-                                <button type="action"
-                                        name="%(asr_olt_telnet.action_open_onu_uncfg_wizard)d"
-                                        string="Unregistered ONUs"
-                                        icon="fa-list"
-                                        context="{'default_olt_id': access_device_id}"
-                                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
-                                <button type="action"
-                                        name="%(asr_olt_telnet.action_olt_command_test_wizard)d"
-                                        string="Test OLT Commands"
-                                        icon="fa-terminal"
-                                        context="{'default_olt_id': access_device_id}"
-                                        groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
-                            </group>
+                            <!-- Note: OLT Tools buttons are added by asr_olt_telnet module when installed -->
                         </page>
 
                         <!-- PAGE 3: INSTALLATION & LOCATION -->
