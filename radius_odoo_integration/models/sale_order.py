@@ -76,6 +76,15 @@ class SaleOrder(models.Model):
         help="Calculated end date based on start date + subscription months"
     )
 
+    # ==================== DUMMY FIELDS FOR COMPATIBILITY ====================
+    # These fields are expected by standard Odoo views but only exist when
+    # the 'documents' module is installed
+    quotation_document_ids = fields.Many2many(
+        'ir.attachment',
+        string='Quotation Documents',
+        help='Dummy field to maintain compatibility with standard views'
+    )
+
     # ==================== COMPUTED METHODS ====================
     @api.depends('order_line.product_id.is_radius_service')
     def _compute_is_radius_order(self):
