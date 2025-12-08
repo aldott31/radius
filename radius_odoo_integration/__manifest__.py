@@ -27,6 +27,7 @@
         # 2️⃣ DATA
         'data/ir_sequence.xml',
         'data/product_category.xml',
+        'data/ir_cron.xml',
 
         # 3️⃣ MENU ROOT
         'views/menu.xml',
