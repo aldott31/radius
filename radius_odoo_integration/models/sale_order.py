@@ -306,28 +306,97 @@ class SaleOrder(models.Model):
         }
 
     def action_confirm(self):
-        """Override confirm to auto-provision RADIUS if enabled"""
+        """
+        Override confirm to auto-provision RADIUS in SUSPENDED mode
+        NEW WORKFLOW: Pre-provision → Install → Payment → Auto-Activate
+        """
         res = super(SaleOrder, self).action_confirm()
 
-        # Auto-provision RADIUS for RADIUS orders (optional behavior)
-        # You can enable/disable this via system parameter
-        auto_provision = self.env['ir.config_parameter'].sudo().get_param(
-            'radius_odoo_integration.auto_provision_on_confirm',
-            'False'
-        ) == 'True'
+        # Auto-provision RADIUS orders in SUSPENDED mode (ALWAYS, not optional)
+        for order in self:
+            if order.is_radius_order and not order.radius_provisioned:
+                try:
+                    # 1) Enable partner as RADIUS customer
+                    if not order.partner_id.is_radius_customer:
+                        order.partner_id.write({'is_radius_customer': True})
 
-        if auto_provision:
-            for order in self:
-                if order.is_radius_order and not order.radius_provisioned:
-                    try:
-                        order.action_provision_radius()
-                    except Exception as e:
-                        # Log error but don't block order confirmation
-                        _logger.warning(
-                            "Auto-provisioning failed for order %s: %s",
-                            order.name,
-                            e
+                    # 2) Get RADIUS service product from order lines
+                    radius_products = order.order_line.filtered(
+                        lambda l: l.product_id.is_radius_service
+                    ).mapped('product_id')
+
+                    if radius_products:
+                        radius_product = radius_products[0]
+
+                        # 3) Get or create subscription
+                        subscription = self.env['asr.subscription'].sudo().search([
+                            ('code', '=', radius_product.radius_plan_code),
+                            ('company_id', '=', order.company_id.id)
+                        ], limit=1)
+
+                        if not subscription:
+                            # Create subscription from product
+                            subscription = self.env['asr.subscription'].sudo().create({
+                                'name': radius_product.name,
+                                'code': radius_product.radius_plan_code,
+                                'rate_limit': radius_product.radius_rate_limit,
+                                'session_timeout': radius_product.radius_session_timeout,
+                                'sla_level': radius_product.sla_level,
+                                'ip_pool_active': radius_product.ip_pool_active,
+                                'ip_pool_expired': radius_product.ip_pool_expired,
+                                'acct_interim_interval': radius_product.acct_interim_interval,
+                                'price': radius_product.list_price,
+                                'product_tmpl_id': radius_product.product_tmpl_id.id,
+                                'company_id': order.company_id.id,
+                            })
+                            _logger.info("Created subscription %s from product %s", subscription.code, radius_product.name)
+
+                        # 4) Update partner with subscription
+                        order.partner_id.write({'subscription_id': subscription.id})
+
+                        # 5) Auto-generate credentials if missing
+                        if not order.partner_id.radius_username:
+                            order.partner_id.write({
+                                'radius_username': order.partner_id._generate_username(),
+                            })
+                        if not order.partner_id.radius_password:
+                            order.partner_id.write({
+                                'radius_password': order.partner_id._generate_password(),
+                            })
+
+                        # 6) ⭐ PRE-PROVISION in SUSPENDED mode (NO INTERNET YET!)
+                        order.partner_id.action_sync_to_radius_suspended()
+
+                        # 7) Update order status
+                        order.write({
+                            'radius_provisioned': True,
+                            'radius_provision_date': fields.Datetime.now(),
+                            'radius_provision_error': False,
+                        })
+
+
+                        order.message_post(
+                            body=_("✅ RADIUS user pre-provisioned in SUSPENDED mode: %s<br/>"
+                                   "⚠️ <b>Service will activate automatically after payment</b>") % order.partner_id.radius_username
                         )
+
+                        _logger.info(
+                            "Order %s confirmed: RADIUS user %s pre-provisioned in SUSPENDED mode",
+                            order.name,
+                            order.partner_id.radius_username
+                        )
+
+                except Exception as e:
+                    error_msg = str(e)
+                    order.write({
+                        'radius_provision_error': error_msg,
+                    })
+                    order.message_post(
+                        body=_("⚠️ RADIUS pre-provisioning FAILED: %s") % error_msg,
+                        subtype_xmlid='mail.mt_note'
+                    )
+                    _logger.exception("RADIUS pre-provisioning failed for order %s", order.name)
+                    # Don't raise - Finance can fix this later
 
         return res
 
