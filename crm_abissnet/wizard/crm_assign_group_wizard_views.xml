@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Assign Customer to Group Wizard Form -->
+    <record id="view_crm_assign_group_wizard_form" model="ir.ui.view">
+        <field name="name">crm.assign.group.wizard.form</field>
+        <field name="model">crm.assign.group.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Assign to Work Group">
+                <group>
+                    <field name="partner_id" readonly="1"/>
+                    <field name="work_group_id" options="{'no_create': True}"/>
+                </group>
+                <footer>
+                    <button string="Assign" type="object" name="action_assign" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</odoo>

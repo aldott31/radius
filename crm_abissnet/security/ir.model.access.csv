@@ -9,3 +9,8 @@ access_crm_access_device_noc,crm.access.device noc,model_crm_access_device,asr_r
 access_crm_fiber_closure_manager,crm.fiber.closure manager,model_crm_fiber_closure,asr_radius_manager.group_isp_manager,1,1,1,1
 access_crm_fiber_closure_provisioning,crm.fiber.closure provisioning,model_crm_fiber_closure,asr_radius_manager.group_isp_provisioning,1,1,0,0
 access_crm_fiber_assignment_wizard,crm.fiber.assignment.wizard,model_crm_fiber_assignment_wizard,asr_radius_manager.group_isp_manager,1,1,1,1
+access_crm_work_group_manager,crm.work.group manager,model_crm_work_group,asr_radius_manager.group_isp_manager,1,1,1,1
+access_crm_work_group_tech_manager,crm.work.group tech manager,model_crm_work_group,asr_radius_manager.group_isp_field_tech,1,1,1,1
+access_crm_work_group_technician,crm.work.group technician,model_crm_work_group,asr_radius_manager.group_isp_technician,1,0,0,0
+access_crm_work_group_wizard_manager,crm.work.group.wizard manager,model_crm_work_group_wizard,asr_radius_manager.group_isp_manager,1,1,1,1
+access_crm_work_group_wizard_tech_manager,crm.work.group.wizard tech manager,model_crm_work_group_wizard,asr_radius_manager.group_isp_field_tech,1,1,1,1
