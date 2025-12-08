@@ -50,6 +50,13 @@ access_asr_radius_user_remote_prov,asr.radius.user.remote prov,model_asr_radius_
 access_asr_radius_user_field,asr.radius.user field,model_asr_radius_user,group_isp_field_tech,1,1,0,0
 access_asr_subscription_field,asr.subscription field,model_asr_subscription,group_isp_field_tech,1,0,0,0
 access_asr_device_field,asr.device field,model_asr_device,group_isp_field_tech,1,0,0,0
+access_res_partner_field,res.partner field tech,base.model_res_partner,group_isp_field_tech,1,1,0,0
+
+
+access_asr_radius_user_tech,asr.radius.user tech,model_asr_radius_user,group_isp_technician,1,1,0,0
+access_asr_subscription_tech,asr.subscription tech,model_asr_subscription,group_isp_technician,1,0,0,0
+access_asr_device_tech,asr.device tech,model_asr_device,group_isp_technician,1,0,0,0
+access_res_partner_tech,res.partner tech,base.model_res_partner,group_isp_technician,1,1,0,0
 
 
 access_asr_radius_user_noc,asr.radius.user noc,model_asr_radius_user,group_isp_noc,1,1,0,0
@@ -73,7 +80,7 @@ access_sale_order_finance,sale.order finance,sale.model_sale_order,group_isp_fin
 access_account_move_finance,account.move finance,account.model_account_move,group_isp_finance,1,1,1,1
 access_account_move_line_finance,account.move.line finance,account.model_account_move_line,group_isp_finance,1,1,1,1
 access_account_payment_finance,account.payment finance,account.model_account_payment,group_isp_finance,1,1,1,0
-access_res_partner_finance_billing,res.partner finance,base.model_res_partner,group_isp_finance,1,0,0,0
+access_res_partner_finance_billing,res.partner finance,base.model_res_partner,group_isp_finance,1,1,0,0
 access_sale_order_manager,sale.order manager,sale.model_sale_order,group_isp_manager,1,1,1,1
 access_sale_order_line_manager,sale.order.line manager,sale.model_sale_order_line,group_isp_manager,1,1,1,1
 access_account_move_manager,account.move manager,account.model_account_move,group_isp_manager,1,1,1,1

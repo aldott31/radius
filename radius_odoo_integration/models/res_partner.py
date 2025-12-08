@@ -513,6 +513,16 @@ class ResPartner(models.Model):
         if self.env.context.get('_from_radius_write'):
             return super(ResPartner, self).write(vals)
 
+        # Check permission for changing status to 'paid' - ONLY via payment automation
+        if 'customer_status' in vals and vals['customer_status'] == 'paid':
+            # Prevent manual change to 'paid' unless coming from automated payment processing
+            if not self.env.context.get('_from_payment_automation'):
+                raise UserError(_(
+                    "Status 'Paid' cannot be set manually.\n"
+                    "This status is automatically set when Finance registers a payment.\n"
+                    "Please register the payment through the Invoices menu."
+                ))
+
         # Check permission for changing status to 'for_installation'
         if 'customer_status' in vals and vals['customer_status'] == 'for_installation':
             # Only allow Finance and Manager groups to set 'for_installation' status
@@ -994,127 +1004,6 @@ class ResPartner(models.Model):
                 }
             }
 
-    def action_sync_to_radius_suspended(self):
-        """
-        Sync user to RADIUS in SUSPENDED mode (pre-provisioning)
-        Used during order confirmation - creates RADIUS user but no internet access
-        Customer must pay before being unsuspended
-        """
-        ok = 0
-        last_error = None
-
-        for rec in self:
-            if not rec.radius_username:
-                raise UserError(_("Missing RADIUS username."))
-            if not rec.radius_password:
-                raise UserError(_("Missing RADIUS password."))
-
-            conn = None
-            try:
-                comp = rec.company_id or self.env.company
-                suspended_group = f"{_slug_company((getattr(comp, 'code', None) or comp.name))}:SUSPENDED"
-
-                conn = rec._get_radius_conn()
-                with conn.cursor() as cur:
-                    self._upsert_radcheck(cur, rec.radius_username, rec.radius_password)
-                    cur.execute("""
-                        INSERT IGNORE INTO radgroupreply (groupname, attribute, op, value)
-                        VALUES (%s, 'Reply-Message', ':=', 'Service not activated - payment required')
-                    """, (suspended_group,))
-                    self._upsert_radusergroup(cur, rec.radius_username, suspended_group)
-                conn.commit()
-
-                rec.sudo().write({
-                    'radius_synced': True,
-                    'last_sync_error': False,
-                    'last_sync_date': fields.Datetime.now(),
-                })
-
-                rec.message_post(
-                    body=_("Pre-provisioned '%(u)s' in SUSPENDED mode → group %(g)s<br/>"
-                           "<b>Service will activate automatically after payment confirmation</b>") % {
-                        'u': rec.radius_username,
-                        'g': suspended_group
-                    },
-                    subtype_xmlid='mail.mt_note'
-                )
-                _logger.info("RADIUS pre-provision (suspended) OK: %s -> %s", rec.radius_username, suspended_group)
-                ok += 1
-
-            except Exception as e:
-                last_error = str(e)
-                if conn:
-                    try:
-                        conn.rollback()
-                    except Exception:
-                        pass
-                rec.sudo().write({'radius_synced': False, 'last_sync_error': last_error})
-                _logger.exception("RADIUS pre-provision failed for %s", rec.radius_username)
-                rec.message_post(
-                    body=_("Pre-provision FAILED for '%(u)s': %(err)s") % {
-                        'u': rec.radius_username,
-                        'err': last_error
-                    },
-                    subtype_xmlid='mail.mt_note'
-                )
-            finally:
-                if conn:
-                    try:
-                        conn.close()
-                    except Exception:
-                        pass
-
-        if ok == len(self):
-            msg = (_("User '%s' pre-provisioned (SUSPENDED mode)") % self.radius_username) if len(self) == 1 else (
-                _("%d user(s) pre-provisioned") % ok)
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': _('RADIUS Pre-Provisioning'),
-                    'message': msg + _('\n⚠️ Service will activate after payment'),
-                    'type': 'info',
-                    'sticky': True
-                }
-            }
-        else:
-            failed = len(self) - ok
-            msg = _('%d succeeded, %d failed') % (ok, failed)
-            if last_error:
-                msg = f"{msg}\n{last_error}"
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': _('RADIUS Pre-Provisioning (Partial/Failed)'),
-                    'message': msg,
-                    'type': 'warning',
-                    'sticky': False
-                }
-            }
-
-    def _send_activation_notification(self):
-        """Send notification when service is activated after payment"""
-        self.ensure_one()
-        self.message_post(
-            body=_("🎉 <b>Service Activated!</b><br/>"
-                   "Username: %(u)s<br/>"
-                   "Subscription: %(s)s<br/>"
-                   "Paid until: %(d)s") % {
-                'u': self.radius_username,
-                's': self.subscription_id.name if self.subscription_id else 'N/A',
-                'd': self.service_paid_until if self.service_paid_until else 'N/A'
-            },
-            subject=_("Service Activated"),
-            message_type='notification'
-        )
-        _logger.info(
-            "Service activated for customer %s (username: %s, paid until: %s)",
-            self.name,
-            self.radius_username,
-            self.service_paid_until
-        )
-
     def action_suspend(self):
         """Suspend RADIUS user"""
         ok = 0
@@ -1400,7 +1289,8 @@ class ResPartner(models.Model):
         for rec in self:
             # Only update if status is 'lead' and customer has made payments
             if rec.customer_status == 'lead' and rec.last_payment_date:
-                rec.write({'customer_status': 'paid'})
+                # Use context flag to allow automated 'paid' status change
+                rec.with_context(_from_payment_automation=True).write({'customer_status': 'paid'})
                 rec.message_post(
                     body=_("Customer status updated from 'Lead' to 'Paid' based on payment history"),
                     subtype_xmlid='mail.mt_note'
@@ -1640,63 +1530,173 @@ class ResPartner(models.Model):
             },
             'target': 'current',
         }
+    def action_sync_to_radius_suspended(self):
+        """
+        Sync user to RADIUS in SUSPENDED mode (pre-provisioning)
+        Used during order confirmation - creates RADIUS user but no internet access
+        Customer must pay before being unsuspended
+        """
+        ok = 0
+        last_error = None
+
+        for rec in self:
+            if not rec.radius_username:
+                raise UserError(_("Missing RADIUS username."))
+            if not rec.radius_password:
+                raise UserError(_("Missing RADIUS password."))
+
+            conn = None
+            try:
+                comp = rec.company_id or self.env.company
+                suspended_group = f"{_slug_company((getattr(comp, 'code', None) or comp.name))}:SUSPENDED"
+
+                conn = rec._get_radius_conn()
+                with conn.cursor() as cur:
+                    self._upsert_radcheck(cur, rec.radius_username, rec.radius_password)
+                    cur.execute("""
+                        INSERT IGNORE INTO radgroupreply (groupname, attribute, op, value)
+                        VALUES (%s, 'Reply-Message', ':=', 'Service not activated - payment required')
+                    """, (suspended_group,))
+                    self._upsert_radusergroup(cur, rec.radius_username, suspended_group)
+                conn.commit()
+
+                rec.sudo().write({
+                    'radius_synced': True,
+                    'last_sync_error': False,
+                    'last_sync_date': fields.Datetime.now(),
+                })
+
+                rec.message_post(
+                    body=_("Pre-provisioned '%(u)s' in SUSPENDED mode → group %(g)s<br/>"
+                           "<b>Service will activate automatically after payment confirmation</b>") % {
+                        'u': rec.radius_username,
+                        'g': suspended_group
+                    },
+                    subtype_xmlid='mail.mt_note'
+                )
+                _logger.info("RADIUS pre-provision (suspended) OK: %s -> %s", rec.radius_username, suspended_group)
+                ok += 1
+
+            except Exception as e:
+                last_error = str(e)
+                if conn:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                rec.sudo().write({'radius_synced': False, 'last_sync_error': last_error})
+                _logger.exception("RADIUS pre-provision failed for %s", rec.radius_username)
+                rec.message_post(
+                    body=_("Pre-provision FAILED for '%(u)s': %(err)s") % {
+                        'u': rec.radius_username,
+                        'err': last_error
+                    },
+                    subtype_xmlid='mail.mt_note'
+                )
+            finally:
+                if conn:
+                    try:
+                        conn.close()
+                    except Exception:
+                        pass
+
+        if ok == len(self):
+            msg = (_("User '%s' pre-provisioned (SUSPENDED mode)") % self.radius_username) if len(self) == 1 else (
+                _("%d user(s) pre-provisioned") % ok)
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('RADIUS Pre-Provisioning'),
+                    'message': msg + _('\n⚠️ Service will activate after payment'),
+                    'type': 'info',
+                    'sticky': True
+                }
+            }
+        else:
+            failed = len(self) - ok
+            msg = _('%d succeeded, %d failed') % (ok, failed)
+            if last_error:
+                msg = f"{msg}\n{last_error}"
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('RADIUS Pre-Provisioning (Partial/Failed)'),
+                    'message': msg,
+                    'type': 'warning',
+                    'sticky': False
+                }
+            }
+
+    def _send_activation_notification(self):
+        """Send notification when service is activated after payment"""
+        self.ensure_one()
+        self.message_post(
+            body=_("🎉 <b>Service Activated!</b><br/>"
+                   "Username: %(u)s<br/>"
+                   "Subscription: %(s)s<br/>"
+                   "Paid until: %(d)s") % {
+                'u': self.radius_username,
+                's': self.subscription_id.name if self.subscription_id else 'N/A',
+                'd': self.service_paid_until if self.service_paid_until else 'N/A'
+            },
+            subject=_("Service Activated"),
+            message_type='notification'
+        )
+        _logger.info(
+            "Service activated for customer %s (username: %s, paid until: %s)",
+            self.name,
+            self.radius_username,
+            self.service_paid_until
+        )
+
 
     def action_move_to_expired_pool(self):
-        """
-        Move RADIUS user to expired IP pool (no internet, only portal access)
-        Called when service_paid_until < today
-        """
+        """Move RADIUS user to expired IP pool (no internet, only portal access)"""
         for rec in self:
             if not rec.radius_username or not rec.subscription_id:
-                continue
-            
-            # Skip if already in expired pool
-            if rec.is_suspended:
-                _logger.debug("User %s already suspended, skipping", rec.radius_username)
                 continue
 
             conn = None
             try:
                 conn = rec._get_radius_conn()
                 with conn.cursor() as cur:
-                    # Get expired pool from subscription
                     expired_pool = rec.subscription_id.ip_pool_expired
                     if not expired_pool:
-                        _logger.warning("No expired pool defined for subscription %s", rec.subscription_id.name)
+                        _logger.warning("No expired pool configured for subscription %s", rec.subscription_id.name)
                         continue
 
-                    # Update radgroupreply to use expired pool
                     groupname = rec.groupname
-                    
-                    # Delete old Framed-Pool
+
+                    # Delete old Framed-Pool attribute
                     cur.execute("""
-                        DELETE FROM radgroupreply 
+                        DELETE FROM radgroupreply
                         WHERE groupname = %s AND attribute = 'Framed-Pool'
                     """, (groupname,))
-                    
+
                     # Insert expired pool
                     cur.execute("""
                         INSERT INTO radgroupreply (groupname, attribute, op, value)
                         VALUES (%s, 'Framed-Pool', ':=', %s)
                     """, (groupname, expired_pool))
-                    
+
                 conn.commit()
-                
+
                 rec.message_post(
-                    body=_("Service expired - moved to EXPIRED pool: %s<br/>"
-                           "Customer can access payment portal but has no internet") % expired_pool,
+                    body=_("Service expired - moved to expired IP pool (no internet). Pool: %s. Customer can access portal to make payment") % expired_pool,
                     subtype_xmlid='mail.mt_note'
                 )
-                
+
                 _logger.info("Moved user %s to expired pool %s", rec.radius_username, expired_pool)
-                
+
             except Exception as e:
+                _logger.error("Failed to move user %s to expired pool: %s", rec.radius_username, str(e))
                 if conn:
                     try:
                         conn.rollback()
                     except Exception:
                         pass
-                _logger.error("Failed to move %s to expired pool: %s", rec.radius_username, e)
             finally:
                 if conn:
                     try:
@@ -1705,10 +1705,7 @@ class ResPartner(models.Model):
                         pass
 
     def action_move_to_active_pool(self):
-        """
-        Move RADIUS user back to active IP pool (full internet)
-        Called when payment is confirmed
-        """
+        """Move RADIUS user back to active IP pool (full internet)"""
         for rec in self:
             if not rec.radius_username or not rec.subscription_id:
                 continue
@@ -1717,38 +1714,41 @@ class ResPartner(models.Model):
             try:
                 conn = rec._get_radius_conn()
                 with conn.cursor() as cur:
-                    # Get active pool from subscription
                     active_pool = rec.subscription_id.ip_pool_active
                     if not active_pool:
-                        _logger.warning("No active pool defined for subscription %s", rec.subscription_id.name)
+                        _logger.warning("No active pool configured for subscription %s", rec.subscription_id.name)
                         continue
 
                     groupname = rec.groupname
-                    
-                    # Delete old Framed-Pool
+
+                    # Delete old Framed-Pool attribute
                     cur.execute("""
-                        DELETE FROM radgroupreply 
+                        DELETE FROM radgroupreply
                         WHERE groupname = %s AND attribute = 'Framed-Pool'
                     """, (groupname,))
-                    
+
                     # Insert active pool
                     cur.execute("""
                         INSERT INTO radgroupreply (groupname, attribute, op, value)
                         VALUES (%s, 'Framed-Pool', ':=', %s)
                     """, (groupname, active_pool))
-                    
+
                 conn.commit()
-                
+
+                rec.message_post(
+                    body=_("Payment confirmed - restored to active IP pool. Pool: %s. Full internet access restored") % active_pool,
+                    subtype_xmlid='mail.mt_note'
+                )
+
                 _logger.info("Moved user %s to active pool %s", rec.radius_username, active_pool)
-                
+
             except Exception as e:
+                _logger.error("Failed to move user %s to active pool: %s", rec.radius_username, str(e))
                 if conn:
                     try:
                         conn.rollback()
                     except Exception:
                         pass
-                _logger.error("Failed to move %s to active pool: %s", rec.radius_username, e)
-                raise
             finally:
                 if conn:
                     try:
@@ -1759,26 +1759,23 @@ class ResPartner(models.Model):
     @api.model
     def _cron_move_expired_to_expired_pool(self):
         """
-        Cron job: Move expired services to expired IP pool
-        Runs daily at 06:00
+        Cron job: Move expired services to expired IP pool.
+        Runs daily at 06:00 to check for expired customers.
         """
         today = fields.Date.today()
-        
-        # Find expired customers with active RADIUS
         expired_partners = self.search([
             ('is_radius_customer', '=', True),
             ('radius_synced', '=', True),
             ('service_paid_until', '<', today),
             ('subscription_id', '!=', False),
         ])
-        
-        _logger.info("Found %d expired RADIUS customers to move to expired pool", len(expired_partners))
-        
+
+        _logger.info("Cron: Found %d expired RADIUS customers to move to expired pool", len(expired_partners))
+
         for partner in expired_partners:
             try:
                 partner.action_move_to_expired_pool()
             except Exception as e:
-                _logger.error("Failed to process expired partner %s: %s", partner.name, e)
-                continue
-        
-        _logger.info("Finished processing expired RADIUS customers")
+                _logger.error("Cron: Failed to move partner %s to expired pool: %s", partner.name, str(e))
+
+        _logger.info("Cron: Finished processing expired customers")

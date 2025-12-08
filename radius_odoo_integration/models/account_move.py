@@ -203,12 +203,13 @@ class AccountMove(models.Model):
             update_vals['customer_status'] = 'paid'
             _logger.info("Auto-updated customer_status from 'lead' to 'paid' for %s", self.partner_id.name)
 
-        self.partner_id.write(update_vals)
+        # Use context flag to allow automated 'paid' status change
+        self.partner_id.with_context(_from_payment_automation=True).write(update_vals)
 
         # Update payment statistics
         self.partner_id._update_payment_statistics()
 
-               # ⭐ NEW: Auto-unsuspend RADIUS user when payment is confirmed
+        # ⭐ NEW: Auto-unsuspend RADIUS user when payment is confirmed
         if self.partner_id.is_radius_customer and self.partner_id.radius_username:
             try:
                 # Check if user is currently suspended
@@ -225,42 +226,25 @@ class AccountMove(models.Model):
                     # Move back to active IP pool (full internet)
                     self.partner_id.action_move_to_active_pool()
 
-
                     # Send activation notification
                     self.partner_id._send_activation_notification()
 
                     # Add to invoice chatter
                     self.message_post(
-                        body=_("🎉 <b>RADIUS Service Activated</b><br/>"
-                               "Username: %s<br/>"
-                               "Subscription: %s<br/>"
-                               "Internet access is now active!") % (
+                        body=_("RADIUS Service Activated. Username: %s, Subscription: %s, Internet access is now active!") % (
                             self.partner_id.radius_username,
                             self.partner_id.subscription_id.name if self.partner_id.subscription_id else 'N/A'
                         ),
                         subtype_xmlid='mail.mt_note'
                     )
-                else:
-                    _logger.debug(
-                        "Payment confirmed for %s but user %s is not suspended - no action needed",
-                        self.partner_id.name,
-                        self.partner_id.radius_username
-                    )
+
             except Exception as e:
-                _logger.error(
-                    "Failed to auto-unsuspend RADIUS user %s after payment: %s",
-                    self.partner_id.radius_username,
-                    str(e)
-                )
-                # Don't raise error - payment is already processed
+                _logger.error("Failed to auto-unsuspend RADIUS user %s: %s", self.partner_id.radius_username, str(e))
+                # Don't block payment processing if RADIUS activation fails
                 self.message_post(
-                    body=_("⚠️ Payment processed but RADIUS activation failed: %s<br/>"
-                           "Please activate manually or contact technical support.") % str(e),
+                    body=_("Payment received but RADIUS activation failed: %s") % str(e),
                     subtype_xmlid='mail.mt_note'
                 )
-        
-
-
 
         _logger.info(
             "✅ Updated partner %s: service_paid_until=%s, payment_amount=%.2f",
