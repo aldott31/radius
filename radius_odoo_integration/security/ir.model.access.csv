@@ -5,5 +5,3 @@ access_product_radius_attribute_sales,product.radius.attribute sales,model_produ
 access_product_radius_attribute_noc,product.radius.attribute noc,model_product_radius_attribute,asr_radius_manager.group_isp_noc,1,0,0,0
 access_product_radius_attribute_finance,product.radius.attribute finance,model_product_radius_attribute,asr_radius_manager.group_isp_finance,1,0,0,0
 access_radius_provision_wizard_all,radius.provision.wizard all,model_radius_provision_wizard,,1,1,1,1
-access_grace_days_wizard_manager,grace.days.wizard manager,model_grace_days_wizard,asr_radius_manager.group_isp_manager,1,1,1,1
-access_grace_days_wizard_finance,grace.days.wizard finance,model_grace_days_wizard,asr_radius_manager.group_isp_finance,1,1,1,1

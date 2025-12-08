@@ -373,26 +373,49 @@
         </field>
     </record>
 
-    <!-- KANBAN VIEW FOR ISP CUSTOMERS - MINIMAL (Name + Address Only) -->
+    <!-- KANBAN VIEW FOR ISP CUSTOMERS -->
     <record id="view_partner_kanban_isp" model="ir.ui.view">
         <field name="name">res.partner.kanban.isp</field>
         <field name="model">res.partner</field>
-        <field name="priority">1</field>
         <field name="arch" type="xml">
-            <kanban sample="0">
+            <kanban class="o_kanban_mobile">
                 <field name="name"/>
-                <field name="street"/>
-                <field name="city"/>
+                <field name="radius_username"/>
+                <field name="subscription_id"/>
+                <field name="pppoe_status"/>
+                <field name="customer_status"/>
+                <field name="city_id"/>
+                <field name="sla_level"/>
                 <templates>
                     <t t-name="kanban-box">
-                        <div class="oe_kanban_global_click" style="padding: 12px; border: 1px solid #ddd; border-radius: 4px; background: white;">
-                            <strong style="display: block; margin-bottom: 8px; font-size: 14px; color: #000;">
-                                <field name="name"/>
-                            </strong>
-                            <div style="font-size: 12px; color: #666;">
-                                <span t-if="record.city.raw_value"><field name="city"/></span>
-                                <span t-if="record.city.raw_value and record.street.raw_value">, </span>
-                                <span t-if="record.street.raw_value"><field name="street"/></span>
+                        <div class="oe_kanban_global_click">
+                            <div class="o_kanban_record_top">
+                                <div class="o_kanban_record_headings">
+                                    <strong class="o_kanban_record_title"><field name="name"/></strong>
+                                    <span class="o_kanban_record_subtitle">
+                                        <field name="radius_username"/>
+                                    </span>
+                                </div>
+                                <span class="float-end">
+                                    <span t-if="record.pppoe_status.raw_value == 'up'" class="badge text-bg-success">
+                                        <i class="fa fa-circle"/> ONLINE
+                                    </span>
+                                    <span t-else="" class="badge text-bg-secondary">
+                                        <i class="fa fa-circle-o"/> OFFLINE
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="o_kanban_record_body">
+                                <field name="subscription_id"/>
+                                <div class="text-muted">
+                                    <i class="fa fa-map-marker"/> <field name="city_id"/> |
+                                    <span t-if="record.customer_status.raw_value == 'lead'" class="text-info">Lead</span>
+                                    <span t-elif="record.customer_status.raw_value == 'paid'" class="text-primary">Paid</span>
+                                    <span t-elif="record.customer_status.raw_value == 'for_installation'" class="text-warning">For Installation</span>
+                                    <span t-elif="record.customer_status.raw_value == 'for_registration'" class="text-muted">For Registration</span>
+                                    <span t-elif="record.customer_status.raw_value == 'active'" class="text-success">Active</span>
+                                    <span t-else="" class="text-secondary">Unknown</span>
+                                </div>
                             </div>
                         </div>
                     </t>
@@ -437,18 +460,9 @@
     <record id="action_isp_customers_partner" model="ir.actions.act_window">
         <field name="name">Customers</field>
         <field name="res_model">res.partner</field>
-        <field name="view_mode">kanban,list,form</field>
-        <field name="view_id" ref="view_partner_kanban_isp"/>
+        <field name="view_mode">kanban,list,form,calendar</field>
         <field name="context">{'search_default_radius_customers': 1, 'default_is_radius_customer': True}</field>
         <field name="domain">[]</field>
-    </record>
-
-    <!-- Specify kanban view explicitly for this action -->
-    <record id="action_isp_customers_kanban_view" model="ir.actions.act_window.view">
-        <field name="sequence" eval="1"/>
-        <field name="view_mode">kanban</field>
-        <field name="view_id" ref="view_partner_kanban_isp"/>
-        <field name="act_window_id" ref="action_isp_customers_partner"/>
     </record>
 
     <!-- INSTALLATION CALENDAR ACTION -->
@@ -466,16 +480,13 @@
               parent="crm_abissnet.menu_isp_management_root"
               action="action_isp_customers_partner"
               sequence="10"
-              groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_technician,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"/>
+              groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
 
-    <!-- REMOVED: Installation Calendar Menu -->
-    <!--
     <menuitem id="menu_installation_calendar"
               name="Installation Schedule"
               parent="crm_abissnet.menu_isp_management_root"
               action="action_installation_calendar"
               sequence="15"
               groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
-    -->
 
 </odoo>

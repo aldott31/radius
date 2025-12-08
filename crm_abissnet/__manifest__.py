@@ -21,12 +21,8 @@
         'views/crm_pop_views.xml',
         'views/crm_access_device_views.xml',
         'views/crm_fiber_closure_views.xml',
-        'views/crm_work_group_views.xml',
 
-        # 4️⃣ WIZARDS
-        'wizard/crm_work_group_wizard_views.xml',
-
-        # 5️⃣ CUSTOMERS (extends asr.radius.user)
+        # 4️⃣ CUSTOMERS (extends asr.radius.user) – DUHET PËRPARA wizard-in që e inherit-on
         'views/asr_radius_user_crm_views.xml',
 
     ],
