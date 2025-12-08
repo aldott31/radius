@@ -47,14 +47,28 @@
   </record>
 
   <!-- ============================================================ -->
-  <!-- FIELD TECHNICIAN: All customers (filtered by assigned field in views) -->
-  <!-- Note: installation_technician_id exists only in crm_abissnet module -->
-  <!-- TODO: Add field-level filtering when CRM module is always installed -->
+  <!-- TECHNICIAN MANAGER: All customers (manage all field operations) -->
   <!-- ============================================================ -->
   <record id="rule_asr_radius_user_field_all" model="ir.rule">
-    <field name="name">Field Tech: All Customers (View Filtering)</field>
+    <field name="name">Technician Manager: All Customers</field>
     <field name="model_id" ref="model_asr_radius_user"/>
     <field name="groups" eval="[(4, ref('group_isp_field_tech'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="False"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- TECHNICIAN: Assigned customers only -->
+  <!-- Note: installation_technician_id exists only in crm_abissnet module -->
+  <!-- For now, show all customers - can be filtered by views later -->
+  <!-- ============================================================ -->
+  <record id="rule_asr_radius_user_tech_assigned" model="ir.rule">
+    <field name="name">Technician: All Customers (View Filtering)</field>
+    <field name="model_id" ref="model_asr_radius_user"/>
+    <field name="groups" eval="[(4, ref('group_isp_technician'))]"/>
     <field name="domain_force">[(1, '=', 1)]</field>
     <field name="perm_read" eval="True"/>
     <field name="perm_write" eval="True"/>
