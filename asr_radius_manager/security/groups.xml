@@ -21,6 +21,7 @@
       Cannot: Create invoices, register payments, provision RADIUS, access network devices.
       Note: Access rights for sale.order are defined in ir.model.access.csv
     </field>
+    <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
   </record>
 
   <!-- ============================================================ -->
@@ -33,6 +34,7 @@
       Customer service: View active customers, update contact info, view sessions.
       Cannot: Provision, create customers, delete, access devices.
     </field>
+    <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
   </record>
 
   <!-- ============================================================ -->
@@ -45,19 +47,33 @@
       Provisioning team: Sync to RADIUS, manage OLT, configure VLANs, assign IPs.
       Cannot: Create customers, delete, manage billing.
     </field>
-    <field name="implied_ids" eval="[(4, ref('ab_radius_connector.group_ab_radius_admin'))]"/>
+    <field name="implied_ids" eval="[(4, ref('base.group_user')), (4, ref('ab_radius_connector.group_ab_radius_admin'))]"/>
   </record>
 
   <!-- ============================================================ -->
   <!-- FIELD INSTALLATION DEPARTMENT -->
   <!-- ============================================================ -->
   <record id="group_isp_field_tech" model="res.groups">
-    <field name="name">CRM: Field Technician</field>
+    <field name="name">CRM: Technician Manager</field>
     <field name="category_id" ref="module_category_isp_operations"/>
     <field name="comment">
-      Field technicians: View scheduled installs, update installation status, upload photos.
+      Technician Managers: Oversee field operations, manage technician schedules, view all installations.
       Cannot: Provision RADIUS, create customers, delete, manage billing.
     </field>
+    <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+  </record>
+
+  <!-- ============================================================ -->
+  <!-- TECHNICIAN (Field Workers) -->
+  <!-- ============================================================ -->
+  <record id="group_isp_technician" model="res.groups">
+    <field name="name">CRM: Technician</field>
+    <field name="category_id" ref="module_category_isp_operations"/>
+    <field name="comment">
+      Field Technicians: View assigned installs, update installation status, upload photos.
+      Cannot: Provision RADIUS, create customers, delete, manage billing, view other technicians' work.
+    </field>
+    <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
   </record>
 
   <!-- ============================================================ -->
@@ -70,7 +86,7 @@
       NOC team: View all customers, disconnect sessions, troubleshoot, monitor devices.
       Cannot: Create/delete customers, manage billing, provision new customers.
     </field>
-    <field name="implied_ids" eval="[(4, ref('ab_radius_connector.group_ab_radius_admin'))]"/>
+    <field name="implied_ids" eval="[(4, ref('base.group_user')), (4, ref('ab_radius_connector.group_ab_radius_admin'))]"/>
   </record>
 
   <!-- ============================================================ -->
@@ -85,6 +101,7 @@
       Cannot: Edit sale order prices/discounts, provision RADIUS, configure devices.
       Note: Access rights for account.move and account.payment are defined in ir.model.access.csv
     </field>
+    <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
   </record>
 
   <!-- ============================================================ -->

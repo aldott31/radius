@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Add Work Group field to Customer Form View -->
+    <record id="view_partner_form_work_group" model="ir.ui.view">
+        <field name="name">res.partner.form.work.group</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="radius_odoo_integration.view_partner_form_isp_customer"/>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+
+            <!-- Add Work Group field after SLA Level -->
+            <xpath expr="//field[@name='sla_level']" position="after">
+                <field name="work_group_id"
+                       widget="many2one"
+                       options="{'no_create': True}"
+                       domain="[('manager_id', '=', uid)]"
+                       groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_manager"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
