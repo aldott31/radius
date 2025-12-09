@@ -306,91 +306,30 @@ class SaleOrder(models.Model):
         }
 
     def action_confirm(self):
-        """Override confirm to auto-provision RADIUS in SUSPENDED mode"""
+        """Override confirm to auto-provision RADIUS if enabled"""
         res = super(SaleOrder, self).action_confirm()
 
-        # Auto-provision RADIUS orders in SUSPENDED mode (ALWAYS, not optional)
-        for order in self:
-            if order.is_radius_order and not order.radius_provisioned:
-                try:
-                    # 1) Enable partner as RADIUS customer
-                    if not order.partner_id.is_radius_customer:
-                        order.partner_id.write({'is_radius_customer': True})
+        # Auto-provision RADIUS for RADIUS orders (optional behavior)
+        # You can enable/disable this via system parameter
+        auto_provision = self.env['ir.config_parameter'].sudo().get_param(
+            'radius_odoo_integration.auto_provision_on_confirm',
+            'False'
+        ) == 'True'
 
-                    # 2) Get RADIUS service product
-                    radius_products = order.order_line.filtered(
-                        lambda l: l.product_id.is_radius_service
-                    ).mapped('product_id')
-
-                    if not radius_products:
-                        raise UserError(_("No RADIUS service product found in order."))
-
-                    if len(radius_products) > 1:
-                        raise UserError(_("Multiple RADIUS products found. Please use only one per order."))
-
-                    radius_product = radius_products[0]
-
-                    # 3) Find corresponding subscription
-                    # Try direct link first (most reliable)
-                    if hasattr(radius_product, 'radius_subscription_id') and radius_product.radius_subscription_id:
-                        subscription = radius_product.radius_subscription_id
-                    else:
-                        # Fallback: search by code (case-insensitive, flexible company match)
-                        plan_code = radius_product.radius_plan_code
-
-                        # Try exact match with company first
-                        subscription = self.env['asr.subscription'].sudo().search([
-                            ('code', '=ilike', plan_code),
-                            ('company_id', '=', order.company_id.id)
-                        ], limit=1)
-
-                        # If not found, try without company restriction (for multi-company setups)
-                        if not subscription:
-                            subscription = self.env['asr.subscription'].sudo().search([
-                                ('code', '=ilike', plan_code)
-                            ], limit=1)
-
-                        if not subscription:
-                            raise UserError(_(
-                                "Subscription '%s' not found. Please sync product to RADIUS first."
-                            ) % plan_code)
-
-                    # 4) Update partner subscription
-                    order.partner_id.write({
-                        'subscription_id': subscription.id,
-                    })
-
-                    # 5) Generate credentials if missing
-                    if not order.partner_id.radius_username or not order.partner_id.radius_password:
-                        order.partner_id._generate_radius_credentials()
-
-                    # 6) PRE-PROVISION in SUSPENDED mode (NO INTERNET YET!)
-                    order.partner_id.action_sync_to_radius_suspended()
-
-                    # 7) Update order status
-                    order.write({
-                        'radius_provisioned': True,
-                        'radius_provision_date': fields.Datetime.now(),
-                        'radius_provision_error': False,
-                    })
-
-                    # 8) Post success message
-                    order.message_post(
-                        body=_("RADIUS user pre-provisioned in SUSPENDED mode: %s. Service will activate automatically after payment") % order.partner_id.radius_username
-                    )
-
-                except Exception as e:
-                    _logger.exception("RADIUS pre-provisioning failed for order %s", order.name)
-                    order.write({
-                        'radius_provisioned': False,
-                        'radius_provision_error': str(e),
-                    })
-                    order.message_post(
-                        body=_("RADIUS pre-provisioning FAILED: %s") % str(e)
-                    )
+        if auto_provision:
+            for order in self:
+                if order.is_radius_order and not order.radius_provisioned:
+                    try:
+                        order.action_provision_radius()
+                    except Exception as e:
+                        # Log error but don't block order confirmation
+                        _logger.warning(
+                            "Auto-provisioning failed for order %s: %s",
+                            order.name,
+                            e
+                        )
 
         return res
-
 
     def action_update_radius_subscription(self):
         """Update RADIUS subscription if order is modified (upgrade/downgrade)"""
@@ -416,29 +355,15 @@ class SaleOrder(models.Model):
 
             try:
                 # Find corresponding subscription
-                # Try direct link first (most reliable)
-                if hasattr(radius_product, 'radius_subscription_id') and radius_product.radius_subscription_id:
-                    subscription = radius_product.radius_subscription_id
-                else:
-                    # Fallback: search by code (case-insensitive, flexible company match)
-                    plan_code = radius_product.radius_plan_code
+                subscription = self.env['asr.subscription'].sudo().search([
+                    ('code', '=', radius_product.radius_plan_code),
+                    ('company_id', '=', rec.company_id.id)
+                ], limit=1)
 
-                    # Try exact match with company first
-                    subscription = self.env['asr.subscription'].sudo().search([
-                        ('code', '=ilike', plan_code),
-                        ('company_id', '=', rec.company_id.id)
-                    ], limit=1)
-
-                    # If not found, try without company restriction
-                    if not subscription:
-                        subscription = self.env['asr.subscription'].sudo().search([
-                            ('code', '=ilike', plan_code)
-                        ], limit=1)
-
-                    if not subscription:
-                        raise UserError(_(
-                            "Subscription '%s' not found. Please sync product to RADIUS first."
-                        ) % plan_code)
+                if not subscription:
+                    raise UserError(_(
+                        "Subscription '%s' not found. Please sync product to RADIUS first."
+                    ) % radius_product.radius_plan_code)
 
                 # Update partner subscription
                 rec.partner_id.write({

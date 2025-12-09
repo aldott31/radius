@@ -45,19 +45,35 @@ class ResPartner(models.Model):
     def _create_contract_ticket(self):
         """
         Create a helpdesk ticket with subject "Kontrate e re"
+        Priority is set based on customer's SLA level:
+        - SLA 1: Priority 1 (Low) - 1 colored star
+        - SLA 2: Priority 2 (Normal) - 2 stars
+        - SLA 3: Priority 4 (Very High) - 3 red stars
         """
         self.ensure_one()
+
+        # Determine priority based on SLA level from subscription
+        priority = '2'  # Default: Normal
+        sla_level = self.subscription_id.sla_level if self.subscription_id else '2'
+
+        # Map SLA level to priority
+        sla_to_priority = {
+            '1': '1',  # SLA 1 → Low (1 colored star)
+            '2': '2',  # SLA 2 → Normal (2 stars)
+            '3': '4',  # SLA 3 → Very High (3 red stars)
+        }
+        priority = sla_to_priority.get(sla_level, '2')
 
         # Prepare ticket values - NO team assignment, NO user assignment
         # Manager will assign manually
         ticket_vals = {
             'subject': 'Kontrate e re',
-            'description': f'Kontratë e re për klientin: {self.name}\n\nCustomer Status: Lead → Paid',
+            'description': f'Kontratë e re për klientin: {self.name}\n\nCustomer Status: Lead → Paid\nSLA Level: {sla_level}',
             'customer_id': self.id,
             'customer_name': self.name,
             'email': self.email or '',
             'phone': self.phone or self.mobile or '',
-            'priority': '2',  # Normal priority
+            'priority': priority,
             # team_id and user_id intentionally left empty for manual assignment
         }
 

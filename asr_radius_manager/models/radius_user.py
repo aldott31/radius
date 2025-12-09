@@ -225,13 +225,6 @@ class AsrRadiusUser(models.Model):
             if not rec.subscription_id:
                 raise UserError(_("Select a Subscription."))
 
-            # ✅ FIX #4: Validate that subscription is synced to RADIUS
-            if not rec.subscription_id.radius_synced:
-                raise UserError(_(
-                    "Subscription '%(name)s' is not synced to RADIUS.\n"
-                    "Please sync the subscription first (radgroupreply must have attributes)."
-                ) % {'name': rec.subscription_id.name})
-
             conn = None
             try:
                 conn = rec._get_radius_conn()
@@ -239,7 +232,7 @@ class AsrRadiusUser(models.Model):
                     self._upsert_radcheck(cur, rec.username, rec.radius_password)
                     self._upsert_radusergroup(cur, rec.username, rec.groupname)
                 conn.commit()
-                rec.sudo().with_context(skip_radius_auto_sync=True, _from_radius_sync=True).write({
+                rec.sudo().write({
                     'radius_synced': True,
                     'last_sync_error': False,
                     'last_sync_date': fields.Datetime.now(),
@@ -253,23 +246,6 @@ class AsrRadiusUser(models.Model):
                     pass
                 _logger.info("RADIUS sync OK: %s -> %s", rec.username, rec.groupname)
                 ok += 1
-
-                # ✅ FIX #2: Auto-disconnect if user has active session (force reconnect with new settings)
-                if rec._has_active_session():
-                    try:
-                        _logger.info("User %s has active session, forcing disconnect to apply new settings", rec.username)
-                        rec.action_disconnect_user()
-                        try:
-                            rec.message_post(
-                                body=_("⚡ <b>Auto-disconnect:</b> User was online and has been disconnected to apply new RADIUS settings.<br/>"
-                                       "User will reconnect automatically with new configuration."),
-                                subtype_xmlid='mail.mt_note'
-                            )
-                        except Exception:
-                            pass
-                    except Exception as e:
-                        _logger.warning("Auto-disconnect failed for %s: %s", rec.username, e)
-                        # Don't fail the sync if disconnect fails - just log it
             except Exception as e:
                 last_error = str(e)
                 if conn:
@@ -277,7 +253,7 @@ class AsrRadiusUser(models.Model):
                         conn.rollback()
                     except Exception:
                         pass
-                rec.sudo().with_context(skip_radius_auto_sync=True).write({'radius_synced': False, 'last_sync_error': last_error})
+                rec.sudo().write({'radius_synced': False, 'last_sync_error': last_error})
                 _logger.exception("RADIUS sync failed for %s", rec.username)
                 try:
                     rec.message_post(
@@ -335,7 +311,7 @@ class AsrRadiusUser(models.Model):
                                 """, (suspended,))
                     self._upsert_radusergroup(cur, rec.username, suspended)
                 conn.commit()
-                rec.sudo().with_context(skip_radius_auto_sync=True).write(
+                rec.sudo().write(
                     {'radius_synced': True, 'last_sync_error': False, 'last_sync_date': fields.Datetime.now()})
                 ok += 1
                 try:
@@ -351,7 +327,7 @@ class AsrRadiusUser(models.Model):
                     conn.rollback()
                 except Exception:
                     pass
-                rec.sudo().with_context(skip_radius_auto_sync=True).write({'radius_synced': False, 'last_sync_error': last_error})
+                rec.sudo().write({'radius_synced': False, 'last_sync_error': last_error})
                 try:
                     rec.message_post(
                         body=_("Suspend FAILED for '%(u)s': %(err)s") % {'u': rec.username, 'err': last_error},
@@ -395,7 +371,7 @@ class AsrRadiusUser(models.Model):
                 with conn.cursor() as cur:
                     self._upsert_radusergroup(cur, rec.username, rec.groupname)
                 conn.commit()
-                rec.sudo().with_context(skip_radius_auto_sync=True).write(
+                rec.sudo().write(
                     {'radius_synced': True, 'last_sync_error': False, 'last_sync_date': fields.Datetime.now()})
                 ok += 1
                 try:
@@ -411,7 +387,7 @@ class AsrRadiusUser(models.Model):
                     conn.rollback()
                 except Exception:
                     pass
-                rec.sudo().with_context(skip_radius_auto_sync=True).write({'radius_synced': False, 'last_sync_error': last_error})
+                rec.sudo().write({'radius_synced': False, 'last_sync_error': last_error})
                 try:
                     rec.message_post(
                         body=_("Reactivate FAILED for '%(u)s': %(err)s") % {'u': rec.username, 'err': last_error},
@@ -459,7 +435,7 @@ class AsrRadiusUser(models.Model):
                     cur.execute("DELETE FROM radusergroup WHERE username=%s", (rec.username,))
                 conn.commit()
 
-                rec.sudo().with_context(skip_radius_auto_sync=True).write({
+                rec.sudo().write({
                     'radius_synced': False,
                     'last_sync_error': False,
                     'last_sync_date': fields.Datetime.now(),
@@ -479,7 +455,7 @@ class AsrRadiusUser(models.Model):
                         conn.rollback()
                     except Exception:
                         pass
-                rec.sudo().with_context(skip_radius_auto_sync=True).write({'last_sync_error': last_error})
+                rec.sudo().write({'last_sync_error': last_error})
                 try:
                     rec.message_post(
                         body=_("Remove from RADIUS FAILED for '%(u)s': %(err)s") % {'u': rec.username,
@@ -517,80 +493,31 @@ class AsrRadiusUser(models.Model):
 
     def write(self, vals):
         """Override write to sync bidirectionally with res.partner"""
-        # Skip auto-sync for internal writes (from sync operations)
-        if self.env.context.get('skip_radius_auto_sync') or self.env.context.get('_from_radius_sync'):
+        # Skip if we're coming from partner.write() to avoid recursion
+        if self.env.context.get('_from_partner_write'):
             return super(AsrRadiusUser, self).write(vals)
 
         res = super(AsrRadiusUser, self).write(vals)
 
-        # Sync to res.partner (SKIP if coming from partner to avoid loop)
-        if not self.env.context.get('_from_partner_write'):
-            for rec in self.filtered(lambda r: r.partner_id):
-                partner_vals = {}
+        # Sync to res.partner (if linked)
+        for rec in self.filtered(lambda r: r.partner_id):
+            partner_vals = {}
 
-                # Map RADIUS fields to Partner fields (only changed fields)
-                if 'username' in vals:
-                    partner_vals['radius_username'] = vals['username']
-                if 'radius_password' in vals:
-                    partner_vals['radius_password'] = vals['radius_password']
-                if 'subscription_id' in vals:
-                    partner_vals['subscription_id'] = vals['subscription_id']
-                if 'device_id' in vals:
-                    partner_vals['device_id'] = vals['device_id']
-                if 'name' in vals:
-                    partner_vals['name'] = vals['name']
+            # Map RADIUS fields to Partner fields (only changed fields)
+            if 'username' in vals:
+                partner_vals['radius_username'] = vals['username']
+            if 'radius_password' in vals:
+                partner_vals['radius_password'] = vals['radius_password']
+            if 'subscription_id' in vals:
+                partner_vals['subscription_id'] = vals['subscription_id']
+            if 'device_id' in vals:
+                partner_vals['device_id'] = vals['device_id']
+            if 'name' in vals:
+                partner_vals['name'] = vals['name']
 
-                # Sync bidirectionally with sudo() to avoid permission issues
-                if partner_vals:
-                    rec.partner_id.with_context(_from_radius_write=True).sudo().write(partner_vals)
-
-        # ✅ FIX #1: Auto-sync to RADIUS when subscription changes
-        # ALWAYS check (even if from partner), only skip if from sync operations
-        if 'subscription_id' in vals and not self.env.context.get('skip_radius_auto_sync'):
-            success_count = 0
-            failed_count = 0
-
-            for rec in self.filtered(lambda r: r.radius_synced and r.subscription_id):
-                try:
-                    _logger.info("Auto-syncing user %s to RADIUS after subscription change", rec.username)
-                    # Use context flag to prevent infinite loops if action_sync_to_radius calls write()
-                    rec.with_context(skip_radius_auto_sync=True).action_sync_to_radius()
-                    success_count += 1
-
-                    # ✅ UI Notification: Chatter message
-                    try:
-                        rec.message_post(
-                            body=_("🔄 Subscription changed → Auto-synced to RADIUS<br/>"
-                                   "New group: <b>%(group)s</b>") % {'group': rec.groupname},
-                            subtype_xmlid='mail.mt_note'
-                        )
-                    except Exception:
-                        pass
-
-                except Exception as e:
-                    _logger.warning("Auto-sync to RADIUS failed for %s: %s", rec.username, e)
-                    failed_count += 1
-                    # Don't raise exception - just log the error
-                    # User can manually sync if needed
-
-            # ✅ UI Notification: Popup for user feedback
-            if success_count > 0 and not self.env.context.get('skip_radius_auto_sync'):
-                message = _("✅ Auto-synced %(count)d user(s) to RADIUS with new subscription") % {'count': success_count}
-                if failed_count > 0:
-                    message += _("\n⚠️ %(failed)d failed") % {'failed': failed_count}
-
-                # Return notification (will be shown if called from UI action)
-                # Note: This won't show on simple write() but good for future button actions
-                self.env['bus.bus']._sendone(
-                    self.env.user.partner_id,
-                    'simple_notification',
-                    {
-                        'type': 'success',
-                        'title': _('RADIUS Auto-Sync'),
-                        'message': message,
-                        'sticky': False,
-                    }
-                )
+            # Sync bidirectionally with sudo() to avoid permission issues
+            if partner_vals:
+                rec.partner_id.with_context(_from_radius_write=True).sudo().write(partner_vals)
 
         return res
 
@@ -778,31 +705,6 @@ class AsrRadiusUserProvision(models.Model):
 
     # ==================== DISCONNECT ACTION ====================
 
-    def _has_active_session(self):
-        """Check if user has active PPPoE session in radacct"""
-        self.ensure_one()
-        if not self.username:
-            return False
-
-        conn = None
-        try:
-            conn = self._get_radius_conn()
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT 1 FROM radacct
-                    WHERE username = %s AND acctstoptime IS NULL
-                    LIMIT 1
-                """, (self.username,))
-                return bool(cur.fetchone())
-        except Exception as e:
-            _logger.debug("Failed to check active session for %s: %s", self.username, e)
-            return False
-        finally:
-            try:
-                if conn:
-                    conn.close()
-            except Exception:
-                pass
 
     def action_disconnect_user(self):
         """Send RADIUS Disconnect-Request via SSH to FreeRADIUS server."""
@@ -839,12 +741,11 @@ class AsrRadiusUserProvision(models.Model):
         if not nas_ip:
             raise UserError(_("No active session found for user '%s'.") % self.username)
 
-        # ✅ FIX #6: Get SSH settings from res.company (instead of hardcoded)
-        company = self.company_id or self.env.company
-        radius_server = company.fr_ssh_host or company.fr_db_host or '80.91.126.33'
-        ssh_user = company.fr_ssh_user or 'root'
-        secret = company.fr_disconnect_secret or 'testing123'
-        disconnect_port = 1700  # Standard RADIUS disconnect port
+        # SSH settings
+        radius_server = '80.91.126.33'  # FreeRADIUS server
+        ssh_user = 'root'
+        secret = 'testing123'
+        disconnect_port = 1700
 
         try:
             # Ndërto payload: VETËM User-Name + NAS-IP-Address (pa Session-Id)
