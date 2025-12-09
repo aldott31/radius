@@ -172,6 +172,14 @@ class AsrSubscription(models.Model):
                 except Exception as e:
                     _logger.error("Failed to auto-create product.template for subscription %s: %s", subscription.name, e)
 
+            # ✅ FIX #8: Auto-sync to RADIUS after creation
+            if not self.env.context.get('skip_radius_auto_sync'):
+                try:
+                    subscription.action_sync_attributes_to_radius()
+                    _logger.info("Auto-synced new subscription %s to RADIUS on creation", subscription.name)
+                except Exception as e:
+                    _logger.warning("Failed to auto-sync subscription %s on creation: %s", subscription.name, e)
+
         return subscriptions
 
     # -------------------------------------------------------------------------
@@ -395,6 +403,30 @@ class AsrSubscription(models.Model):
 
                 conn.commit()
 
+                # ✅ FIX #3: Batch disconnect all active users with this subscription
+                # This forces users to reconnect and get new rate limits immediately
+                disconnected_count = 0
+                try:
+                    users_to_disconnect = self.env['asr.radius.user'].sudo().search([
+                        ('subscription_id', '=', rec.id),
+                        ('radius_synced', '=', True)
+                    ])
+
+                    for user in users_to_disconnect:
+                        if user._has_active_session():
+                            try:
+                                user.action_disconnect_user()
+                                disconnected_count += 1
+                            except Exception as e:
+                                _logger.warning("Failed to disconnect user %s: %s", user.username, e)
+
+                    if disconnected_count > 0:
+                        _logger.info("Disconnected %d active users to apply new subscription settings for %s",
+                                   disconnected_count, rec.name)
+                except Exception as e:
+                    _logger.warning("Batch disconnect failed for subscription %s: %s", rec.name, e)
+                    # Don't fail the sync if disconnect fails
+
                 # 5) Update Odoo record
                 rec.sudo().write({
                     'radius_synced': True,
@@ -402,8 +434,14 @@ class AsrSubscription(models.Model):
                     'last_sync_date': fields.Datetime.now(),
                 })
 
+                # ✅ Enhanced chatter message with disconnect info
                 try:
-                    rec.message_post(body=_('Synchronized plan %s (%s) to RADIUS.') % (rec.name, groupname))
+                    sync_msg = _('✅ Synchronized plan <b>%s</b> (%s) to RADIUS.') % (rec.name, groupname)
+                    if disconnected_count > 0:
+                        sync_msg += '<br/>' + _("⚡ Batch disconnect: <b>%(count)d</b> active users disconnected to apply new rate limits") % {
+                            'count': disconnected_count
+                        }
+                    rec.message_post(body=sync_msg)
                 except Exception:
                     pass
 
@@ -529,6 +567,31 @@ class AsrSubscription(models.Model):
 
     # -------------------------------------------------------------------------
     # ORM Hooks (optional behaviours)
+    # -------------------------------------------------------------------------
+    def write(self, vals):
+        """Override write to auto-sync when RADIUS attributes change"""
+        # Execute parent write first
+        res = super(AsrSubscription, self).write(vals)
+
+        # ✅ FIX #9: Auto-sync when RADIUS-related fields change
+        # List of fields that require re-sync to RADIUS
+        radius_fields = {
+            'rate_limit', 'session_timeout', 'ip_pool_active', 'ip_pool_expired',
+            'acct_interim_interval', 'sla_level', 'price', 'name', 'code'
+        }
+
+        # Check if any RADIUS field was changed
+        if not self.env.context.get('skip_radius_auto_sync') and radius_fields & set(vals.keys()):
+            for rec in self:
+                if rec.radius_synced:
+                    try:
+                        rec.action_sync_attributes_to_radius()
+                        _logger.info("Auto-synced subscription %s to RADIUS after attribute change", rec.name)
+                    except Exception as e:
+                        _logger.warning("Failed to auto-sync subscription %s after change: %s", rec.name, e)
+
+        return res
+
     # -------------------------------------------------------------------------
     def unlink(self):
         # Remove from RADIUS before deleting from Odoo
