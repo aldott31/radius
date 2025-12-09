@@ -498,6 +498,21 @@ class ResPartner(models.Model):
                         partner.name
                     )
 
+                    # ✅ FIX #10: Auto-sync to RADIUS after creation if subscription is set
+                    if partner.subscription_id and partner.subscription_id.radius_synced:
+                        try:
+                            radius_user.action_sync_to_radius()
+                            _logger.info(
+                                "Auto-synced new RADIUS user %s to MySQL on creation",
+                                radius_user.username
+                            )
+                        except Exception as e:
+                            _logger.warning(
+                                "Failed to auto-sync new user %s: %s",
+                                radius_user.username,
+                                e
+                            )
+
                 except Exception as e:
                     _logger.error(
                         "Failed to auto-create asr.radius.user for partner %s: %s",
