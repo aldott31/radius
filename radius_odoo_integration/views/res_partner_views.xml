@@ -15,6 +15,15 @@
                     <field name="customer_status" widget="statusbar" statusbar_visible="lead,paid,for_installation,for_registration,active"
                            options="{'clickable': '1'}"/>
                 </header>
+
+                <!-- ✅ RADIUS Sync Status Ribbon -->
+                <field name="radius_user_id" invisible="1"/>
+                <!-- Show "Not Synced" when has radius_user but not synced -->
+                <widget name="web_ribbon" title="RADIUS Not Synced" bg_color="text-bg-warning"
+                        invisible="not radius_user_id or radius_user_id.radius_synced"/>
+                <!-- Show "Synced" when radius_user is synced -->
+                <widget name="web_ribbon" title="RADIUS Synced" bg_color="text-bg-success"
+                        invisible="not radius_user_id or not radius_user_id.radius_synced"/>
             </xpath>
 
             <!-- Header: vendos label "Name:" para fushës së emrit -->

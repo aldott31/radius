@@ -331,15 +331,29 @@ class SaleOrder(models.Model):
                     radius_product = radius_products[0]
 
                     # 3) Find corresponding subscription
-                    subscription = self.env['asr.subscription'].sudo().search([
-                        ('code', '=', radius_product.radius_plan_code),
-                        ('company_id', '=', order.company_id.id)
-                    ], limit=1)
+                    # Try direct link first (most reliable)
+                    if hasattr(radius_product, 'radius_subscription_id') and radius_product.radius_subscription_id:
+                        subscription = radius_product.radius_subscription_id
+                    else:
+                        # Fallback: search by code (case-insensitive, flexible company match)
+                        plan_code = radius_product.radius_plan_code
 
-                    if not subscription:
-                        raise UserError(_(
-                            "Subscription '%s' not found. Please sync product to RADIUS first."
-                        ) % radius_product.radius_plan_code)
+                        # Try exact match with company first
+                        subscription = self.env['asr.subscription'].sudo().search([
+                            ('code', '=ilike', plan_code),
+                            ('company_id', '=', order.company_id.id)
+                        ], limit=1)
+
+                        # If not found, try without company restriction (for multi-company setups)
+                        if not subscription:
+                            subscription = self.env['asr.subscription'].sudo().search([
+                                ('code', '=ilike', plan_code)
+                            ], limit=1)
+
+                        if not subscription:
+                            raise UserError(_(
+                                "Subscription '%s' not found. Please sync product to RADIUS first."
+                            ) % plan_code)
 
                     # 4) Update partner subscription
                     order.partner_id.write({
@@ -402,15 +416,29 @@ class SaleOrder(models.Model):
 
             try:
                 # Find corresponding subscription
-                subscription = self.env['asr.subscription'].sudo().search([
-                    ('code', '=', radius_product.radius_plan_code),
-                    ('company_id', '=', rec.company_id.id)
-                ], limit=1)
+                # Try direct link first (most reliable)
+                if hasattr(radius_product, 'radius_subscription_id') and radius_product.radius_subscription_id:
+                    subscription = radius_product.radius_subscription_id
+                else:
+                    # Fallback: search by code (case-insensitive, flexible company match)
+                    plan_code = radius_product.radius_plan_code
 
-                if not subscription:
-                    raise UserError(_(
-                        "Subscription '%s' not found. Please sync product to RADIUS first."
-                    ) % radius_product.radius_plan_code)
+                    # Try exact match with company first
+                    subscription = self.env['asr.subscription'].sudo().search([
+                        ('code', '=ilike', plan_code),
+                        ('company_id', '=', rec.company_id.id)
+                    ], limit=1)
+
+                    # If not found, try without company restriction
+                    if not subscription:
+                        subscription = self.env['asr.subscription'].sudo().search([
+                            ('code', '=ilike', plan_code)
+                        ], limit=1)
+
+                    if not subscription:
+                        raise UserError(_(
+                            "Subscription '%s' not found. Please sync product to RADIUS first."
+                        ) % plan_code)
 
                 # Update partner subscription
                 rec.partner_id.write({
