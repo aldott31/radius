@@ -77,24 +77,6 @@
         </field>
     </record>
 
-    <!-- Add ribbon to show sync status -->
-    <record id="view_product_template_form_radius_ribbon" model="ir.ui.view">
-        <field name="name">product.template.form.radius.ribbon</field>
-        <field name="model">product.template</field>
-        <field name="inherit_id" ref="product.product_template_form_view"/>
-        <field name="priority">100</field>
-        <field name="arch" type="xml">
-            <xpath expr="//sheet" position="before">
-                <!-- Show "Not Synced" ribbon when is_radius_service=True and radius_synced=False -->
-                <widget name="web_ribbon" title="Not Synced" bg_color="text-bg-danger"
-                        invisible="not is_radius_service or radius_synced"/>
-                <!-- Show "Synced" ribbon when is_radius_service=True and radius_synced=True -->
-                <widget name="web_ribbon" title="Synced" bg_color="text-bg-success"
-                        invisible="not is_radius_service or not radius_synced"/>
-            </xpath>
-        </field>
-    </record>
-
     <!-- Add action buttons to product form header -->
     <record id="view_product_template_form_radius_buttons" model="ir.ui.view">
         <field name="name">product.template.form.radius.buttons</field>
