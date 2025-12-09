@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Default Employee ID for Helpdesk Tickets -->
+        <!-- Replace '2' with the actual user ID you want to assign tickets to -->
+        <record id="default_employee_id_param" model="ir.config_parameter">
+            <field name="key">helpdesk_auto_ticket.default_employee_id</field>
+            <field name="value">2</field>
+        </record>
+
+        <!-- Default Helpdesk Team ID -->
+        <!-- Replace '1' with the actual team ID if needed -->
+        <record id="default_team_id_param" model="ir.config_parameter">
+            <field name="key">helpdesk_auto_ticket.default_team_id</field>
+            <field name="value">1</field>
+        </record>
+    </data>
+</odoo>
