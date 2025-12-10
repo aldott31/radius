@@ -401,6 +401,19 @@ class ResPartner(models.Model):
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
 
+    # ==================== ONCHANGE METHODS ====================
+    @api.onchange('subscription_id', 'nipt')
+    def _onchange_subscription_nipt(self):
+        """Validate NIPT when subscription changes"""
+        if self.subscription_id and self.subscription_id.sla_level in ('2', '3'):
+            if not (self.nipt or '').strip():
+                return {
+                    'warning': {
+                        'title': _('NIPT Required'),
+                        'message': _('NIPT/VAT is required for Business customers (SLA 2/3). Please fill in the NIPT field before saving.')
+                    }
+                }
+
     # ==================== PON PORT DISPLAY ====================
     @api.depends('radius_user_id.olt_pon_port', 'access_device_id.ip_address')
     def _compute_olt_pon_port(self):
@@ -454,6 +467,9 @@ class ResPartner(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """Override create to auto-create asr.radius.user for all partners"""
+        # NOTE: NIPT validation is handled in write() method only
+        # This is because create() + onchange triggers may cause race conditions
+
         # Skip radius_user creation if flag is set (to prevent recursion)
         skip_radius_creation = self.env.context.get('_skip_partner_creation')
 
@@ -484,6 +500,7 @@ class ResPartner(models.Model):
                         'company_id': company.id,  # Ensure company_id is set
                         'partner_id': partner.id,
                         'radius_synced': False,
+                        'nipt': partner.nipt,  # Transfer NIPT to radius user
                     }
 
                     # Create with context flag to prevent recursion
@@ -527,6 +544,28 @@ class ResPartner(models.Model):
         # Skip if we're coming from radius_user.write()
         if self.env.context.get('_from_radius_write'):
             return super(ResPartner, self).write(vals)
+
+        # Validate NIPT requirement for business customers (SLA 2/3)
+        for rec in self:
+            # Determine SLA level after write
+            if 'subscription_id' in vals:
+                # New subscription being set
+                if vals.get('subscription_id'):
+                    subscription = self.env['asr.subscription'].browse(vals['subscription_id'])
+                    sla_after_write = subscription.sla_level if subscription else None
+                else:
+                    # Subscription being cleared
+                    sla_after_write = None
+            else:
+                # Subscription not changing, use current DIRECTLY from subscription (not from related field)
+                sla_after_write = rec.subscription_id.sla_level if rec.subscription_id else None
+
+            # Check if NIPT is required
+            if sla_after_write in ('2', '3'):
+                # Get NIPT value (from vals or current record)
+                nipt = (vals.get('nipt') or rec.nipt or '').strip()
+                if not nipt:
+                    raise ValidationError(_('NIPT/VAT is required for Business customers (SLA 2/3)'))
 
         # Check permission for changing status to 'paid' - ONLY via payment automation
         if 'customer_status' in vals and vals['customer_status'] == 'paid':
@@ -872,12 +911,8 @@ class ResPartner(models.Model):
                 rec.invoice_count = 0
 
     # ==================== CONSTRAINTS ====================
-    @api.constrains('nipt', 'sla_level')
-    def _check_nipt_required(self):
-        """NIPT is required for business customers (SLA 2/3)"""
-        for rec in self:
-            if rec.sla_level in ('2', '3') and not rec.nipt:
-                raise ValidationError(_('NIPT/VAT is required for Business customers (SLA 2/3)'))
+    # Note: NIPT validation is done in create() and write() methods instead of @api.constrains
+    # to avoid race conditions with related fields
 
     @api.constrains('billing_day')
     def _check_billing_day(self):

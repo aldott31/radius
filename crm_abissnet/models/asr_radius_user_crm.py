@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError, UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class AsrRadiusUserCRM(models.Model):
@@ -76,11 +79,21 @@ class AsrRadiusUserCRM(models.Model):
 
     # ==================== Constraints ====================
 
-    @api.constrains('nipt', 'sla_level')
+    @api.constrains('nipt', 'subscription_id')
     def _check_nipt_required(self):
         """NIPT është i detyrueshëm për biznes (SLA 2/3)"""
         for rec in self:
-            if rec.sla_level in ('2', '3') and not rec.nipt:
+            # Get SLA directly from subscription to avoid race condition with related field
+            sla = rec.subscription_id.sla_level if rec.subscription_id else None
+            nipt = (rec.nipt or '').strip()
+
+            # Debug logging
+            _logger.warning(f"RADIUS USER CONSTRAINT - User: {rec.username or rec.id}, "
+                          f"Subscription: {rec.subscription_id.name if rec.subscription_id else 'None'}, "
+                          f"SLA: {sla}, NIPT: '{nipt}'")
+
+            if sla in ('2', '3') and not nipt:
+                _logger.error(f"RADIUS USER VALIDATION FAILED - User: {rec.username}, SLA: {sla}, NIPT: '{rec.nipt}'")
                 raise ValidationError(_('NIPT is required for Business customers (SLA 2/3)'))
 
     @api.constrains('billing_day')

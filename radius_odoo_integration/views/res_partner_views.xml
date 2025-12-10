@@ -130,6 +130,17 @@
                     </group>
                 </group>
 
+                <!-- Business Information (visible only for SLA 2/3) -->
+                <group string="Business Information" invisible="sla_level not in ('2', '3')">
+                    <group>
+                        <field name="nipt"
+                               placeholder="e.g. L12345678X"
+                               required="sla_level in ('2', '3')"/>
+                    </group>
+                    <group>
+                    </group>
+                </group>
+
                 <!-- Payment Information -->
                 <group string="Payment Information">
                     <group>
