@@ -271,6 +271,13 @@ class TicketHelpDesk(models.Model):
             if vals.get('name', _('New')) == _('New'):
                 vals['name'] = self.env['ir.sequence'].next_by_code(
                     'ticket.helpdesk')
+            
+            # Auto-populate RADIUS username when ticket is created
+            if vals.get('customer_id') and not vals.get('customer_radius_username'):
+                customer = self.env['res.partner'].browse(vals['customer_id'])
+                if hasattr(customer, 'radius_username') and customer.radius_username:
+                    vals['customer_radius_username'] = customer.radius_username
+        
         return super(TicketHelpDesk, self).create(vals_list)
 
     def write(self, vals):
