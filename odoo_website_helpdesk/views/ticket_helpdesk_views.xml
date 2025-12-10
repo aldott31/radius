@@ -167,8 +167,14 @@
                     quick_create_view="odoo_website_helpdesk.helpdesk_ticket_view_quick_create_form">
                 <field name="color"/>
                 <field name="name"/>
+                <field name="subject"/>
                 <field name="stage_id"/>
                 <field name="kanban_state"/>
+                <field name="customer_id"/>
+                <field name="customer_radius_username"/>
+                <field name="team_id"/>
+                <field name="priority"/>
+                <field name="user_id"/>
                 <progressbar field="kanban_state"
                              colors="{&quot;done&quot;: &quot;success&quot;, &quot;blocked&quot;: &quot;danger&quot;, &quot;normal&quot;: &quot;200&quot;}"/>
                  <templates>
@@ -187,43 +193,55 @@
                               data-field="color"/>
                       </t>
                     <t t-name="kanban-box">
-                        <div t-attf-class="#{!selection_mode ? kanban_color(record.color.raw_value) : ''} #{lost_ribbon ? 'oe_kanban_card_ribbon' : ''} oe_kanban_global_click oe_kanban_card d-flex flex-column">
-                            <div t-attf-class="o_kanban_card_header">
-
-                                                            <div class="oe_kanban_content">
-                                                                <div class="row">
-                                                                    <div class="col">
-                                                                        <strong>
-                                                                            <field name="name"/>
-                                                                        </strong>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="text-muted">
-                                                                    <field name="customer_id"/>
-                                                                </div>
-                                                                <div>
-                                                                    <field name="tags_ids" widget="many2many_tags"/>
-                                                                </div>
-                                                                <div class="text-muted"
-                                                                     invisible="team_id==False">
-                                                                    <field name="team_id"/>
-                                                                </div>
-                                                                <div class="o_kanban_record_bottom flex-wrap">
-                                                                    <div class="oe_kanban_bottom_left">
-                                                                        <field name="priority"
-                                                                               widget="priority"/>
-                                                                        <field name="activity_ids"
-                                                                               widget="kanban_activity"/>
-                                                                    </div>
-                                                                    <div class="oe_kanban_bottom_right">
-                                                                        <field name="kanban_state"
-                                                                               widget="state_selection"/>
-                                                                        <field name="user_id"
-                                                                               widget="many2one_avatar_user"/>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                <div class="clearfix"/>
+                        <div t-attf-class="#{!selection_mode ? kanban_color(record.color.raw_value) : ''} oe_kanban_global_click oe_kanban_card d-flex flex-column">
+                            <div class="o_kanban_card_header">
+                                <div class="oe_kanban_content" style="padding: 10px;">
+                                    <!-- Subject (Bold & Larger) -->
+                                    <div class="row mb-2">
+                                        <div class="col-12">
+                                            <strong style="font-size: 15px; color: #2c3e50; line-height: 1.4;">
+                                                <field name="subject"/>
+                                            </strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Customer Name -->
+                                    <div class="mb-1" style="font-size: 13px; color: #555;">
+                                        <i class="fa fa-user" style="margin-right: 6px; color: #3498db; width: 14px;"/>
+                                        <field name="customer_id"/>
+                                    </div>
+                                    
+                                    <!-- RADIUS Username -->
+                                    <div class="mb-1" t-if="record.customer_radius_username.raw_value" 
+                                         style="font-size: 12px; color: #666;">
+                                        <i class="fa fa-wifi" style="margin-right: 6px; color: #9b59b6; width: 14px;"/>
+                                        <span style="font-weight: 500;">RADIUS:</span> 
+                                        <field name="customer_radius_username"/>
+                                    </div>
+                                    
+                                    <!-- Team -->
+                                    <div class="mb-2" t-if="record.team_id.raw_value" 
+                                         style="font-size: 12px; color: #666;">
+                                        <i class="fa fa-users" style="margin-right: 6px; color: #e67e22; width: 14px;"/>
+                                        <field name="team_id"/>
+                                    </div>
+                                    
+                                    <!-- Bottom section: Priority Widget & Kanban State & User Avatar -->
+                                    <div class="o_kanban_record_bottom d-flex align-items-center justify-content-between mt-2" 
+                                         style="border-top: 1px solid #e8e8e8; padding-top: 10px;">
+                                        <div class="d-flex align-items-center">
+                                            <!-- Priority Widget (same as form view) -->
+                                            <field name="priority" widget="priority"/>
+                                        </div>
+                                        
+                                        <div class="d-flex align-items-center">
+                                            <!-- Kanban State -->
+                                            <field name="kanban_state" widget="state_selection" style="margin-right: 8px;"/>
+                                            <!-- User Avatar -->
+                                            <field name="user_id" widget="many2one_avatar_user"/>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </t>
@@ -307,15 +325,52 @@
         <field name="model">ticket.helpdesk</field>
         <field name="arch" type="xml">
             <search string="Ticket Search">
-                <field name="name" string="Ticket"/>
-                <field name="subject"/>
+                <field name="customer_id" string="Customer"/>
+                <field name="customer_radius_username" string="RADIUS Username"/>
+                
+                <!-- Filtrat ekzistues -->
                 <filter string="my_ticket" name="My Ticket"
                         domain="[('assigned_user_id', '=', uid)]"/>
                 <filter string="Archived" name="filter_archived"
                         domain="[('active','=', False)]"/>
                 <filter string="UnArchived" name="filter_unarchived"
                         domain="[('active','=', True)]"/>
+                
+                <!-- Filtra sipas Priority (0-3) -->
+                <separator/>
+                <filter string="Very Low Priority" name="priority_very_low"
+                        domain="[('priority', '=', '0')]"/>
+                <filter string="Low Priority" name="priority_low"
+                        domain="[('priority', '=', '1')]"/>
+                <filter string="Normal Priority" name="priority_normal"
+                        domain="[('priority', '=', '2')]"/>
+                <filter string="High Priority" name="priority_high"
+                        domain="[('priority', '=', '3')]"/>
+                
+                <!-- Filtra sipas Rating (0-3) -->
+                <separator/>
+                <filter string="Very Low Rating" name="rating_very_low"
+                        domain="[('customer_rating', '=', '0')]"/>
+                <filter string="Low Rating" name="rating_low"
+                        domain="[('customer_rating', '=', '1')]"/>
+                <filter string="Normal Rating" name="rating_normal"
+                        domain="[('customer_rating', '=', '2')]"/>
+                <filter string="High Rating" name="rating_high"
+                        domain="[('customer_rating', '=', '3')]"/>
+                
+                <!-- Filtra sipas kanban state -->
+                <separator/>
+                <filter string="Ready" name="state_normal"
+                        domain="[('kanban_state', '=', 'normal')]"/>
+                <filter string="In Progress" name="state_done"
+                        domain="[('kanban_state', '=', 'done')]"/>
+                <filter string="Blocked" name="state_blocked"
+                        domain="[('kanban_state', '=', 'blocked')]"/>
+                
+                <!-- Group By -->
                 <group expand="0" string="Group By">
+                    <filter name="Subject" string="Subject"
+                            context="{'group_by':'subject'}"/>
                     <filter name="Customer" string="Customer"
                             context="{'group_by':'customer_id'}"/>
                     <filter name="Team" string="Team"
@@ -324,6 +379,14 @@
                             context="{'group_by':'team_head_id'}"/>
                     <filter name="assign" string="Assigned To"
                             context="{'group_by':'assigned_user_id'}"/>
+                    <filter name="Priority" string="Priority Level"
+                            context="{'group_by':'priority'}"/>
+                    <filter name="Rating" string="Rating"
+                            context="{'group_by':'customer_rating'}"/>
+                    <filter name="Stage" string="Stage"
+                            context="{'group_by':'stage_id'}"/>
+                    <filter name="Kanban_State" string="Kanban State"
+                            context="{'group_by':'kanban_state'}"/>
                 </group>
             </search>
         </field>

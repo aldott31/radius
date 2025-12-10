@@ -28,18 +28,16 @@ _logger = logging.getLogger(__name__)
 
 PRIORITIES = [
     ('0', 'Very Low'),
-    ('1', 'Low'),
-    ('2', 'Normal'),
-    ('3', 'High'),
-    ('4', 'Very High'),
+    ('1', 'Low'),      # SLA 1
+    ('2', 'Normal'),   # SLA 2
+    ('3', 'High'),     # SLA 3
 ]
+
 RATING = [
     ('0', 'Very Low'),
     ('1', 'Low'),
     ('2', 'Normal'),
     ('3', 'High'),
-    ('4', 'Very High'),
-    ('5', 'Extreme High')
 ]
 
 
@@ -66,6 +64,12 @@ class TicketHelpDesk(models.Model):
                                   string='Customer Name',
                                   help='Customer Name')
     customer_name = fields.Char('Customer Name', help='Customer Name')
+    customer_radius_username = fields.Char(
+        string='RADIUS Username',
+        store=True,
+        index=True,
+        help='RADIUS Username from Contact'
+    )
     subject = fields.Text('Subject', required=True,
                           help='Subject of the Ticket')
     description = fields.Text('Description', required=True,
@@ -83,8 +87,7 @@ class TicketHelpDesk(models.Model):
                                  related='team_id.project_id',
                                  store=True,
                                  help='Project Name')
-    priority = fields.Selection(PRIORITIES, default='1', help='Priority of the'
-                                                              ' Ticket')
+    priority = fields.Selection(PRIORITIES, default='1', help='Priority Level')
     stage_id = fields.Many2one('ticket.stage', string='Stage',
                                default=lambda self: self.env[
                                    'ticket.stage'].search(
@@ -157,23 +160,44 @@ class TicketHelpDesk(models.Model):
                                    string="Show Category",
                                    help='Show category or not',
                                    compute='_compute_show_category')
-    customer_rating = fields.Selection(RATING, default='0', readonly=True)
+    customer_rating = fields.Selection(RATING, default='1', readonly=True,
+                                       help='Customer Rating')
     review = fields.Char('Review', readonly=True, help='Ticket review')
     kanban_state = fields.Selection([
         ('normal', 'Ready'),
         ('done', 'In Progress'),
         ('blocked', 'Blocked'), ], default='normal')
 
+    @api.onchange('customer_id')
+    def _onchange_customer_id(self):
+        """Set priority and RADIUS username based on customer"""
+        if self.customer_id:
+            # Set RADIUS username
+            if hasattr(self.customer_id, 'radius_username'):
+                self.customer_radius_username = self.customer_id.radius_username
+            
+            # Set priority based on SLA level
+            if hasattr(self.customer_id, 'sla_level') and self.customer_id.sla_level:
+                sla_to_priority = {
+                    '1': '1',  # SLA 1 -> Low
+                    '2': '2',  # SLA 2 -> Normal
+                    '3': '3',  # SLA 3 -> High
+                }
+                self.priority = sla_to_priority.get(self.customer_id.sla_level, '1')
+        else:
+            self.customer_radius_username = False
+
     @api.onchange('team_id', 'team_head_id')
     def _onchange_team_id(self):
         """Changing the team leader when selecting the team"""
-        li = self.team_id.member_ids.mapped(id)
+        li = self.team_id.member_ids.mapped('id')
         return {'domain': {'assigned_user_id': [('id', 'in', li)]}}
 
     @api.depends('team_id')
     def _compute_team_head_id(self):
         """Compute the team head function"""
-        self.team_head_id = self.team_id.team_lead_id.id
+        for record in self:
+            record.team_head_id = record.team_id.team_lead_id.id if record.team_id else False
 
     @api.onchange('stage_id')
     def _onchange_stage_id(self):
