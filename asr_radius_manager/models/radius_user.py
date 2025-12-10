@@ -876,24 +876,69 @@ class AsrRadiusUserProvision(models.Model):
             )
 
             output = result.stdout or ''
+            exit_code = result.returncode
+
+            # ✅ Enhanced verification with exit code
+            _logger.info(f'Disconnect command for {self.username}: exit_code={exit_code}')
+            _logger.debug(f'Disconnect output: {output}')
 
             # Parse response
-            disconnect_ack = ('Disconnect-ACK' in output) or ('Received Disconnect-ACK' in output) or (
-                        'code 43' in output)
+            disconnect_ack = ('Disconnect-ACK' in output) or ('Received Disconnect-ACK' in output) or ('code 43' in output)
             disconnect_nak = ('Disconnect-NAK' in output) or ('No reply from server' in output) or ('code 44' in output)
+            ssh_error = exit_code != 0 and ('Permission denied' in output or 'Connection refused' in output or 'Host key verification failed' in output)
 
-            # Log në chatter
+            # ✅ Enhanced logging with more context
             try:
+                status_icon = '✅' if disconnect_ack else ('❌' if disconnect_nak or ssh_error else '⚠')
+                status_text = (
+                    'Disconnected successfully' if disconnect_ack
+                    else 'Disconnect NAK received' if disconnect_nak
+                    else 'SSH connection error' if ssh_error
+                    else 'Unknown response'
+                )
+
                 self.message_post(
-                    body=_("Disconnect: %(u)s → NAS %(nas)s<br/><pre>%(out)s</pre>") % {
+                    body=_(
+                        "%(icon)s RADIUS Disconnect Request<br/>"
+                        "<strong>User:</strong> %(user)s<br/>"
+                        "<strong>NAS:</strong> %(nas)s<br/>"
+                        "<strong>Status:</strong> %(status)s<br/>"
+                        "<strong>Exit Code:</strong> %(code)d<br/>"
+                        "<strong>Command:</strong> <code>radclient %(nas)s:%(port)d disconnect</code><br/><br/>"
+                        "<strong>Output:</strong><br/><pre>%(out)s</pre>"
+                    ) % {
+                        'icon': status_icon,
+                        'user': self.username,
                         'nas': nas_ip,
-                        'u': self.username,
-                        'out': output[:500]
+                        'port': disconnect_port,
+                        'status': status_text,
+                        'code': exit_code,
+                        'out': output[:800]
                     },
                     subtype_xmlid='mail.mt_note'
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                _logger.warning(f'Failed to post disconnect log: {e}')
+
+            # ✅ Better error handling for SSH issues
+            if ssh_error:
+                raise UserError(_(
+                    'SSH connection to RADIUS server failed.\n\n'
+                    'Exit code: %(code)d\n'
+                    'Server: %(server)s\n'
+                    'User: %(ssh_user)s\n\n'
+                    'Error:\n%(error)s\n\n'
+                    'Please check:\n'
+                    '• SSH key is installed on RADIUS server\n'
+                    '• SSH user has correct permissions\n'
+                    '• Server hostname/IP is correct\n'
+                    '• Firewall allows SSH connections'
+                ) % {
+                    'code': exit_code,
+                    'server': radius_server,
+                    'ssh_user': ssh_user,
+                    'error': output[:400]
+                })
 
             if disconnect_ack:
                 return {
@@ -901,7 +946,11 @@ class AsrRadiusUserProvision(models.Model):
                     'tag': 'display_notification',
                     'params': {
                         'title': _('✅ Disconnect Successful'),
-                        'message': _('User "%s" disconnected from NAS %s') % (self.username, nas_ip),
+                        'message': _('User "%(user)s" disconnected from NAS %(nas)s\nExit code: %(code)d') % {
+                            'user': self.username,
+                            'nas': nas_ip,
+                            'code': exit_code
+                        },
                         'type': 'success',
                         'sticky': False,
                     }
@@ -912,7 +961,10 @@ class AsrRadiusUserProvision(models.Model):
                     'tag': 'display_notification',
                     'params': {
                         'title': _('⚠ Disconnect Failed'),
-                        'message': _('NAS did not respond or user "%s" not online.') % self.username,
+                        'message': _('NAS did not respond or user "%(user)s" not online.\nExit code: %(code)d\n\nPossible reasons:\n• User already disconnected\n• NAS unreachable\n• Invalid secret') % {
+                            'user': self.username,
+                            'code': exit_code
+                        },
                         'type': 'warning',
                         'sticky': True,
                     }
@@ -923,7 +975,10 @@ class AsrRadiusUserProvision(models.Model):
                     'tag': 'display_notification',
                     'params': {
                         'title': _('⚠ Unknown Response'),
-                        'message': output[:200],
+                        'message': _('Exit code: %(code)d\n\nOutput:\n%(output)s') % {
+                            'code': exit_code,
+                            'output': output[:300]
+                        },
                         'type': 'warning',
                         'sticky': True,
                     }
