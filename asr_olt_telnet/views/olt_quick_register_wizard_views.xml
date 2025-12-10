@@ -6,9 +6,17 @@
     <field name="arch" type="xml">
       <form string="Register ONU" create="false">
         <sheet>
-          <div class="alert alert-info" role="alert">
+          <!-- ✅ Success Info -->
+          <div class="alert alert-info" role="alert" invisible="last_error">
             <strong>📡 Auto Registration</strong><br/>
             Free slot detected and ready to register on OLT.
+          </div>
+
+          <!-- ✅ Error Display -->
+          <div class="alert alert-danger" role="alert" invisible="not last_error">
+            <strong>❌ Registration Failed (Attempt #<field name="registration_attempts" readonly="1" nolabel="1" class="d-inline"/>)</strong><br/>
+            <field name="last_error" readonly="1" nolabel="1"/><br/><br/>
+            <strong>💡 Fix the issue below and click "Register Now" to retry.</strong>
           </div>
 
           <group col="2">
@@ -74,7 +82,19 @@
           </div>
         </sheet>
         <footer>
-          <button name="action_register" type="object" string="Register Now" class="btn-primary" icon="fa-play-circle"/>
+          <!-- ✅ Back to List button (only if parent wizard exists) -->
+          <button name="action_back_to_list" type="object" string="← Back to ONU List"
+                  class="btn-secondary" icon="fa-arrow-left"
+                  invisible="not uncfg_wizard_id"/>
+
+          <!-- ✅ Register/Retry button -->
+          <button name="action_register" type="object" string="Register Now"
+                  class="btn-primary" icon="fa-play-circle"
+                  invisible="last_error"/>
+          <button name="action_register" type="object" string="🔄 Retry Registration"
+                  class="btn-warning" icon="fa-refresh"
+                  invisible="not last_error"/>
+
           <button string="Cancel" class="btn-secondary" special="cancel"/>
         </footer>
       </form>

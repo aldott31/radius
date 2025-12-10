@@ -147,6 +147,8 @@ class OltOnuUncfgLine(models.TransientModel):
                 'default_serial': (self.sn or '').strip(),
                 'default_name': (wiz.user_id.name or getattr(wiz.user_id, 'username', '')) if wiz.user_id else '',
                 'default_technology': self.technology or 'gpon',
+                'uncfg_wizard_id': wiz.id,  # ✅ Store parent wizard ID for back navigation
+                'uncfg_line_id': self.id,  # ✅ Store line ID for retry
             }
         }
 

@@ -35,6 +35,14 @@ class OltOnuRegisterQuick(models.TransientModel):
     serial = fields.Char(string="Serial", required=True, readonly=True)
     name = fields.Char(string="Name/Description")
 
+    # ✅ UX Improvement: Store parent wizard IDs for navigation
+    uncfg_wizard_id = fields.Integer(string="Parent Wizard ID", help="ID of uncfg wizard for back navigation")
+    uncfg_line_id = fields.Integer(string="Line ID", help="ID of ONU line for retry")
+
+    # ✅ Error tracking for retry functionality
+    last_error = fields.Text(string="Last Error", readonly=True)
+    registration_attempts = fields.Integer(string="Attempts", default=0, readonly=True)
+
     onu_type = fields.Selection(_ONU_CHOICES, string="ONU Type", required=True)
     function_mode = fields.Selection([
         ('bridge', 'Bridge'),
@@ -118,6 +126,12 @@ class OltOnuRegisterQuick(models.TransientModel):
             if olt.voice_vlan:
                 vals['voice_vlan'] = olt.voice_vlan.split(',')[0].strip()
 
+        # ✅ Store parent wizard IDs from context
+        if 'uncfg_wizard_id' in ctx:
+            vals['uncfg_wizard_id'] = ctx['uncfg_wizard_id']
+        if 'uncfg_line_id' in ctx:
+            vals['uncfg_line_id'] = ctx['uncfg_line_id']
+
         return vals
 
     @api.onchange('access_device_id')
@@ -163,11 +177,19 @@ class OltOnuRegisterQuick(models.TransientModel):
                                      rec.access_device_id.voice_vlan))
 
     def _execute_telnet_session(self, host, username, password, command, timeout=12):
+        """✅ Execute telnet commands with per-command verification"""
+        import re
+        import logging
+        _logger = logging.getLogger(__name__)
+
         chunks = []
+        command_log = []
+
         try:
             tn = telnetlib.Telnet(host, 23, timeout)
         except Exception as e:
             raise UserError(_('Telnet connection failed to %s: %s') % (host, str(e)))
+
         try:
             # Login
             idx, _, _ = tn.expect([b'Username:', b'Login:', b'login:'], timeout)
@@ -193,13 +215,52 @@ class OltOnuRegisterQuick(models.TransientModel):
                 raise UserError(_('Authentication FAILED for %s@%s.\nGot: %s') %
                                 (username, host, text.decode('utf-8', errors='ignore')[:300]))
 
-            # Execute semicolon-separated commands
+            # ✅ Execute commands with per-command verification
             commands = [c.strip() for c in command.split(';') if c.strip()]
-            for cmd in commands:
+            _logger.info(f'Executing {len(commands)} commands on {host}')
+
+            for idx, cmd in enumerate(commands, 1):
+                # Send command
                 tn.write((cmd + '\n').encode('ascii', errors='ignore'))
-                time.sleep(0.35)
+                time.sleep(0.4)
+
+                # Read response
                 buf = tn.read_very_eager()
+                response = buf.decode('utf-8', errors='ignore')
                 chunks.append(buf)
+
+                # Log command and response
+                command_log.append(f'[{idx}/{len(commands)}] {cmd}')
+                _logger.debug(f'Command: {cmd}')
+                _logger.debug(f'Response: {response[:200]}')
+
+                # ✅ Check for errors in response
+                response_lower = response.lower()
+                error_keywords = ['error', 'failed', 'invalid', 'not found', 'cannot', 'syntax error']
+
+                # Skip false positives (these are normal messages)
+                if 'no error' in response_lower or 'error: 0' in response_lower:
+                    continue
+
+                # Check for real errors
+                for keyword in error_keywords:
+                    if keyword in response_lower:
+                        # Extract error context (line containing error)
+                        error_lines = [line for line in response.splitlines() if keyword in line.lower()]
+                        error_context = '\n'.join(error_lines[:3]) if error_lines else response[:300]
+
+                        raise UserError(_(
+                            '❌ OLT Command Failed at step {step}/{total}:\n'
+                            'Command: {cmd}\n\n'
+                            'Error: {error}\n\n'
+                            'Previous commands executed:\n{history}'
+                        ).format(
+                            step=idx,
+                            total=len(commands),
+                            cmd=cmd,
+                            error=error_context,
+                            history='\n'.join(command_log[:-1]) if len(command_log) > 1 else 'None'
+                        ))
 
             # Exit
             try:
@@ -207,6 +268,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 tn.write(b'quit\n')
             except Exception:
                 pass
+
         finally:
             try:
                 tn.close()
@@ -215,9 +277,8 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         data = b''.join(chunks) if chunks else b''
         output = data.replace(b'\x00', b'').decode('utf-8', errors='ignore').strip()
-        # Basic error check
-        if any(x in output.lower() for x in ('error', 'failed', 'invalid')):
-            raise UserError(_('OLT returned error: %s') % output[:500])
+
+        _logger.info(f'All {len(commands)} commands executed successfully on {host}')
         return output
 
     def _generate_router_config(self):
@@ -536,6 +597,22 @@ class OltOnuRegisterQuick(models.TransientModel):
         ]
         return ";".join(commands)
 
+    def action_back_to_list(self):
+        """✅ Navigate back to uncfg wizard without losing data"""
+        self.ensure_one()
+
+        if not self.uncfg_wizard_id:
+            raise UserError(_('Cannot navigate back: parent wizard not found.'))
+
+        # Open uncfg wizard (it still has its data)
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'olt.onu.uncfg.wizard',
+            'res_id': self.uncfg_wizard_id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
+
     def action_register(self):
         """Register ONU and configure it based on function_mode - Single telnet session"""
         self.ensure_one()
@@ -552,23 +629,58 @@ class OltOnuRegisterQuick(models.TransientModel):
         olt_ip = self.access_device_id.ip_address.strip()
 
         # Generate full command based on function_mode (includes registration + config)
-        if self.function_mode == 'router':
-            full_cmd = self._generate_router_config()
-        elif self.function_mode == 'bridge':
-            full_cmd = self._generate_bridge_config()
-        elif self.function_mode == 'bridge_mcast':
-            full_cmd = self._generate_bridge_mcast_config()
-        elif self.function_mode == 'bridge_mcast_voip':
-            full_cmd = self._generate_bridge_mcast_voip_config()
-        elif self.function_mode == 'data':
-            full_cmd = self._generate_data_config()
-        elif self.function_mode == 'router_mcast_voip':
-            full_cmd = self._generate_router_mcast_voip_config()
-        else:
-            raise UserError(_('Unknown function mode: %s') % self.function_mode)
+        try:
+            if self.function_mode == 'router':
+                full_cmd = self._generate_router_config()
+            elif self.function_mode == 'bridge':
+                full_cmd = self._generate_bridge_config()
+            elif self.function_mode == 'bridge_mcast':
+                full_cmd = self._generate_bridge_mcast_config()
+            elif self.function_mode == 'bridge_mcast_voip':
+                full_cmd = self._generate_bridge_mcast_voip_config()
+            elif self.function_mode == 'data':
+                full_cmd = self._generate_data_config()
+            elif self.function_mode == 'router_mcast_voip':
+                full_cmd = self._generate_router_mcast_voip_config()
+            else:
+                raise UserError(_('Unknown function mode: %s') % self.function_mode)
+        except UserError as e:
+            # ✅ Store error for display
+            self.write({
+                'last_error': str(e),
+                'registration_attempts': self.registration_attempts + 1
+            })
+            raise
 
         # Execute in a single telnet session
-        output = self._execute_telnet_session(olt_ip, user, pwd, full_cmd)
+        try:
+            output = self._execute_telnet_session(olt_ip, user, pwd, full_cmd)
+        except UserError as e:
+            # ✅ Store telnet error and allow retry
+            error_msg = str(e)
+            self.write({
+                'last_error': error_msg,
+                'registration_attempts': self.registration_attempts + 1
+            })
+
+            # Return to form with error message displayed
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('❌ Registration Failed'),
+                    'message': error_msg[:200],
+                    'type': 'danger',
+                    'sticky': True,
+                    'next': {
+                        'type': 'ir.actions.act_window',
+                        'res_model': 'olt.onu.register.quick',
+                        'res_id': self.id,
+                        'view_mode': 'form',
+                        'target': 'new',
+                    }
+                }
+            }
 
         # Optional: update customer record fields if they exist
         try:
