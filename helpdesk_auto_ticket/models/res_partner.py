@@ -60,7 +60,7 @@ class ResPartner(models.Model):
         sla_to_priority = {
             '1': '1',  # SLA 1 → Low (1 colored star)
             '2': '2',  # SLA 2 → Normal (2 stars)
-            '3': '4',  # SLA 3 → Very High (3 red stars)
+            '3': '3',  # SLA 3 → Very High (3 red stars)
         }
         priority = sla_to_priority.get(sla_level, '2')
 
