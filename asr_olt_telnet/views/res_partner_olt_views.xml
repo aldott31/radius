@@ -39,7 +39,7 @@
                   name="%(asr_olt_telnet.action_open_onu_uncfg_wizard)d"
                   string="Unregistered ONUs"
                   icon="fa-list"
-                  context="{'default_olt_id': access_device_id, 'default_user_id': radius_user_id}"
+                  context="{'default_olt_id': access_device_id}"
                   groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
           <button type="action"
                   name="%(asr_olt_telnet.action_olt_command_test_wizard)d"

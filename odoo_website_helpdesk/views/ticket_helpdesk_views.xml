@@ -9,6 +9,7 @@
                 <group>
                     <field name="subject" string="Subject"/>
                     <field name="customer_id" string="Customer"/>
+                    <field name="team_id" string="Helpdesk Team"/>
                     <field name="description" string="Description"/>
                 </group>
             </form>
