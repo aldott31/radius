@@ -6,7 +6,7 @@
               sequence="1"/>
     <!-- Tickets Submenu -->
     <menuitem id="helpdesk_management" parent="menu_helpdesk" name="Tickets"
-              action="ticket_helpdesk_action" sequence="2"/>
+              action="ticket_helpdesk_action_my" sequence="2"/>
     <!-- My Tickets -->
     <menuitem id="helpdesk_tickets_my" parent="helpdesk_management"
               name="My Tickets"

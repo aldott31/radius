@@ -146,6 +146,15 @@ class TicketHelpDesk(models.Model):
     merge_count = fields.Integer(string='Merge Count', help='Merged Tickets '
                                                             'Count')
     active = fields.Boolean(default=True, help='Active', string='Active')
+    
+    # Field për finance visibility
+    is_finance_visible = fields.Boolean(
+        compute='_compute_finance_visible',
+        search='_search_finance_visible',
+        store=False,
+        string='Finance Visible',
+        help='Indicates if ticket is visible to finance users'
+    )
 
     show_create_task = fields.Boolean(string="Show Create Task",
                                       help='Show created task or not',
@@ -167,6 +176,27 @@ class TicketHelpDesk(models.Model):
         ('normal', 'Ready'),
         ('done', 'In Progress'),
         ('blocked', 'Blocked'), ], default='normal')
+
+    @api.depends('team_id')
+    def _compute_finance_visible(self):
+        """Ticketat pa team janë visible për finance users"""
+        for ticket in self:
+            ticket.is_finance_visible = not ticket.team_id
+
+    def _search_finance_visible(self, operator, value):
+        """Search method për finance visibility - kontrollon dinamikisht finance group"""
+        # Kontrollo nëse user ka CRM: Finance group
+        try:
+            finance_group = self.env.ref('asr_radius_manager.group_isp_finance')
+            has_finance = finance_group in self.env.user.groups_id
+        except:
+            has_finance = False
+        
+        # Nëse është finance user dhe po kërkon records visible
+        if has_finance and operator == '=' and value:
+            return [('team_id', '=', False)]
+        # Nëse nuk është finance, kthe empty domain që nuk gjen asgjë
+        return [('id', '=', 0)]
 
     @api.onchange('customer_id')
     def _onchange_customer_id(self):
