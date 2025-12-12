@@ -57,8 +57,10 @@ class OltOnuRegisterQuick(models.TransientModel):
     internet_vlan = fields.Char(string="Internet VLAN", required=True)
     tv_vlan = fields.Char(string="TV VLAN", required=False)
     voice_vlan = fields.Char(string="Voice VLAN", required=False)
-    speed_profile = fields.Selection(_SPEED_PROFILE_CHOICES, string="Speed Profile",
-                                     required=True, default='1G')
+    speed_profile_name = fields.Char(string="Speed Profile", required=True,
+                                     help="Enter speed profile name (e.g., 100M, 1Gbps, 2G)")
+    available_speed_profiles = fields.Char(string="Available Profiles", readonly=True,
+                                          help="Speed profiles available on this OLT")
 
     # VoIP configuration (for modes with telephony)
     voip_userid = fields.Char(string="VoIP UserID", help="SIP userid (e.g., 044310660)")
@@ -301,6 +303,60 @@ class OltOnuRegisterQuick(models.TransientModel):
         _logger.info(f'All {len(commands)} commands executed successfully on {host}')
         return output
 
+    def _fetch_speed_profiles_from_olt(self):
+        """Fetch available speed profiles from OLT via telnet"""
+        self.ensure_one()
+        import re
+        import logging
+        _logger = logging.getLogger(__name__)
+
+        if not self.access_device_id:
+            return []
+
+        try:
+            # Get OLT credentials
+            user, pwd = self.access_device_id.get_telnet_credentials()
+            olt_ip = self.access_device_id.ip_address.strip()
+
+            # Execute command to get profiles
+            output = self._execute_telnet_session(olt_ip, user, pwd, 'show gpon profile tcont', timeout=10)
+
+            # Parse profile names from output
+            # Looking for lines like "Name :100M" or "Name :1Gbps"
+            profiles = []
+            for line in output.splitlines():
+                match = re.search(r'Name\s*:(\S+)', line, re.IGNORECASE)
+                if match:
+                    profile_name = match.group(1).strip()
+                    # Exclude system profiles
+                    if profile_name.lower() not in ['default', 'mcast', 'multicast', 'voip']:
+                        profiles.append(profile_name)
+
+            _logger.info(f'Fetched {len(profiles)} speed profiles from OLT {olt_ip}: {profiles}')
+            return profiles
+
+        except Exception as e:
+            _logger.warning(f'Failed to fetch speed profiles from OLT: {str(e)}')
+            return []
+
+    @api.onchange('access_device_id')
+    def _onchange_access_device_id(self):
+        """Auto-fetch speed profiles when OLT is selected"""
+        if self.access_device_id:
+            profiles = self._fetch_speed_profiles_from_olt()
+            if profiles:
+                self.available_speed_profiles = ', '.join(profiles)
+                # Set default to first profile if current is empty
+                if not self.speed_profile_name and profiles:
+                    self.speed_profile_name = profiles[0]
+            else:
+                self.available_speed_profiles = 'Could not fetch profiles'
+
+    def _get_speed_profile_name(self):
+        """Return the speed profile name as entered by user"""
+        self.ensure_one()
+        return self.speed_profile_name or '100M'
+
     def _generate_router_config(self):
         """Generate GPON Router (PPPoE) configuration commands - FULL registration + config"""
         self.ensure_one()
@@ -310,6 +366,9 @@ class OltOnuRegisterQuick(models.TransientModel):
         # Get correct interface formats based on OLT model
         onu_interface, vport_interface, port_part = self._get_onu_interface_format()
 
+        # Get correct speed profile name for this OLT model
+        speed_profile = self._get_speed_profile_name()
+
         # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
         is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
@@ -318,31 +377,57 @@ class OltOnuRegisterQuick(models.TransientModel):
         else:
             interface_for_cmd = self.interface
 
-        commands = [
-            "conf t",
-            f"interface {interface_for_cmd}",
-            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-            "exit",
-            f"interface {onu_interface}",
-            f"name {self.customer_id.username}",
-            f"description {self.customer_id.username}",
-            "sn-bind disable",
-            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
-            "gemport 1 unicast tcont 1 dir both",
-            f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
-            "port-location format dsl-forum vport 1",
-            "port-location sub-option remote-id enable vport 1",
-            "port-location sub-option remote-id name 10.50.80.17 vport 1",
-            "pppoe-plus enable vport 1",
-            "exit",
-            f"pon-onu-mng {onu_interface}",
-            f"service net type internet gemport 1 vlan {self.internet_vlan}",
-            f"wan-ip 1 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
-            "security-mng 1 state enable mode permit protocol web",
-            "security-mng 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
-            "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
-            "exit",
-        ]
+        if is_c600:
+            # C600 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "gemport 1 tcont 1",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                f"service 1 gemport 1 vlan {self.internet_vlan}",
+                f"wan-ip ipv4 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
+                "security-mgmt 1 state enable mode forward protocol web",
+                "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+                "exit",
+                f"interface {vport_interface}",
+                f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+                "port-identification operator-profile service-port 1 TEST",
+                "exit",
+            ]
+        else:
+            # C300 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"description {self.customer_id.username}",
+                "sn-bind disable",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "gemport 1 unicast tcont 1 dir both",
+                "switchport mode hybrid vport 1",
+                f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
+                "port-location format dsl-forum vport 1",
+                "port-location sub-option remote-id enable vport 1",
+                "port-location sub-option remote-id name 10.50.80.17 vport 1",
+                "pppoe-plus enable vport 1",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                f"service net type internet gemport 1 vlan {self.internet_vlan}",
+                f"wan-ip 1 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
+                "security-mng 1 state enable mode permit protocol web",
+                "security-mng 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+                "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
+                "exit",
+            ]
         return ";".join(commands)
 
     def _generate_bridge_config(self):
@@ -360,29 +445,56 @@ class OltOnuRegisterQuick(models.TransientModel):
         else:
             interface_for_cmd = self.interface
 
-        commands = [
-            "conf t",
-            f"interface {interface_for_cmd}",
-            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-            "exit",
-            f"interface {onu_interface}",
-            f"name {self.customer_id.username}",
-            f"description {self.customer_id.username}",
-            "sn-bind disable",
-            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
-            "gemport 1 unicast tcont 1 dir both",
-            f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
-            "port-location format dsl-forum vport 1",
-            "port-location sub-option remote-id enable vport 1",
-            "port-location sub-option remote-id name 10.50.80.17 vport 1",
-            "pppoe-plus enable vport 1",
-            "exit",
-            f"pon-onu-mng {onu_interface}",
-            f"service net type internet gemport 1 vlan {self.internet_vlan}",
-            f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
-            "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
-            "exit",
-        ]
+        if is_c600:
+            # C600 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "gemport 1 tcont 1",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                "dhcp-ip ethuni eth_0/1 from-internet",
+                f"service 1 gemport 1 vlan {self.internet_vlan}",
+                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+                "security-mgmt 1 state enable mode forward protocol web",
+                "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+                "exit",
+                f"interface {vport_interface}",
+                f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+                "port-identification operator-profile service-port 1 TEST",
+                "exit",
+            ]
+        else:
+            # C300 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"description {self.customer_id.username}",
+                "sn-bind disable",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "gemport 1 unicast tcont 1 dir both",
+                "switchport mode hybrid vport 1",
+                f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
+                "port-location format dsl-forum vport 1",
+                "port-location sub-option remote-id enable vport 1",
+                "port-location sub-option remote-id name 10.50.80.17 vport 1",
+                "pppoe-plus enable vport 1",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                f"service net type internet gemport 1 vlan {self.internet_vlan}",
+                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+                "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
+                "exit",
+            ]
         return ";".join(commands)
 
     def _generate_bridge_mcast_config(self):
@@ -407,36 +519,72 @@ class OltOnuRegisterQuick(models.TransientModel):
         vport_interface_1 = f"vport-{port_part}.{self.onu_slot}:1"
         vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
 
-        commands = [
-            "conf t",
-            f"interface {interface_for_cmd}",
-            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-            "exit",
-            f"interface {onu_interface}",
-            f"name {self.customer_id.username}",
-            f"description {self.customer_id.username}",
-            "sn-bind disable",
-            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
-            "tcont 2 name mcast profile mcast",
-            "gemport 1 unicast tcont 1 dir both",
-            "gemport 2 unicast tcont 2 dir both",
-            f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
-            f"service-port 2 vport 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
-            "port-location format dsl-forum vport 1",
-            "port-location format vf vport 2",
-            "port-location sub-option remote-id enable vport 1-2",
-            "port-location sub-option remote-id name 10.50.80.17 vport 1-2",
-            "pppoe-plus enable vport 1",
-            "exit",
-            f"pon-onu-mng {onu_interface}",
-            f"service net type internet gemport 1 vlan {self.internet_vlan}",
-            f"service mcast type iptv gemport 2 vlan {self.tv_vlan}",
-            f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
-            f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
-            "dhcp-ip ethuni eth_0/2 from-internet",
-            "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
-            "exit",
-        ]
+        if is_c600:
+            # C600 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "tcont 2 name mcast profile mcast",
+                "gemport 1 tcont 1",
+                "gemport 2 tcont 2",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                "dhcp-ip ethuni eth_0/1 from-internet",
+                "dhcp-ip ethuni eth_0/2 from-internet",
+                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+                f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
+                f"service 1 gemport 1 vlan {self.internet_vlan}",
+                f"service 2 gemport 2 vlan {self.tv_vlan}",
+                "security-mgmt 1 state enable mode forward protocol web",
+                "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+                "exit",
+                f"interface {vport_interface_1}",
+                f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+                "port-identification operator-profile service-port 1 TEST",
+                "exit",
+                f"interface {vport_interface_2}",
+                f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+                "exit",
+            ]
+        else:
+            # C300 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"description {self.customer_id.username}",
+                "sn-bind disable",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "tcont 2 name mcast profile mcast",
+                "gemport 1 unicast tcont 1 dir both",
+                "gemport 2 unicast tcont 2 dir both",
+                "switchport mode hybrid vport 1",
+                "switchport mode hybrid vport 2",
+                f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
+                f"service-port 2 vport 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+                "port-location format dsl-forum vport 1",
+                "port-location format vf vport 2",
+                "port-location sub-option remote-id enable vport 1-2",
+                "port-location sub-option remote-id name 10.50.80.17 vport 1-2",
+                "pppoe-plus enable vport 1",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                f"service net type internet gemport 1 vlan {self.internet_vlan}",
+                f"service mcast type iptv gemport 2 vlan {self.tv_vlan}",
+                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+                f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
+                "dhcp-ip ethuni eth_0/2 from-internet",
+                "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
+                "exit",
+            ]
         return ";".join(commands)
 
     def _generate_bridge_mcast_voip_config(self):
@@ -466,48 +614,90 @@ class OltOnuRegisterQuick(models.TransientModel):
         vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
         vport_interface_3 = f"vport-{port_part}.{self.onu_slot}:3"
 
-        commands = [
-            "conf t",
-            f"interface {interface_for_cmd}",
-            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-            "exit",
-            f"interface {onu_interface}",
-            f"name {self.customer_id.username}",
-            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
-            "tcont 2 name mcast profile mcast",
-            "tcont 3 name voip profile voip",
-            "gemport 1 unicast tcont 1 dir both",
-            "gemport 2 unicast tcont 2 dir both",
-            "gemport 3 unicast tcont 3 dir both",
-            "exit",
-            f"pon-onu-mng {onu_interface}",
-            "dhcp-ip ethuni eth_0/1 from-internet",
-            "dhcp-ip ethuni eth_0/4 from-internet",
-            f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
-            f"vlan port eth_0/4 mode tag vlan {self.tv_vlan}",
-            f"service 1 gemport 1 vlan {self.internet_vlan}",
-            f"service 2 gemport 2 vlan {self.tv_vlan}",
-            f"service 3 gemport 3 vlan {self.voice_vlan}",
-            "voip protocol sip",
-            "voip-ip ipv4 mode dhcp vlan-profile PHONE host 2",
-            f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
-            "security-mgmt 1 state enable mode forward protocol web",
-            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
-            "exit",
-            f"interface {vport_interface_1}",
-            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
-            "port-identification operator-profile service-port 1 TEST",
-            "exit",
-            f"interface {vport_interface_2}",
-            f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
-            "exit",
-            f"interface {vport_interface_3}",
-            f"service-port 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
-            "exit",
-            f"igmp mvlan {self.tv_vlan}",
-            f"receive-port {vport_interface_2}",
-            "exit",
-        ]
+        if is_c600:
+            # C600 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "tcont 2 name mcast profile mcast",
+                "tcont 3 name voip profile voip",
+                "gemport 1 tcont 1",
+                "gemport 2 tcont 2",
+                "gemport 3 tcont 3",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                "dhcp-ip ethuni eth_0/1 from-internet",
+                "dhcp-ip ethuni eth_0/4 from-internet",
+                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+                f"vlan port eth_0/4 mode tag vlan {self.tv_vlan}",
+                f"service 1 gemport 1 vlan {self.internet_vlan}",
+                f"service 2 gemport 2 vlan {self.tv_vlan}",
+                f"service 3 gemport 3 vlan {self.voice_vlan}",
+                "voip protocol sip",
+                "voip-ip ipv4 mode dhcp vlan-profile PHONE host 2",
+                f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
+                "security-mgmt 1 state enable mode forward protocol web",
+                "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+                "exit",
+                f"interface {vport_interface_1}",
+                f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+                "port-identification operator-profile service-port 1 TEST",
+                "exit",
+                f"interface {vport_interface_2}",
+                f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+                "exit",
+                f"interface {vport_interface_3}",
+                f"service-port 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
+                "exit",
+            ]
+        else:
+            # C300 syntax - not commonly used, but following pattern from other modes
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"description {self.customer_id.username}",
+                "sn-bind disable",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "tcont 2 name mcast profile mcast",
+                "tcont 3 name voip profile voip",
+                "gemport 1 unicast tcont 1 dir both",
+                "gemport 2 unicast tcont 2 dir both",
+                "gemport 3 unicast tcont 3 dir both",
+                "switchport mode hybrid vport 1",
+                "switchport mode hybrid vport 2",
+                "switchport mode hybrid vport 3",
+                f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
+                f"service-port 2 vport 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+                f"service-port 3 vport 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
+                "port-location format dsl-forum vport 1",
+                "port-location format vf vport 2",
+                "port-location format vf vport 3",
+                "port-location sub-option remote-id enable vport 1-3",
+                "port-location sub-option remote-id name 10.50.80.17 vport 1-3",
+                "pppoe-plus enable vport 1",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                f"service net type internet gemport 1 vlan {self.internet_vlan}",
+                f"service mcast type iptv gemport 2 vlan {self.tv_vlan}",
+                f"service voip type voip gemport 3 vlan {self.voice_vlan}",
+                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+                f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
+                "dhcp-ip ethuni eth_0/2 from-internet",
+                "voip protocol sip",
+                "voip-ip mode dhcp vlan-profile PHONE host 2",
+                f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
+                "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
+                "exit",
+            ]
         return ";".join(commands)
 
     def _generate_data_config(self):
@@ -526,27 +716,56 @@ class OltOnuRegisterQuick(models.TransientModel):
             interface_for_cmd = self.interface
 
         # Data mode uses vport:4 instead of vport:1
-        vport_interface = f"vport-{port_part}.{self.onu_slot}:4"
+        vport_interface_4 = f"vport-{port_part}.{self.onu_slot}:4"
 
-        commands = [
-            "conf t",
-            f"interface {interface_for_cmd}",
-            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-            "exit",
-            f"interface {onu_interface}",
-            f"name {self.customer_id.username}",
-            f"tcont 4 name {self.speed_profile} profile {self.speed_profile}",
-            "gemport 4 unicast tcont 4 dir both",
-            "exit",
-            f"pon-onu-mng {onu_interface}",
-            "dhcp-ip ethuni eth_0/1 from-internet",
-            f"service 4 gemport 4 vlan {self.internet_vlan}",
-            f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
-            "exit",
-            f"interface {vport_interface}",
-            f"service-port 4 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
-            "exit",
-        ]
+        if is_c600:
+            # C600 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"tcont 4 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "gemport 4 tcont 4",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                "dhcp-ip ethuni eth_0/1 from-internet",
+                f"service 4 gemport 4 vlan {self.internet_vlan}",
+                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+                "exit",
+                f"interface {vport_interface_4}",
+                f"service-port 4 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+                "exit",
+            ]
+        else:
+            # C300 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"description {self.customer_id.username}",
+                "sn-bind disable",
+                f"tcont 4 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "gemport 4 unicast tcont 4 dir both",
+                "switchport mode hybrid vport 4",
+                f"service-port 4 vport 4 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
+                "port-location format dsl-forum vport 4",
+                "port-location sub-option remote-id enable vport 4",
+                "port-location sub-option remote-id name 10.50.80.17 vport 4",
+                "pppoe-plus enable vport 4",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                f"service net type internet gemport 4 vlan {self.internet_vlan}",
+                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
+                "dhcp-ip ethuni eth_0/1 from-internet",
+                "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
+                "exit",
+            ]
         return ";".join(commands)
 
     def _generate_router_mcast_voip_config(self):
@@ -578,47 +797,91 @@ class OltOnuRegisterQuick(models.TransientModel):
         vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
         vport_interface_3 = f"vport-{port_part}.{self.onu_slot}:3"
 
-        commands = [
-            "conf t",
-            f"interface {interface_for_cmd}",
-            f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-            "exit",
-            f"interface {onu_interface}",
-            f"name {self.customer_id.username}",
-            f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
-            "tcont 2 name mcast profile mcast",
-            "tcont 3 name voip profile voip",
-            "gemport 1 unicast tcont 1 dir both",
-            "gemport 2 unicast tcont 2 dir both",
-            "gemport 3 unicast tcont 3 dir both",
-            "exit",
-            f"pon-onu-mng {onu_interface}",
-            "dhcp-ip ethuni eth_0/2 from-internet",
-            f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
-            f"service 1 gemport 1 vlan {self.internet_vlan}",
-            f"service 2 gemport 2 vlan {self.tv_vlan}",
-            f"service 3 gemport 3 vlan {self.voice_vlan}",
-            "voip protocol sip",
-            "voip-ip ipv4 mode dhcp vlan-profile PHONE host 2",
-            f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
-            f"wan-ip ipv4 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
-            "security-mgmt 1 state enable mode forward protocol web",
-            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
-            "exit",
-            f"interface {vport_interface_1}",
-            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
-            "port-identification operator-profile service-port 1 TEST",
-            "exit",
-            f"interface {vport_interface_2}",
-            f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
-            "exit",
-            f"interface {vport_interface_3}",
-            f"service-port 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
-            "exit",
-            f"igmp mvlan {self.tv_vlan}",
-            f"receive-port {vport_interface_2}",
-            "exit",
-        ]
+        if is_c600:
+            # C600 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "tcont 2 name mcast profile mcast",
+                "tcont 3 name voip profile voip",
+                "gemport 1 tcont 1",
+                "gemport 2 tcont 2",
+                "gemport 3 tcont 3",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                "dhcp-ip ethuni eth_0/2 from-internet",
+                f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
+                f"service 1 gemport 1 vlan {self.internet_vlan}",
+                f"service 2 gemport 2 vlan {self.tv_vlan}",
+                f"service 3 gemport 3 vlan {self.voice_vlan}",
+                "voip protocol sip",
+                "voip-ip ipv4 mode dhcp vlan-profile PHONE host 2",
+                f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
+                f"wan-ip ipv4 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
+                "security-mgmt 1 state enable mode forward protocol web",
+                "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+                "exit",
+                f"interface {vport_interface_1}",
+                f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
+                "port-identification operator-profile service-port 1 TEST",
+                "exit",
+                f"interface {vport_interface_2}",
+                f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+                "exit",
+                f"interface {vport_interface_3}",
+                f"service-port 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
+                "exit",
+            ]
+        else:
+            # C300 syntax
+            commands = [
+                "conf t",
+                f"interface {interface_for_cmd}",
+                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
+                "exit",
+                f"interface {onu_interface}",
+                f"name {self.customer_id.username}",
+                f"description {self.customer_id.username}",
+                "sn-bind disable",
+                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
+                "tcont 2 name mcast profile mcast",
+                "tcont 3 name voip profile voip",
+                "gemport 1 unicast tcont 1 dir both",
+                "gemport 2 unicast tcont 2 dir both",
+                "gemport 3 unicast tcont 3 dir both",
+                "switchport mode hybrid vport 1",
+                "switchport mode hybrid vport 2",
+                "switchport mode hybrid vport 3",
+                f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
+                f"service-port 2 vport 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+                f"service-port 3 vport 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
+                "port-location format dsl-forum vport 1",
+                "port-location format vf vport 2",
+                "port-location format vf vport 3",
+                "port-location sub-option remote-id enable vport 1-3",
+                "port-location sub-option remote-id name 10.50.80.17 vport 1-3",
+                "pppoe-plus enable vport 1",
+                "exit",
+                f"pon-onu-mng {onu_interface}",
+                f"service net type internet gemport 1 vlan {self.internet_vlan}",
+                f"service mcast type iptv gemport 2 vlan {self.tv_vlan}",
+                f"service voip type voip gemport 3 vlan {self.voice_vlan}",
+                f"wan-ip 1 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
+                f"vlan port eth_0/4 mode tag vlan {self.tv_vlan}",
+                "dhcp-ip ethuni eth_0/4 from-internet",
+                "voip protocol sip",
+                "voip-ip mode dhcp vlan-profile PHONE host 2",
+                f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
+                "security-mng 1 state enable mode permit protocol web",
+                "security-mng 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+                "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
+                "exit",
+            ]
         return ";".join(commands)
 
     def action_back_to_list(self):
@@ -757,7 +1020,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 'router_mcast_voip': 'Router + MCAST + VoIP',
             }
             mode_label = mode_labels.get(self.function_mode, self.function_mode)
-            speed_label = dict(_SPEED_PROFILE_CHOICES).get(self.speed_profile, self.speed_profile)
+            speed_label = dict(_SPEED_PROFILE_CHOICES).get(self.speed_profile_name, self.speed_profile_name)
 
             # Build VLAN info
             vlan_info = f"Internet: {self.internet_vlan}"

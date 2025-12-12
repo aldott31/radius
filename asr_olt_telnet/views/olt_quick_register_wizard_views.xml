@@ -58,7 +58,11 @@
               </div>
             </group>
             <group>
-              <field name="speed_profile" required="1"/>
+              <field name="speed_profile_name" required="1" placeholder="e.g., 100M, 1Gbps, 2G"/>
+              <div class="text-muted" invisible="not available_speed_profiles">
+                <i class="fa fa-info-circle"/> Available Profiles:
+                <field name="available_speed_profiles" nolabel="1" readonly="1" class="d-inline"/>
+              </div>
             </group>
           </group>
 
