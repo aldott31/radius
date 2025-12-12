@@ -145,6 +145,26 @@ class OltOnuRegisterQuick(models.TransientModel):
             if self.access_device_id.voice_vlan:
                 self.voice_vlan = self.access_device_id.voice_vlan.split(',')[0].strip()
 
+    def _get_onu_interface_format(self):
+        """
+        Get correct ONU interface format based on OLT model.
+        Returns: (onu_interface, vport_interface, port_part)
+        """
+        model = (self.access_device_id.model or '').upper()
+        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
+
+        if is_c600:
+            # C600 format: gpon_onu-1/2/15:slot
+            port_part = self.interface.replace('gpon-olt_', '').replace('gpon_olt-', '')
+            onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        else:
+            # C300 format: gpon-onu_1/2/15:slot
+            port_part = self.interface.replace('gpon-olt_', '')
+            onu_interface = f"gpon-onu_{port_part}:{self.onu_slot}"
+
+        vport_interface = f"vport-{port_part}.{self.onu_slot}:1"
+        return onu_interface, vport_interface, port_part
+
     @api.constrains('internet_vlan', 'tv_vlan', 'voice_vlan', 'access_device_id')
     def _check_vlan_values(self):
         """Validate that selected VLANs are in the OLT's configured VLANs"""
@@ -192,19 +212,19 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         try:
             # Login
-            idx, _, _ = tn.expect([b'Username:', b'Login:', b'login:'], timeout)
+            idx, _match, _text = tn.expect([b'Username:', b'Login:', b'login:'], timeout)
             if idx == -1:
                 raise UserError(_('Did not receive Username prompt from %s') % host)
             tn.write((username + '\n').encode('ascii', errors='ignore'))
             time.sleep(0.3)
 
-            idx, _, _ = tn.expect([b'Password:', b'password:'], timeout)
+            idx, _match, _text = tn.expect([b'Password:', b'password:'], timeout)
             if idx == -1:
                 raise UserError(_('Did not receive Password prompt from %s') % host)
             tn.write((password + '\n').encode('ascii', errors='ignore'))
             time.sleep(0.6)
 
-            idx, _, text = tn.expect([
+            idx, _match, text = tn.expect([
                 b'>', b'#', b'$',            # success
                 b'Username:',                # auth failed
                 b'Authentication failed',
@@ -287,19 +307,16 @@ class OltOnuRegisterQuick(models.TransientModel):
         if not self.customer_id.username or not self.customer_id.radius_password:
             raise UserError(_('Customer missing RADIUS username or password for PPPoE configuration.'))
 
-        # Detect correct interface format based on OLT model
+        # Get correct interface formats based on OLT model
+        onu_interface, vport_interface, port_part = self._get_onu_interface_format()
+
+        # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
-        if 'C600' in model or 'C650' in model or 'C680' in model:
-            # C600 format: gpon_olt-1/4/3 (underscore-dash)
+        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
+        if is_c600:
             interface_for_cmd = self.interface.replace('-olt_', '_olt-')
         else:
-            # C300 format: gpon-olt_1/4/3 (dash-underscore)
             interface_for_cmd = self.interface
-
-        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
-        port_part = self.interface.replace('gpon-olt_', '')
-        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
-        vport_interface = f"vport-{port_part}.{self.onu_slot}:1"
 
         commands = [
             "conf t",
@@ -308,18 +325,22 @@ class OltOnuRegisterQuick(models.TransientModel):
             "exit",
             f"interface {onu_interface}",
             f"name {self.customer_id.username}",
+            f"description {self.customer_id.username}",
+            "sn-bind disable",
             f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
-            "gemport 1 tcont 1",
+            "gemport 1 unicast tcont 1 dir both",
+            f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
+            "port-location format dsl-forum vport 1",
+            "port-location sub-option remote-id enable vport 1",
+            "port-location sub-option remote-id name 10.50.80.17 vport 1",
+            "pppoe-plus enable vport 1",
             "exit",
             f"pon-onu-mng {onu_interface}",
-            f"service 1 gemport 1 vlan {self.internet_vlan}",
-            f"wan-ip ipv4 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
-            "security-mgmt 1 state enable mode forward protocol web",
-            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
-            "exit",
-            f"interface {vport_interface}",
-            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
-            "port-identification operator-profile service-port 1 TEST",
+            f"service net type internet gemport 1 vlan {self.internet_vlan}",
+            f"wan-ip 1 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
+            "security-mng 1 state enable mode permit protocol web",
+            "security-mng 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
+            "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
             "exit",
         ]
         return ";".join(commands)
@@ -328,19 +349,16 @@ class OltOnuRegisterQuick(models.TransientModel):
         """Generate GPON Bridge configuration commands - FULL registration + config"""
         self.ensure_one()
 
-        # Detect correct interface format based on OLT model
+        # Get correct interface formats based on OLT model
+        onu_interface, vport_interface, port_part = self._get_onu_interface_format()
+
+        # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
-        if 'C600' in model or 'C650' in model or 'C680' in model:
-            # C600 format: gpon_olt-1/4/3 (underscore-dash)
+        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
+        if is_c600:
             interface_for_cmd = self.interface.replace('-olt_', '_olt-')
         else:
-            # C300 format: gpon-olt_1/4/3 (dash-underscore)
             interface_for_cmd = self.interface
-
-        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
-        port_part = self.interface.replace('gpon-olt_', '')
-        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
-        vport_interface = f"vport-{port_part}.{self.onu_slot}:1"
 
         commands = [
             "conf t",
@@ -349,19 +367,20 @@ class OltOnuRegisterQuick(models.TransientModel):
             "exit",
             f"interface {onu_interface}",
             f"name {self.customer_id.username}",
+            f"description {self.customer_id.username}",
+            "sn-bind disable",
             f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
-            "gemport 1 tcont 1",
+            "gemport 1 unicast tcont 1 dir both",
+            f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
+            "port-location format dsl-forum vport 1",
+            "port-location sub-option remote-id enable vport 1",
+            "port-location sub-option remote-id name 10.50.80.17 vport 1",
+            "pppoe-plus enable vport 1",
             "exit",
             f"pon-onu-mng {onu_interface}",
-            "dhcp-ip ethuni eth_0/1 from-internet",
-            f"service 1 gemport 1 vlan {self.internet_vlan}",
+            f"service net type internet gemport 1 vlan {self.internet_vlan}",
             f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
-            "security-mgmt 1 state enable mode forward protocol web",
-            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
-            "exit",
-            f"interface {vport_interface}",
-            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
-            "port-identification operator-profile service-port 1 TEST",
+            "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
             "exit",
         ]
         return ";".join(commands)
@@ -373,16 +392,18 @@ class OltOnuRegisterQuick(models.TransientModel):
         if not self.tv_vlan:
             raise UserError(_('TV VLAN is required for Bridge + MCAST mode.'))
 
-        # Detect correct interface format based on OLT model
+        # Get correct interface formats based on OLT model
+        onu_interface, vport_interface, port_part = self._get_onu_interface_format()
+
+        # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
-        if 'C600' in model or 'C650' in model or 'C680' in model:
+        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
+        if is_c600:
             interface_for_cmd = self.interface.replace('-olt_', '_olt-')
         else:
             interface_for_cmd = self.interface
 
-        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
-        port_part = self.interface.replace('gpon-olt_', '')
-        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        # Build multiple vport interfaces
         vport_interface_1 = f"vport-{port_part}.{self.onu_slot}:1"
         vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
 
@@ -393,30 +414,27 @@ class OltOnuRegisterQuick(models.TransientModel):
             "exit",
             f"interface {onu_interface}",
             f"name {self.customer_id.username}",
+            f"description {self.customer_id.username}",
+            "sn-bind disable",
             f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
             "tcont 2 name mcast profile mcast",
-            "gemport 1 tcont 1",
-            "gemport 2 tcont 2",
+            "gemport 1 unicast tcont 1 dir both",
+            "gemport 2 unicast tcont 2 dir both",
+            f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
+            f"service-port 2 vport 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
+            "port-location format dsl-forum vport 1",
+            "port-location format vf vport 2",
+            "port-location sub-option remote-id enable vport 1-2",
+            "port-location sub-option remote-id name 10.50.80.17 vport 1-2",
+            "pppoe-plus enable vport 1",
             "exit",
             f"pon-onu-mng {onu_interface}",
-            "dhcp-ip ethuni eth_0/1 from-internet",
-            "dhcp-ip ethuni eth_0/2 from-internet",
+            f"service net type internet gemport 1 vlan {self.internet_vlan}",
+            f"service mcast type iptv gemport 2 vlan {self.tv_vlan}",
             f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
             f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
-            f"service 1 gemport 1 vlan {self.internet_vlan}",
-            f"service 2 gemport 2 vlan {self.tv_vlan}",
-            "security-mgmt 1 state enable mode forward protocol web",
-            "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
-            "exit",
-            f"interface {vport_interface_1}",
-            f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
-            "port-identification operator-profile service-port 1 TEST",
-            "exit",
-            f"interface {vport_interface_2}",
-            f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
-            "exit",
-            f"igmp mvlan {self.tv_vlan}",
-            f"receive-port {vport_interface_2}",
+            "dhcp-ip ethuni eth_0/2 from-internet",
+            "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
             "exit",
         ]
         return ";".join(commands)
@@ -432,16 +450,18 @@ class OltOnuRegisterQuick(models.TransientModel):
         if not self.voip_userid or not self.voip_username or not self.voip_password:
             raise UserError(_('VoIP credentials (UserID, Username, Password) are required for VoIP mode.'))
 
-        # Detect correct interface format based on OLT model
+        # Get correct interface formats based on OLT model
+        onu_interface, vport_interface, port_part = self._get_onu_interface_format()
+
+        # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
-        if 'C600' in model or 'C650' in model or 'C680' in model:
+        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
+        if is_c600:
             interface_for_cmd = self.interface.replace('-olt_', '_olt-')
         else:
             interface_for_cmd = self.interface
 
-        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
-        port_part = self.interface.replace('gpon-olt_', '')
-        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        # Build multiple vport interfaces
         vport_interface_1 = f"vport-{port_part}.{self.onu_slot}:1"
         vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
         vport_interface_3 = f"vport-{port_part}.{self.onu_slot}:3"
@@ -456,9 +476,9 @@ class OltOnuRegisterQuick(models.TransientModel):
             f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
             "tcont 2 name mcast profile mcast",
             "tcont 3 name voip profile voip",
-            "gemport 1 tcont 1",
-            "gemport 2 tcont 2",
-            "gemport 3 tcont 3",
+            "gemport 1 unicast tcont 1 dir both",
+            "gemport 2 unicast tcont 2 dir both",
+            "gemport 3 unicast tcont 3 dir both",
             "exit",
             f"pon-onu-mng {onu_interface}",
             "dhcp-ip ethuni eth_0/1 from-internet",
@@ -494,16 +514,18 @@ class OltOnuRegisterQuick(models.TransientModel):
         """Generate GPON Data Only configuration commands"""
         self.ensure_one()
 
-        # Detect correct interface format based on OLT model
+        # Get correct interface formats based on OLT model
+        onu_interface, vport_interface, port_part = self._get_onu_interface_format()
+
+        # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
-        if 'C600' in model or 'C650' in model or 'C680' in model:
+        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
+        if is_c600:
             interface_for_cmd = self.interface.replace('-olt_', '_olt-')
         else:
             interface_for_cmd = self.interface
 
-        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
-        port_part = self.interface.replace('gpon-olt_', '')
-        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        # Data mode uses vport:4 instead of vport:1
         vport_interface = f"vport-{port_part}.{self.onu_slot}:4"
 
         commands = [
@@ -514,7 +536,7 @@ class OltOnuRegisterQuick(models.TransientModel):
             f"interface {onu_interface}",
             f"name {self.customer_id.username}",
             f"tcont 4 name {self.speed_profile} profile {self.speed_profile}",
-            "gemport 4 tcont 4",
+            "gemport 4 unicast tcont 4 dir both",
             "exit",
             f"pon-onu-mng {onu_interface}",
             "dhcp-ip ethuni eth_0/1 from-internet",
@@ -540,16 +562,18 @@ class OltOnuRegisterQuick(models.TransientModel):
         if not self.voip_userid or not self.voip_username or not self.voip_password:
             raise UserError(_('VoIP credentials (UserID, Username, Password) are required for VoIP mode.'))
 
-        # Detect correct interface format based on OLT model
+        # Get correct interface formats based on OLT model
+        onu_interface, vport_interface, port_part = self._get_onu_interface_format()
+
+        # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
-        if 'C600' in model or 'C650' in model or 'C680' in model:
+        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
+        if is_c600:
             interface_for_cmd = self.interface.replace('-olt_', '_olt-')
         else:
             interface_for_cmd = self.interface
 
-        # Convert gpon-olt_1/2/15 -> 1/2/15 for ONU interface
-        port_part = self.interface.replace('gpon-olt_', '')
-        onu_interface = f"gpon_onu-{port_part}:{self.onu_slot}"
+        # Build multiple vport interfaces
         vport_interface_1 = f"vport-{port_part}.{self.onu_slot}:1"
         vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
         vport_interface_3 = f"vport-{port_part}.{self.onu_slot}:3"
@@ -564,9 +588,9 @@ class OltOnuRegisterQuick(models.TransientModel):
             f"tcont 1 name {self.speed_profile} profile {self.speed_profile}",
             "tcont 2 name mcast profile mcast",
             "tcont 3 name voip profile voip",
-            "gemport 1 tcont 1",
-            "gemport 2 tcont 2",
-            "gemport 3 tcont 3",
+            "gemport 1 unicast tcont 1 dir both",
+            "gemport 2 unicast tcont 2 dir both",
+            "gemport 3 unicast tcont 3 dir both",
             "exit",
             f"pon-onu-mng {onu_interface}",
             "dhcp-ip ethuni eth_0/2 from-internet",
@@ -652,14 +676,40 @@ class OltOnuRegisterQuick(models.TransientModel):
             })
             raise
 
+        # Detect correct OLT interface format (needed for rollback)
+        model = (self.access_device_id.model or '').upper()
+        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
+        if is_c600:
+            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
+        else:
+            interface_for_cmd = self.interface
+
         # Execute in a single telnet session
         try:
             output = self._execute_telnet_session(olt_ip, user, pwd, full_cmd)
         except UserError as e:
-            # ✅ Store telnet error and allow retry
+            # ❌ Command failed - ROLLBACK by deleting ONU
             error_msg = str(e)
+
+            # Attempt automatic rollback to delete partially registered ONU
+            rollback_msg = ""
+            try:
+                rollback_cmd = f"conf t;interface {interface_for_cmd};no onu {self.onu_slot};exit"
+                self._execute_telnet_session(olt_ip, user, pwd, rollback_cmd)
+                rollback_msg = _("\n\n🔄 Rollback successful: ONU deleted from OLT.\nYou can retry registration.")
+            except Exception as rollback_error:
+                rollback_msg = _(
+                    "\n\n⚠️ Rollback failed: ONU may be partially configured on OLT.\n"
+                    "Manual cleanup required:\n"
+                    "interface {interface}\n"
+                    "no onu {slot}"
+                ).format(interface=interface_for_cmd, slot=self.onu_slot)
+
+            full_error_msg = error_msg + rollback_msg
+
+            # ✅ Store telnet error and allow retry
             self.write({
-                'last_error': error_msg,
+                'last_error': full_error_msg,
                 'registration_attempts': self.registration_attempts + 1
             })
 
@@ -669,7 +719,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 'tag': 'display_notification',
                 'params': {
                     'title': _('❌ Registration Failed'),
-                    'message': error_msg[:200],
+                    'message': full_error_msg[:400],
                     'type': 'danger',
                     'sticky': True,
                     'next': {
