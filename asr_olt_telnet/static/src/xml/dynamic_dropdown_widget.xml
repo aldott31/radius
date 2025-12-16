@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="asr_olt_telnet.DynamicDropdownField" owl="1">
+        <select
+            class="o_input form-select"
+            t-att-id="props.id"
+            t-ref="input"
+            t-att-disabled="props.readonly"
+            t-att-required="props.required"
+            t-att-value="props.value || ''"
+            t-on-change="onSelect"
+        >
+            <option value=""><t t-esc="props.placeholder || '-- Select --'"/></option>
+            <t t-foreach="options" t-as="opt" t-key="opt.value || opt">
+                <option t-att-value="opt.value || opt" t-esc="opt.label || opt"/>
+            </t>
+        </select>
+    </t>
+</templates>

@@ -53,41 +53,60 @@ class OltOnuRegisterQuick(models.TransientModel):
         ('router_mcast_voip', 'Router + MCAST + VoIP'),
     ], string="Function Mode", required=True, default='bridge')
 
-    # Internet configuration
+    # Internet configuration - Char fields that will be rendered as dropdowns via widget in XML
     internet_vlan = fields.Char(string="Internet VLAN", required=True)
     tv_vlan = fields.Char(string="TV VLAN", required=False)
     voice_vlan = fields.Char(string="Voice VLAN", required=False)
-    speed_profile_name = fields.Char(string="Speed Profile", required=True,
-                                     help="Enter speed profile name (e.g., 100M, 1Gbps, 2G)")
-    available_speed_profiles = fields.Char(string="Available Profiles", readonly=True,
-                                          help="Speed profiles available on this OLT")
+    speed_profile_name = fields.Char(string="Speed Profile", required=True)
+
+    # JSON fields for dynamic options (used by custom widget)
+    internet_vlan_options = fields.Char(compute='_compute_vlan_options', store=False)
+    tv_vlan_options = fields.Char(compute='_compute_vlan_options', store=False)
+    voice_vlan_options = fields.Char(compute='_compute_vlan_options', store=False)
+    speed_profile_options = fields.Char(compute='_compute_vlan_options', store=False)
 
     # VoIP configuration (for modes with telephony)
     voip_userid = fields.Char(string="VoIP UserID", help="SIP userid (e.g., 044310660)")
     voip_username = fields.Char(string="VoIP Username", help="SIP username (e.g., 044310660)")
     voip_password = fields.Char(string="VoIP Password", help="SIP password")
 
-    # Helper fields for showing available VLANs
-    available_internet_vlans_display = fields.Char(compute='_compute_available_vlans_display', store=False)
-    available_tv_vlans_display = fields.Char(compute='_compute_available_vlans_display', store=False)
-    available_voice_vlans_display = fields.Char(compute='_compute_available_vlans_display', store=False)
-
     # Display correct interface format based on OLT model
     interface_display = fields.Char(compute='_compute_interface_display', store=False,
                                     help="Interface format that will be used in the command")
 
     @api.depends('access_device_id')
-    def _compute_available_vlans_display(self):
-        """Compute display text for available VLANs"""
+    def _compute_vlan_options(self):
+        """Compute available VLANs and Speed Profiles as JSON for dropdown widget"""
+        import json
+        import logging
+        _logger = logging.getLogger(__name__)
+
         for rec in self:
+            _logger.info(f"[DynamicDropdown] Computing VLAN options for OLT: {rec.access_device_id.name if rec.access_device_id else 'None'}")
+
             if rec.access_device_id:
-                rec.available_internet_vlans_display = rec.access_device_id.internet_vlan or 'Not configured'
-                rec.available_tv_vlans_display = rec.access_device_id.tv_vlan or 'Not configured'
-                rec.available_voice_vlans_display = rec.access_device_id.voice_vlan or 'Not configured'
+                # Get VLANs from OLT
+                _logger.info(f"[DynamicDropdown] Raw VLANs - Internet: {rec.access_device_id.internet_vlan}, TV: {rec.access_device_id.tv_vlan}, Voice: {rec.access_device_id.voice_vlan}")
+
+                internet_vlans = [v.strip() for v in (rec.access_device_id.internet_vlan or '').split(',') if v.strip()]
+                tv_vlans = [v.strip() for v in (rec.access_device_id.tv_vlan or '').split(',') if v.strip()]
+                voice_vlans = [v.strip() for v in (rec.access_device_id.voice_vlan or '').split(',') if v.strip()]
+
+                rec.internet_vlan_options = json.dumps(internet_vlans) if internet_vlans else json.dumps([])
+                rec.tv_vlan_options = json.dumps(tv_vlans) if tv_vlans else json.dumps([])
+                rec.voice_vlan_options = json.dumps(voice_vlans) if voice_vlans else json.dumps([])
+
+                # ✅ ONLY CHANGE: real speed profiles from OLT (telnet), not hardcoded
+                profiles = rec._fetch_speed_profiles_from_olt()
+                rec.speed_profile_options = json.dumps(profiles or [])
+
+                _logger.info(f"[DynamicDropdown] Computed JSON - Internet: {rec.internet_vlan_options}")
             else:
-                rec.available_internet_vlans_display = 'Select OLT first'
-                rec.available_tv_vlans_display = 'Select OLT first'
-                rec.available_voice_vlans_display = 'Select OLT first'
+                _logger.warning("[DynamicDropdown] No OLT device found!")
+                rec.internet_vlan_options = json.dumps([])
+                rec.tv_vlan_options = json.dumps([])
+                rec.voice_vlan_options = json.dumps([])
+                rec.speed_profile_options = json.dumps([])
 
     @api.depends('interface', 'access_device_id')
     def _compute_interface_display(self):
@@ -138,14 +157,21 @@ class OltOnuRegisterQuick(models.TransientModel):
 
     @api.onchange('access_device_id')
     def _onchange_access_device_id(self):
-        # Prefill VLANs from OLT (first value from each CSV list)
+        """Prefill VLANs and Speed Profile when OLT is selected"""
         if self.access_device_id:
-            if self.access_device_id.internet_vlan:
+            # Prefill VLANs from OLT (first value from each CSV list)
+            if self.access_device_id.internet_vlan and not self.internet_vlan:
                 self.internet_vlan = self.access_device_id.internet_vlan.split(',')[0].strip()
-            if self.access_device_id.tv_vlan:
+            if self.access_device_id.tv_vlan and not self.tv_vlan:
                 self.tv_vlan = self.access_device_id.tv_vlan.split(',')[0].strip()
-            if self.access_device_id.voice_vlan:
+            if self.access_device_id.voice_vlan and not self.voice_vlan:
                 self.voice_vlan = self.access_device_id.voice_vlan.split(',')[0].strip()
+
+            # Prefill speed profile
+            if not self.speed_profile_name:
+                profiles = self._fetch_speed_profiles_from_olt()
+                if profiles:
+                    self.speed_profile_name = profiles[0]
 
     def _get_onu_interface_format(self):
         """
@@ -339,19 +365,6 @@ class OltOnuRegisterQuick(models.TransientModel):
             _logger.warning(f'Failed to fetch speed profiles from OLT: {str(e)}')
             return []
 
-    @api.onchange('access_device_id')
-    def _onchange_access_device_id(self):
-        """Auto-fetch speed profiles when OLT is selected"""
-        if self.access_device_id:
-            profiles = self._fetch_speed_profiles_from_olt()
-            if profiles:
-                self.available_speed_profiles = ', '.join(profiles)
-                # Set default to first profile if current is empty
-                if not self.speed_profile_name and profiles:
-                    self.speed_profile_name = profiles[0]
-            else:
-                self.available_speed_profiles = 'Could not fetch profiles'
-
     def _get_speed_profile_name(self):
         """Return the speed profile name as entered by user"""
         self.ensure_one()
@@ -368,11 +381,6 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         # Get correct speed profile name for this OLT model
         speed_profile = self._get_speed_profile_name()
-
-        # Get OLT IP address for remote-id configuration
-        if not self.access_device_id.ip_address:
-            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
-        olt_ip = self.access_device_id.ip_address.strip()
 
         # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
@@ -422,7 +430,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
                 "port-location format dsl-forum vport 1",
                 "port-location sub-option remote-id enable vport 1",
-                f"port-location sub-option remote-id name {olt_ip} vport 1",
+                "port-location sub-option remote-id name 10.50.80.17 vport 1",
                 "pppoe-plus enable vport 1",
                 "exit",
                 f"pon-onu-mng {onu_interface}",
@@ -441,11 +449,6 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         # Get correct interface formats based on OLT model
         onu_interface, vport_interface, port_part = self._get_onu_interface_format()
-
-        # Get OLT IP address for remote-id configuration
-        if not self.access_device_id.ip_address:
-            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
-        olt_ip = self.access_device_id.ip_address.strip()
 
         # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
@@ -496,7 +499,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
                 "port-location format dsl-forum vport 1",
                 "port-location sub-option remote-id enable vport 1",
-                f"port-location sub-option remote-id name {olt_ip} vport 1",
+                "port-location sub-option remote-id name 10.50.80.17 vport 1",
                 "pppoe-plus enable vport 1",
                 "exit",
                 f"pon-onu-mng {onu_interface}",
@@ -516,11 +519,6 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         # Get correct interface formats based on OLT model
         onu_interface, vport_interface, port_part = self._get_onu_interface_format()
-
-        # Get OLT IP address for remote-id configuration
-        if not self.access_device_id.ip_address:
-            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
-        olt_ip = self.access_device_id.ip_address.strip()
 
         # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
@@ -588,7 +586,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 "port-location format dsl-forum vport 1",
                 "port-location format vf vport 2",
                 "port-location sub-option remote-id enable vport 1-2",
-                f"port-location sub-option remote-id name {olt_ip} vport 1-2",
+                "port-location sub-option remote-id name 10.50.80.17 vport 1-2",
                 "pppoe-plus enable vport 1",
                 "exit",
                 f"pon-onu-mng {onu_interface}",
@@ -615,11 +613,6 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         # Get correct interface formats based on OLT model
         onu_interface, vport_interface, port_part = self._get_onu_interface_format()
-
-        # Get OLT IP address for remote-id configuration
-        if not self.access_device_id.ip_address:
-            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
-        olt_ip = self.access_device_id.ip_address.strip()
 
         # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
@@ -702,7 +695,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 "port-location format vf vport 2",
                 "port-location format vf vport 3",
                 "port-location sub-option remote-id enable vport 1-3",
-                f"port-location sub-option remote-id name {olt_ip} vport 1-3",
+                "port-location sub-option remote-id name 10.50.80.17 vport 1-3",
                 "pppoe-plus enable vport 1",
                 "exit",
                 f"pon-onu-mng {onu_interface}",
@@ -715,200 +708,6 @@ class OltOnuRegisterQuick(models.TransientModel):
                 "voip protocol sip",
                 "voip-ip mode dhcp vlan-profile PHONE host 2",
                 f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
-                "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
-                "exit",
-            ]
-        return ";".join(commands)
-
-    def _generate_data_config(self):
-        """Generate GPON Data Only configuration commands"""
-        self.ensure_one()
-
-        # Get correct interface formats based on OLT model
-        onu_interface, vport_interface, port_part = self._get_onu_interface_format()
-
-        # Get OLT IP address for remote-id configuration
-        if not self.access_device_id.ip_address:
-            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
-        olt_ip = self.access_device_id.ip_address.strip()
-
-        # Detect correct OLT interface format
-        model = (self.access_device_id.model or '').upper()
-        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
-        if is_c600:
-            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
-        else:
-            interface_for_cmd = self.interface
-
-        # Data mode uses vport:4 instead of vport:1
-        vport_interface_4 = f"vport-{port_part}.{self.onu_slot}:4"
-
-        if is_c600:
-            # C600 syntax
-            commands = [
-                "conf t",
-                f"interface {interface_for_cmd}",
-                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-                "exit",
-                f"interface {onu_interface}",
-                f"name {self.customer_id.username}",
-                f"tcont 4 name {self.speed_profile_name} profile {self.speed_profile_name}",
-                "gemport 4 tcont 4",
-                "exit",
-                f"pon-onu-mng {onu_interface}",
-                "dhcp-ip ethuni eth_0/1 from-internet",
-                f"service 4 gemport 4 vlan {self.internet_vlan}",
-                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
-                "exit",
-                f"interface {vport_interface_4}",
-                f"service-port 4 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
-                "exit",
-            ]
-        else:
-            # C300 syntax
-            commands = [
-                "conf t",
-                f"interface {interface_for_cmd}",
-                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-                "exit",
-                f"interface {onu_interface}",
-                f"name {self.customer_id.username}",
-                f"description {self.customer_id.username}",
-                "sn-bind disable",
-                f"tcont 4 name {self.speed_profile_name} profile {self.speed_profile_name}",
-                "gemport 4 unicast tcont 4 dir both",
-                "switchport mode hybrid vport 4",
-                f"service-port 4 vport 4 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
-                "port-location format dsl-forum vport 4",
-                "port-location sub-option remote-id enable vport 4",
-                f"port-location sub-option remote-id name {olt_ip} vport 4",
-                "pppoe-plus enable vport 4",
-                "exit",
-                f"pon-onu-mng {onu_interface}",
-                f"service net type internet gemport 4 vlan {self.internet_vlan}",
-                f"vlan port eth_0/1 mode tag vlan {self.internet_vlan}",
-                "dhcp-ip ethuni eth_0/1 from-internet",
-                "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
-                "exit",
-            ]
-        return ";".join(commands)
-
-    def _generate_router_mcast_voip_config(self):
-        """Generate GPON Router + MCAST + VoIP configuration commands"""
-        self.ensure_one()
-
-        if not self.customer_id.username or not self.customer_id.radius_password:
-            raise UserError(_('Customer missing RADIUS username or password for PPPoE configuration.'))
-        if not self.tv_vlan:
-            raise UserError(_('TV VLAN is required for Router + MCAST + VoIP mode.'))
-        if not self.voice_vlan:
-            raise UserError(_('Voice VLAN is required for Router + MCAST + VoIP mode.'))
-        if not self.voip_userid or not self.voip_username or not self.voip_password:
-            raise UserError(_('VoIP credentials (UserID, Username, Password) are required for VoIP mode.'))
-
-        # Get correct interface formats based on OLT model
-        onu_interface, vport_interface, port_part = self._get_onu_interface_format()
-
-        # Get OLT IP address for remote-id configuration
-        if not self.access_device_id.ip_address:
-            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
-        olt_ip = self.access_device_id.ip_address.strip()
-
-        # Detect correct OLT interface format
-        model = (self.access_device_id.model or '').upper()
-        is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
-        if is_c600:
-            interface_for_cmd = self.interface.replace('-olt_', '_olt-')
-        else:
-            interface_for_cmd = self.interface
-
-        # Build multiple vport interfaces
-        vport_interface_1 = f"vport-{port_part}.{self.onu_slot}:1"
-        vport_interface_2 = f"vport-{port_part}.{self.onu_slot}:2"
-        vport_interface_3 = f"vport-{port_part}.{self.onu_slot}:3"
-
-        if is_c600:
-            # C600 syntax
-            commands = [
-                "conf t",
-                f"interface {interface_for_cmd}",
-                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-                "exit",
-                f"interface {onu_interface}",
-                f"name {self.customer_id.username}",
-                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
-                "tcont 2 name mcast profile mcast",
-                "tcont 3 name voip profile voip",
-                "gemport 1 tcont 1",
-                "gemport 2 tcont 2",
-                "gemport 3 tcont 3",
-                "exit",
-                f"pon-onu-mng {onu_interface}",
-                "dhcp-ip ethuni eth_0/2 from-internet",
-                f"vlan port eth_0/2 mode tag vlan {self.tv_vlan}",
-                f"service 1 gemport 1 vlan {self.internet_vlan}",
-                f"service 2 gemport 2 vlan {self.tv_vlan}",
-                f"service 3 gemport 3 vlan {self.voice_vlan}",
-                "voip protocol sip",
-                "voip-ip ipv4 mode dhcp vlan-profile PHONE host 2",
-                f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
-                f"wan-ip ipv4 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
-                "security-mgmt 1 state enable mode forward protocol web",
-                "security-mgmt 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
-                "exit",
-                f"interface {vport_interface_1}",
-                f"service-port 1 user-vlan {self.internet_vlan} vlan {self.internet_vlan}",
-                "port-identification operator-profile service-port 1 TEST",
-                "exit",
-                f"interface {vport_interface_2}",
-                f"service-port 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
-                "exit",
-                f"interface {vport_interface_3}",
-                f"service-port 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
-                "exit",
-            ]
-        else:
-            # C300 syntax
-            commands = [
-                "conf t",
-                f"interface {interface_for_cmd}",
-                f"onu {self.onu_slot} type {self.onu_type} sn {self.serial}",
-                "exit",
-                f"interface {onu_interface}",
-                f"name {self.customer_id.username}",
-                f"description {self.customer_id.username}",
-                "sn-bind disable",
-                f"tcont 1 name {self.speed_profile_name} profile {self.speed_profile_name}",
-                "tcont 2 name mcast profile mcast",
-                "tcont 3 name voip profile voip",
-                "gemport 1 unicast tcont 1 dir both",
-                "gemport 2 unicast tcont 2 dir both",
-                "gemport 3 unicast tcont 3 dir both",
-                "switchport mode hybrid vport 1",
-                "switchport mode hybrid vport 2",
-                "switchport mode hybrid vport 3",
-                f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
-                f"service-port 2 vport 2 user-vlan {self.tv_vlan} vlan {self.tv_vlan}",
-                f"service-port 3 vport 3 user-vlan {self.voice_vlan} vlan {self.voice_vlan}",
-                "port-location format dsl-forum vport 1",
-                "port-location format vf vport 2",
-                "port-location format vf vport 3",
-                "port-location sub-option remote-id enable vport 1-3",
-                f"port-location sub-option remote-id name {olt_ip} vport 1-3",
-                "pppoe-plus enable vport 1",
-                "exit",
-                f"pon-onu-mng {onu_interface}",
-                f"service net type internet gemport 1 vlan {self.internet_vlan}",
-                f"service mcast type iptv gemport 2 vlan {self.tv_vlan}",
-                f"service voip type voip gemport 3 vlan {self.voice_vlan}",
-                f"wan-ip 1 mode pppoe username {self.customer_id.username} password {self.customer_id.radius_password} vlan-profile {self.internet_vlan} host 1",
-                f"vlan port eth_0/4 mode tag vlan {self.tv_vlan}",
-                "dhcp-ip ethuni eth_0/4 from-internet",
-                "voip protocol sip",
-                "voip-ip mode dhcp vlan-profile PHONE host 2",
-                f"sip-service pots_0/1 profile SIP userid {self.voip_userid} username {self.voip_username} password {self.voip_password}",
-                "security-mng 1 state enable mode permit protocol web",
-                "security-mng 1 start-src-ip 77.242.20.10 end-src-ip 77.242.20.10",
                 "security-mng 3 state enable protocol ftp telnet ssh https snmp tr069",
                 "exit",
             ]

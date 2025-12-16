@@ -34,35 +34,20 @@
             </group>
           </group>
 
+          <!-- Hidden JSON fields for dropdown options -->
+          <field name="internet_vlan_options" invisible="1"/>
+          <field name="tv_vlan_options" invisible="1"/>
+          <field name="voice_vlan_options" invisible="1"/>
+          <field name="speed_profile_options" invisible="1"/>
+
           <group string="VLAN Configuration" col="2">
             <group>
-              <field name="internet_vlan" required="1"
-                     placeholder="Enter VLAN ID"/>
-              <div class="text-muted" invisible="not access_device_id">
-                <i class="fa fa-info-circle"/> Available:
-                <field name="available_internet_vlans_display" nolabel="1" readonly="1" class="d-inline"/>
-              </div>
-
-              <field name="tv_vlan" placeholder="Enter TV VLAN ID (optional)"/>
-              <div class="text-muted"
-                   invisible="not access_device_id or available_tv_vlans_display == 'Not configured'">
-                <i class="fa fa-info-circle"/> Available:
-                <field name="available_tv_vlans_display" nolabel="1" readonly="1" class="d-inline"/>
-              </div>
-
-              <field name="voice_vlan" placeholder="Enter Voice VLAN ID (optional)"/>
-              <div class="text-muted"
-                   invisible="not access_device_id or available_voice_vlans_display == 'Not configured'">
-                <i class="fa fa-info-circle"/> Available:
-                <field name="available_voice_vlans_display" nolabel="1" readonly="1" class="d-inline"/>
-              </div>
+              <field name="internet_vlan" widget="dynamic_dropdown" options="{'options_field': 'internet_vlan_options'}" required="1" placeholder="Select VLAN"/>
+              <field name="tv_vlan" widget="dynamic_dropdown" options="{'options_field': 'tv_vlan_options'}" placeholder="Optional"/>
+              <field name="voice_vlan" widget="dynamic_dropdown" options="{'options_field': 'voice_vlan_options'}" placeholder="Optional"/>
             </group>
             <group>
-              <field name="speed_profile_name" required="1" placeholder="e.g., 100M, 1Gbps, 2G"/>
-              <div class="text-muted" invisible="not available_speed_profiles">
-                <i class="fa fa-info-circle"/> Available Profiles:
-                <field name="available_speed_profiles" nolabel="1" readonly="1" class="d-inline"/>
-              </div>
+              <field name="speed_profile_name" widget="dynamic_dropdown" options="{'options_field': 'speed_profile_options'}" required="1" placeholder="e.g., 100M"/>
             </group>
           </group>
 
