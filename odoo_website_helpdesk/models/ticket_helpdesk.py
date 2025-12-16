@@ -302,6 +302,16 @@ class TicketHelpDesk(models.Model):
                 vals['name'] = self.env['ir.sequence'].next_by_code(
                     'ticket.helpdesk')
             
+            # ✅ VALIDIM: Nëse krijohet manualisht (jo nga automation), team duhet të jetë vendosur
+            if not vals.get('team_id'):
+                # Kontrollo nëse po vjen nga automation (Finance, etc.)
+                if not self.env.context.get('_from_finance_automation') and \
+                   not self.env.context.get('_skip_team_validation'):
+                    raise ValidationError(_(
+                        'Helpdesk Team is required when creating a ticket manually.\n'
+                        'Please select a team before saving.'
+                    ))
+            
             # Auto-populate RADIUS username when ticket is created
             if vals.get('customer_id') and not vals.get('customer_radius_username'):
                 customer = self.env['res.partner'].browse(vals['customer_id'])
@@ -311,7 +321,32 @@ class TicketHelpDesk(models.Model):
         return super(TicketHelpDesk, self).create(vals_list)
 
     def write(self, vals):
-        """Write function"""
+        """Write function with team assignment notification"""
+        # Check if team is being assigned/changed
+        if 'team_id' in vals and vals.get('team_id'):
+            team = self.env['team.helpdesk'].browse(vals['team_id'])
+            
+            for ticket in self:
+                # Check if team is actually changing (not just updating same team)
+                if ticket.team_id.id != team.id:
+                    # Add team members as followers to receive notifications
+                    if team.member_ids:
+                        partner_ids = team.member_ids.mapped('partner_id').ids
+                        ticket.message_subscribe(partner_ids=partner_ids)
+                        
+                        # Send email notification using template to each team member
+                        try:
+                            mail_template = self.env.ref('odoo_website_helpdesk.ticket_team_assignment_notification')
+                            for member in team.member_ids:
+                                if member.partner_id.email:
+                                    mail_template.with_context(
+                                        email_to=member.partner_id.email
+                                    ).send_mail(ticket.id, force_send=True, email_values={
+                                        'email_to': member.partner_id.email
+                                    })
+                        except Exception as e:
+                            _logger.warning(f"Failed to send team assignment notification: {e}")
+        
         result = super(TicketHelpDesk, self).write(vals)
         return result
 

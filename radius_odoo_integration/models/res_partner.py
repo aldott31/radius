@@ -887,20 +887,23 @@ class ResPartner(models.Model):
         }
 
     def action_create_ticket(self):
-        """Quick action to create a new ticket"""
+        """Quick action to create a new ticket - manual team selection required"""
         self.ensure_one()
+        
+        context = {
+            'default_customer_id': self.id,
+            'default_customer_name': self.name,
+            'default_email': self.email or '',
+            'default_phone': self.phone or self.mobile or '',
+        }
+        
         return {
             'type': 'ir.actions.act_window',
             'name': _('New Ticket'),
             'res_model': 'ticket.helpdesk',
             'view_mode': 'form',
             'target': 'new',
-            'context': {
-                'default_customer_id': self.id,
-                'default_customer_name': self.name,
-                'default_email': self.email or '',
-                'default_phone': self.phone or self.mobile or '',
-            },
+            'context': context,
         }
 
     def _update_payment_statistics(self):
@@ -954,6 +957,7 @@ class ResPartner(models.Model):
                 rec.last_payment_amount,
                 rec.last_payment_date
             )
+
     def _compute_payment_balance(self):
         """Compute payment balance from account receivable"""
         for rec in self:
@@ -1653,6 +1657,7 @@ class ResPartner(models.Model):
             },
             'target': 'current',
         }
+    
     def action_sync_to_radius_suspended(self):
         """
         Sync user to RADIUS in SUSPENDED mode (pre-provisioning)

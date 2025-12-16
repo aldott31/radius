@@ -19,6 +19,7 @@
 
   <!-- Update Monitoring submenu parent (originally defined in asr_radius_manager as root menu) -->
   <menuitem id="asr_radius_manager.menu_isp_monitoring"
+            name="Sessions"
             parent="menu_isp_management_root"
             sequence="40"/>
 
