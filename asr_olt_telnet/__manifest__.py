@@ -18,6 +18,12 @@
         'views/res_partner_olt_views.xml',  # ← ONU delete for res.partner
         'views/crm_access_device_inherit.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'asr_olt_telnet/static/src/js/dynamic_dropdown_widget.js',
+            'asr_olt_telnet/static/src/xml/dynamic_dropdown_widget.xml',
+        ],
+    },
     'installable': True,
     'application': False,
     'auto_install': False
