@@ -12,6 +12,17 @@
             <!-- Add statusbar for customer lifecycle -->
             <xpath expr="//sheet" position="before">
                 <header>
+                    <button name="action_create_ticket"
+                            string="🎫 Create Ticket"
+                            type="object"
+                            class="btn-primary"
+                            groups="asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_manager"/>
+                    <button name="action_disconnect_user"
+                            string="🔄 Restart Connection"
+                            type="object"
+                            class="btn-warning"
+                            invisible="pppoe_status != 'up'"
+                            groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_manager"/>
                     <field name="customer_status" widget="statusbar" statusbar_visible="lead,paid,for_installation,for_registration,active"
                            options="{'clickable': '1'}"/>
                 </header>
@@ -389,11 +400,17 @@
                         class="oe_stat_button" icon="fa-file-text-o">
                     <field name="invoice_count" widget="statinfo" string="Invoices"/>
                 </button>
+
+                <button name="action_view_tickets" type="object"
+                        class="oe_stat_button" icon="fa-ticket"
+                        groups="asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_manager">
+                    <field name="open_ticket_count" widget="statinfo" string="Tickets"/>
+                </button>
             </xpath>
         </field>
     </record>
 
-    <!-- KANBAN VIEW FOR ISP CUSTOMERS - MINIMAL (Name + Address Only) -->
+    <!-- CLEAN MINIMAL KANBAN VIEW -->
     <record id="view_partner_kanban_isp" model="ir.ui.view">
         <field name="name">res.partner.kanban.isp</field>
         <field name="model">res.partner</field>
@@ -401,23 +418,81 @@
         <field name="arch" type="xml">
             <kanban sample="0">
                 <field name="name"/>
-                <field name="street"/>
-                <field name="city"/>
+                <field name="radius_username"/>
+                <field name="pppoe_status"/>
                 <templates>
                     <t t-name="kanban-box">
-                        <div class="oe_kanban_global_click" style="padding: 12px; border: 1px solid #ddd; border-radius: 4px; background: white;">
-                            <strong style="display: block; margin-bottom: 8px; font-size: 14px; color: #000;">
+                        <div class="oe_kanban_global_click" style="padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 3px; background: white; margin: 2px;">
+                            <!-- Name -->
+                            <div style="font-size: 14px; font-weight: 600; color: #2c3e50; margin-bottom: 4px;">
                                 <field name="name"/>
-                            </strong>
-                            <div style="font-size: 12px; color: #666;">
-                                <span t-if="record.city.raw_value"><field name="city"/></span>
-                                <span t-if="record.city.raw_value and record.street.raw_value">, </span>
-                                <span t-if="record.street.raw_value"><field name="street"/></span>
+                            </div>
+
+                            <!-- Username • Status -->
+                            <div style="font-size: 12px; color: #7f8c8d; display: flex; align-items: center; gap: 6px;">
+                                <span>
+                                    <t t-if="record.radius_username.raw_value"><field name="radius_username"/></t>
+                                    <t t-if="!record.radius_username.raw_value">-</t>
+                                </span>
+                                <span style="color: #ddd;">•</span>
+                                <span>
+                                    <span t-if="record.pppoe_status.raw_value == 'up'" style="color: #27ae60; font-weight: 600;">UP</span>
+                                    <span t-if="record.pppoe_status.raw_value == 'down'" style="color: #e74c3c; font-weight: 600;">DOWN</span>
+                                    <span t-if="!record.pppoe_status.raw_value" style="color: #95a5a6;">-</span>
+                                </span>
                             </div>
                         </div>
                     </t>
+
                 </templates>
             </kanban>
+        </field>
+    </record>
+
+    <!-- ENHANCED LIST VIEW FOR CUSTOMER SERVICE -->
+    <record id="view_partner_list_isp_customer_service" model="ir.ui.view">
+        <field name="name">res.partner.list.isp.customer.service</field>
+        <field name="model">res.partner</field>
+        <field name="priority">2</field>
+        <field name="arch" type="xml">
+            <list string="Customers" sample="1" multi_edit="1">
+                <!-- Critical Info -->
+                <field name="name" string="Customer"/>
+                <field name="radius_username" optional="show"/>
+                <field name="phone" widget="phone" optional="show"/>
+
+                <!-- Status & Connection -->
+                <field name="customer_status" widget="badge" optional="show"
+                       decoration-success="customer_status == 'active'"
+                       decoration-warning="customer_status == 'paid'"
+                       decoration-info="customer_status in ['for_installation', 'for_registration']"
+                       decoration-muted="customer_status == 'lead'"/>
+                <field name="pppoe_status" string="Online" optional="show"
+                       decoration-success="pppoe_status == 'up'"
+                       decoration-danger="pppoe_status == 'down'"/>
+
+                <!-- Service Info -->
+                <field name="subscription_id" string="Plan" optional="show"/>
+                <field name="service_paid_until" optional="show"
+                       decoration-danger="service_paid_until and service_paid_until &lt; context_today()"
+                       decoration-warning="service_paid_until and service_paid_until &lt;= (context_today() + datetime.timedelta(days=7))"/>
+                <field name="grace_days_debt" string="Grace" optional="hide"
+                       decoration-bf="grace_days_debt &gt; 0"/>
+
+                <!-- Support & Payment -->
+                <field name="open_ticket_count" string="Tickets" optional="show"
+                       decoration-bf="open_ticket_count &gt; 0"
+                       decoration-danger="open_ticket_count &gt; 2"/>
+                <field name="last_payment_date" optional="hide"/>
+                <field name="payment_balance" optional="hide" widget="monetary"
+                       decoration-danger="payment_balance &lt; 0"
+                       decoration-success="payment_balance &gt; 0"/>
+
+                <!-- Location -->
+                <field name="city" optional="hide"/>
+                <field name="pop_id" string="POP" optional="hide"/>
+                <field name="access_device_id" string="OLT" optional="hide"/>
+            </list>
         </field>
     </record>
 
@@ -438,17 +513,35 @@
         </field>
     </record>
 
-    <!-- SEARCH FILTER -->
+    <!-- ENHANCED SEARCH FILTER -->
     <record id="view_partner_search_radius" model="ir.ui.view">
         <field name="name">res.partner.search.radius</field>
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_res_partner_filter"/>
         <field name="arch" type="xml">
             <xpath expr="//search" position="inside">
+                <!-- Quick Filters -->
                 <filter string="RADIUS Customers" name="radius_customers" domain="[('is_radius_customer', '=', True)]"/>
+
+                <separator/>
+                <filter string="⚠️ Service Expiring (7 days)" name="expiring_soon"
+                        domain="[('service_paid_until', '&lt;=', (context_today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d')), ('service_paid_until', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="🔴 Service Expired" name="service_expired"
+                        domain="[('service_paid_until', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
+
+                <separator/>
+                <filter string="Active Customers" name="active_status" domain="[('customer_status', '=', 'active')]"/>
                 <filter string="Synced" name="synced" domain="[('is_radius_customer', '=', True), ('radius_synced', '=', True)]"/>
                 <filter string="Not Synced" name="not_synced" domain="[('is_radius_customer', '=', True), ('radius_synced', '=', False)]"/>
                 <filter string="Pending Installation" name="pending_installation" domain="[('installation_date', '!=', False), ('customer_status', '=', 'lead')]"/>
+
+                <!-- Group By -->
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_status" context="{'group_by': 'customer_status'}"/>
+                    <filter string="POP" name="group_pop" context="{'group_by': 'pop_id'}"/>
+                    <filter string="Plan" name="group_plan" context="{'group_by': 'subscription_id'}"/>
+                    <filter string="City" name="group_city" context="{'group_by': 'city'}"/>
+                </group>
             </xpath>
         </field>
     </record>
@@ -488,14 +581,5 @@
               sequence="10"
               groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_technician,asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"/>
 
-    <!-- REMOVED: Installation Calendar Menu -->
-    <!--
-    <menuitem id="menu_installation_calendar"
-              name="Installation Schedule"
-              parent="crm_abissnet.menu_isp_management_root"
-              action="action_installation_calendar"
-              sequence="15"
-              groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
-    -->
 
 </odoo>

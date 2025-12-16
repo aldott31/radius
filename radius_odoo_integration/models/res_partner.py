@@ -209,6 +209,13 @@ class ResPartner(models.Model):
         store=False
     )
 
+    # ==================== TICKETS ====================
+    open_ticket_count = fields.Integer(
+        string="Open Tickets",
+        compute='_compute_open_ticket_count',
+        store=False
+    )
+
     # ==================== GEOLOCATION ====================
     partner_latitude = fields.Float(
         string="Geo Latitude",
@@ -829,6 +836,72 @@ class ResPartner(models.Model):
             rec.active_sessions_count = Sess.search_count(
                 [('username', '=', rec.radius_username), ('acctstoptime', '=', False)])
             rec.total_sessions_count = Sess.search_count([('username', '=', rec.radius_username)])
+
+    def _compute_open_ticket_count(self):
+        """Compute open tickets count for each partner"""
+        for rec in self:
+            if 'ticket.helpdesk' not in self.env:
+                rec.open_ticket_count = 0
+                continue
+            # Count tickets that are not in closing/cancel stages
+            rec.open_ticket_count = self.env['ticket.helpdesk'].search_count([
+                ('customer_id', '=', rec.id),
+                ('stage_id.closing_stage', '=', False),
+                ('stage_id.cancel_stage', '=', False),
+            ])
+
+    def action_view_sessions(self):
+        """Open view of active RADIUS sessions for this customer"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Active Sessions'),
+            'res_model': 'asr.radius.session',
+            'view_mode': 'list,form',
+            'domain': [('username', '=', self.radius_username), ('acctstoptime', '=', False)],
+            'context': {'default_username': self.radius_username},
+        }
+
+    def action_view_all_sessions(self):
+        """Open view of all RADIUS sessions for this customer"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('All Sessions'),
+            'res_model': 'asr.radius.session',
+            'view_mode': 'list,form',
+            'domain': [('username', '=', self.radius_username)],
+            'context': {'default_username': self.radius_username},
+        }
+
+    def action_view_tickets(self):
+        """Open customer tickets"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Customer Tickets'),
+            'res_model': 'ticket.helpdesk',
+            'view_mode': 'list,form',
+            'domain': [('customer_id', '=', self.id)],
+            'context': {'default_customer_id': self.id, 'default_customer_name': self.name},
+        }
+
+    def action_create_ticket(self):
+        """Quick action to create a new ticket"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('New Ticket'),
+            'res_model': 'ticket.helpdesk',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_customer_id': self.id,
+                'default_customer_name': self.name,
+                'default_email': self.email or '',
+                'default_phone': self.phone or self.mobile or '',
+            },
+        }
 
     def _update_payment_statistics(self):
         """
@@ -1829,3 +1902,7 @@ class ResPartner(models.Model):
                 _logger.error("Cron: Failed to move partner %s to expired pool: %s", partner.name, str(e))
 
         _logger.info("Cron: Finished processing expired customers")
+
+
+    def action_view_sessions(self):
+        return self.action_view_active_sessions()
