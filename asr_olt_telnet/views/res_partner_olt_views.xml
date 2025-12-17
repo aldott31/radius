@@ -7,17 +7,13 @@
     <field name="inherit_id" ref="radius_odoo_integration.view_partner_form_isp_customer"/>
     <field name="arch" type="xml">
 
-      <!-- Load olt_pon_port invisibly so it's available for conditional display -->
+      <!-- Add placeholder for ont_serial -->
       <xpath expr="//field[@name='ont_serial']" position="attributes">
         <attribute name="placeholder">e.g. ZTEG12345678</attribute>
       </xpath>
 
-      <xpath expr="//field[@name='ont_serial']" position="after">
-        <field name="olt_pon_port"/>
-      </xpath>
-
-      <!-- Add ONU delete button after olt_pon_port field -->
-      <xpath expr="//field[@name='olt_pon_port']" position="after">
+      <!-- Add ONU delete button after olt_ont_id field (no duplicate olt_pon_port) -->
+      <xpath expr="//field[@name='olt_ont_id']" position="after">
         <button name="action_delete_onu" type="object"
                 string="🗑️ Delete ONU"
                 class="btn-danger btn-sm"

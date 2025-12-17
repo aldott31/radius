@@ -458,10 +458,22 @@ class ResPartner(models.Model):
             path = m.group(1)   # 1/9/6
             onu_id = m.group(2) # 33
 
-            # VLAN – supozojmë që e ke në access_device
-            vlan = getattr(rec.access_device_id, 'internet_vlan', False) \
-                or getattr(rec.access_device_id, 'vlan_internet', False) \
-                or getattr(rec.access_device_id, 'vlan_id', False)
+            # VLAN – merr nga olt_login_port (që përmban VLAN-in e zgjedhur nga regjistrim)
+            vlan = ''
+            if rec.olt_login_port:
+                # Format: "10.50.80.3 pon 1/9/4/7:1900" → extract 1900
+                vlan_match = re.search(r':(\d+)$', rec.olt_login_port)
+                if vlan_match:
+                    vlan = vlan_match.group(1)
+
+            # Fallback: nëse nuk ka olt_login_port, merr nga access_device (first VLAN from CSV)
+            if not vlan:
+                vlan_raw = getattr(rec.access_device_id, 'internet_vlan', False) \
+                    or getattr(rec.access_device_id, 'vlan_internet', False) \
+                    or getattr(rec.access_device_id, 'vlan_id', False)
+                if vlan_raw:
+                    # Split CSV dhe merr të parin
+                    vlan = vlan_raw.split(',')[0].strip()
 
             if ip and vlan:
                 rec.olt_pon_port = f"{ip} pon {path}/{onu_id}:{vlan}"

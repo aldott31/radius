@@ -382,6 +382,11 @@ class OltOnuRegisterQuick(models.TransientModel):
         # Get correct speed profile name for this OLT model
         speed_profile = self._get_speed_profile_name()
 
+        # Get OLT IP address for remote-id configuration
+        if not self.access_device_id.ip_address:
+            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
+        olt_ip = self.access_device_id.ip_address.strip()
+
         # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
         is_c600 = 'C600' in model or 'C650' in model or 'C680' in model
@@ -430,7 +435,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
                 "port-location format dsl-forum vport 1",
                 "port-location sub-option remote-id enable vport 1",
-                "port-location sub-option remote-id name 10.50.80.17 vport 1",
+                f"port-location sub-option remote-id name {olt_ip} vport 1",
                 "pppoe-plus enable vport 1",
                 "exit",
                 f"pon-onu-mng {onu_interface}",
@@ -449,6 +454,11 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         # Get correct interface formats based on OLT model
         onu_interface, vport_interface, port_part = self._get_onu_interface_format()
+
+        # Get OLT IP address for remote-id configuration
+        if not self.access_device_id.ip_address:
+            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
+        olt_ip = self.access_device_id.ip_address.strip()
 
         # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
@@ -499,7 +509,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 f"service-port 1 vport 1 user-vlan {self.internet_vlan} user-etype PPPOE vlan {self.internet_vlan}",
                 "port-location format dsl-forum vport 1",
                 "port-location sub-option remote-id enable vport 1",
-                "port-location sub-option remote-id name 10.50.80.17 vport 1",
+                f"port-location sub-option remote-id name {olt_ip} vport 1",
                 "pppoe-plus enable vport 1",
                 "exit",
                 f"pon-onu-mng {onu_interface}",
@@ -519,6 +529,11 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         # Get correct interface formats based on OLT model
         onu_interface, vport_interface, port_part = self._get_onu_interface_format()
+
+        # Get OLT IP address for remote-id configuration
+        if not self.access_device_id.ip_address:
+            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
+        olt_ip = self.access_device_id.ip_address.strip()
 
         # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
@@ -586,7 +601,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 "port-location format dsl-forum vport 1",
                 "port-location format vf vport 2",
                 "port-location sub-option remote-id enable vport 1-2",
-                "port-location sub-option remote-id name 10.50.80.17 vport 1-2",
+                f"port-location sub-option remote-id name {olt_ip} vport 1-2",
                 "pppoe-plus enable vport 1",
                 "exit",
                 f"pon-onu-mng {onu_interface}",
@@ -613,6 +628,11 @@ class OltOnuRegisterQuick(models.TransientModel):
 
         # Get correct interface formats based on OLT model
         onu_interface, vport_interface, port_part = self._get_onu_interface_format()
+
+        # Get OLT IP address for remote-id configuration
+        if not self.access_device_id.ip_address:
+            raise UserError(_('Please configure the Management IP address for OLT "%s" before registering ONUs.') % self.access_device_id.name)
+        olt_ip = self.access_device_id.ip_address.strip()
 
         # Detect correct OLT interface format
         model = (self.access_device_id.model or '').upper()
@@ -695,7 +715,7 @@ class OltOnuRegisterQuick(models.TransientModel):
                 "port-location format vf vport 2",
                 "port-location format vf vport 3",
                 "port-location sub-option remote-id enable vport 1-3",
-                "port-location sub-option remote-id name 10.50.80.17 vport 1-3",
+                f"port-location sub-option remote-id name {olt_ip} vport 1-3",
                 "pppoe-plus enable vport 1",
                 "exit",
                 f"pon-onu-mng {onu_interface}",
@@ -833,6 +853,14 @@ class OltOnuRegisterQuick(models.TransientModel):
                 vals['olt_pon_port'] = f"{self.interface}:{self.onu_slot}"
             if 'access_device_id' in self.customer_id._fields:
                 vals['access_device_id'] = self.access_device_id.id
+
+            # NEW: Write olt_login_port with selected VLAN from registration
+            if 'olt_login_port' in self.customer_id._fields:
+                # Extract PON path from interface (remove gpon-olt_ or gpon_olt-)
+                pon_path = self.interface.replace('gpon-olt_', '').replace('gpon_olt-', '')
+                # Format: "10.50.80.3 pon 1/9/4/7:1900" (using internet_vlan from registration)
+                vals['olt_login_port'] = f"{self.access_device_id.ip_address.strip()} pon {pon_path}/{self.onu_slot}:{self.internet_vlan}"
+
             if vals:
                 self.customer_id.write(vals)
         except Exception:
