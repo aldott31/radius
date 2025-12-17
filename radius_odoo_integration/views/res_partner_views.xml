@@ -261,7 +261,8 @@
                                     <field name="access_device_id"/>
                                     <field name="pop_id" readonly="1"/>
                                     <field name="city_id" readonly="1"/>
-                                    <field name="olt_login_port"/>
+                                    <!-- olt_login_port hidden - used only for computation -->
+                                    <field name="olt_login_port" invisible="1"/>
                                 </group>
                                 <group string="Fiber Details">
                                     <field name="fiber_closure_id"/>
