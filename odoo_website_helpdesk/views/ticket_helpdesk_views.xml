@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
+
     <!--    Form view-->
     <record id="helpdesk_ticket_view_quick_create_form" model="ir.ui.view">
         <field name="name">ticket.helpdesk.quick.view.form</field>
@@ -15,6 +16,26 @@
             </form>
         </field>
     </record>
+
+
+    <!-- MINIMAL Form (ONLY for Contacts → Create Ticket button) -->
+    <record id="helpdesk_ticket_view_minimal_create_form" model="ir.ui.view">
+        <field name="name">ticket.helpdesk.minimal.view.form</field>
+        <field name="model">ticket.helpdesk</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <form string="New Ticket">
+                <group col="1">
+                    <field name="subject" placeholder="Subject" required="1"/>
+                    <field name="customer_name" readonly="1"/>
+                    <field name="team_id" placeholder="Select Helpdesk Team" required="1" 
+                        options="{'no_create': True, 'no_open': True}"/>
+                    <field name="description" placeholder="Describe the issue..." required="1"/>
+                </group>
+            </form>
+        </field>
+    </record>
+
     <record id="ticket_helpdesk_view_form" model="ir.ui.view">
         <field name="name">ticket.helpdesk.view.form</field>
         <field name="model">ticket.helpdesk</field>
@@ -144,6 +165,7 @@
             </form>
         </field>
     </record>
+
     <!--Tree view-->
     <record id="ticket_helpdesk_view_tree" model="ir.ui.view">
         <field name="name">ticket.helpdesk.view.tree</field>
@@ -158,6 +180,7 @@
             </list>
         </field>
     </record>
+
     <!--    Kanban view-->
     <record id="ticket_helpdesk_view_kanban" model="ir.ui.view">
         <field name="name">ticket.helpdesk.view.kanban</field>
@@ -205,36 +228,36 @@
                                             </strong>
                                         </div>
                                     </div>
-                                    
+
                                     <!-- Customer Name -->
                                     <div class="mb-1" style="font-size: 13px; color: #555;">
                                         <i class="fa fa-user" style="margin-right: 6px; color: #3498db; width: 14px;"/>
                                         <field name="customer_id"/>
                                     </div>
-                                    
+
                                     <!-- RADIUS Username -->
-                                    <div class="mb-1" t-if="record.customer_radius_username.raw_value" 
+                                    <div class="mb-1" t-if="record.customer_radius_username.raw_value"
                                          style="font-size: 12px; color: #666;">
                                         <i class="fa fa-wifi" style="margin-right: 6px; color: #9b59b6; width: 14px;"/>
-                                        <span style="font-weight: 500;">RADIUS:</span> 
+                                        <span style="font-weight: 500;">RADIUS:</span>
                                         <field name="customer_radius_username"/>
                                     </div>
-                                    
+
                                     <!-- Team -->
-                                    <div class="mb-2" t-if="record.team_id.raw_value" 
+                                    <div class="mb-2" t-if="record.team_id.raw_value"
                                          style="font-size: 12px; color: #666;">
                                         <i class="fa fa-users" style="margin-right: 6px; color: #e67e22; width: 14px;"/>
                                         <field name="team_id"/>
                                     </div>
-                                    
+
                                     <!-- Bottom section: Priority Widget & Kanban State & User Avatar -->
-                                    <div class="o_kanban_record_bottom d-flex align-items-center justify-content-between mt-2" 
+                                    <div class="o_kanban_record_bottom d-flex align-items-center justify-content-between mt-2"
                                          style="border-top: 1px solid #e8e8e8; padding-top: 10px;">
                                         <div class="d-flex align-items-center">
                                             <!-- Priority Widget (same as form view) -->
                                             <field name="priority" widget="priority"/>
                                         </div>
-                                        
+
                                         <div class="d-flex align-items-center">
                                             <!-- Kanban State -->
                                             <field name="kanban_state" widget="state_selection" style="margin-right: 8px;"/>
@@ -250,6 +273,7 @@
             </kanban>
         </field>
     </record>
+
     <!--    Activity view-->
     <record id="helpdesk_ticket_view_activity" model="ir.ui.view">
         <field name="name">ticket.helpdesk.view.activity</field>
@@ -268,6 +292,7 @@
             </activity>
         </field>
     </record>
+
     <!--    Calendar view-->
     <record id="ticket_helpdesk_view_calendar" model="ir.ui.view">
         <field name="name">ticket.helpdesk.view.calendar</field>
@@ -275,8 +300,7 @@
         <field name="arch" type="xml">
             <calendar string="Helpdesk Ticket" date_start="create_date" date_stop="end_date"
                       event_open_popup="true" mode="month"
-                      color="customer_id" quick_create="0"
-            >
+                      color="customer_id" quick_create="0">
                 <field name="customer_id"/>
                 <field name="subject"/>
                 <field name="team_id"/>
@@ -302,6 +326,7 @@
             </pivot>
         </field>
     </record>
+
     <!--Graph view-->
     <record id="help_ticket_view_graph" model="ir.ui.view">
         <field name="name">ticket.helpdesk.graph</field>
@@ -320,6 +345,7 @@
             </graph>
         </field>
     </record>
+
     <!--Search view-->
     <record id="help_ticket_search" model="ir.ui.view">
         <field name="name">ticket.helpdesk.search</field>
@@ -328,7 +354,7 @@
             <search string="Ticket Search">
                 <field name="customer_id" string="Customer"/>
                 <field name="customer_radius_username" string="RADIUS Username"/>
-                
+
                 <!-- Filtrat ekzistues -->
                 <filter string="my_ticket" name="My Ticket"
                         domain="[('assigned_user_id', '=', uid)]"/>
@@ -336,7 +362,7 @@
                         domain="[('active','=', False)]"/>
                 <filter string="UnArchived" name="filter_unarchived"
                         domain="[('active','=', True)]"/>
-                
+
                 <!-- Filtra sipas Priority (0-3) -->
                 <separator/>
                 <filter string="Very Low Priority" name="priority_very_low"
@@ -347,7 +373,7 @@
                         domain="[('priority', '=', '2')]"/>
                 <filter string="High Priority" name="priority_high"
                         domain="[('priority', '=', '3')]"/>
-                
+
                 <!-- Filtra sipas Rating (0-3) -->
                 <separator/>
                 <filter string="Very Low Rating" name="rating_very_low"
@@ -358,7 +384,7 @@
                         domain="[('customer_rating', '=', '2')]"/>
                 <filter string="High Rating" name="rating_high"
                         domain="[('customer_rating', '=', '3')]"/>
-                
+
                 <!-- Filtra sipas kanban state -->
                 <separator/>
                 <filter string="Ready" name="state_normal"
@@ -367,7 +393,7 @@
                         domain="[('kanban_state', '=', 'done')]"/>
                 <filter string="Blocked" name="state_blocked"
                         domain="[('kanban_state', '=', 'blocked')]"/>
-                
+
                 <!-- Group By -->
                 <group expand="0" string="Group By">
                     <filter name="Subject" string="Subject"
@@ -399,6 +425,7 @@
         <field name="res_model">ticket.helpdesk</field>
         <field name="view_mode">graph,search</field>
     </record>
+
     <!-- Define the action for the general Helpdesk view -->
     <record id="ticket_helpdesk_action" model="ir.actions.act_window">
         <field name="name">Helpdesk</field>
@@ -413,4 +440,5 @@
         <field name="domain">['|', '|', '|', ('assigned_user_id','=',uid), ('team_id.team_lead_id','=', uid), ('team_id.member_ids','in', [uid]), ('is_finance_visible','=', True)]</field>
         <field name="view_mode">kanban,list,form,calendar,activity,pivot,graph</field>
     </record>
+
 </odoo>

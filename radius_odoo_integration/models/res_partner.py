@@ -885,23 +885,27 @@ class ResPartner(models.Model):
             'domain': [('customer_id', '=', self.id)],
             'context': {'default_customer_id': self.id, 'default_customer_name': self.name},
         }
-
+        
     def action_create_ticket(self):
         """Quick action to create a new ticket - manual team selection required"""
         self.ensure_one()
-        
+
         context = {
             'default_customer_id': self.id,
             'default_customer_name': self.name,
             'default_email': self.email or '',
             'default_phone': self.phone or self.mobile or '',
         }
-        
+
+        view_id = self.env.ref('odoo_website_helpdesk.helpdesk_ticket_view_minimal_create_form').id  # ✅ SAKT
+
         return {
             'type': 'ir.actions.act_window',
             'name': _('New Ticket'),
             'res_model': 'ticket.helpdesk',
             'view_mode': 'form',
+            'views': [(view_id, 'form')],
+            'view_id': view_id,
             'target': 'new',
             'context': context,
         }
