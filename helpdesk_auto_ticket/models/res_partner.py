@@ -13,22 +13,40 @@ class ResPartner(models.Model):
         Override write to detect when customer_status changes to 'paid'
         and create helpdesk ticket
         """
-        # Store old values before update
-        old_status = {partner.id: partner.customer_status for partner in self}
-
-        # Call parent write
-        result = super(ResPartner, self).write(vals)
+        # DEBUG: Log all write operations
+        _logger.info(
+            "🔍 helpdesk_auto_ticket.write() called for partners: %s | vals: %s | context: %s",
+            self.mapped('name'),
+            vals,
+            dict(self.env.context)
+        )
 
         # Check if customer_status changed to 'paid' AND it came from payment automation
+        # Do this BEFORE calling super() to ensure we catch the transition
         if ('customer_status' in vals and
             vals['customer_status'] == 'paid' and
             self.env.context.get('_from_payment_automation')):
 
+            _logger.info("✅ Conditions met: customer_status='paid' AND _from_payment_automation=True")
+
+            # Store old status for each partner BEFORE write
+            old_status = {partner.id: partner.customer_status for partner in self}
+            _logger.info("📝 Old statuses: %s", old_status)
+
+            # Call parent write first
+            result = super(ResPartner, self).write(vals)
+
+            # Now create tickets for partners whose status changed from 'lead' to 'paid'
             for partner in self:
-                # Only create ticket if status actually changed to 'paid'
+                _logger.info(
+                    "🔄 Checking partner %s (ID: %s): old_status=%s",
+                    partner.name,
+                    partner.id,
+                    old_status.get(partner.id)
+                )
                 if old_status.get(partner.id) == 'lead':
                     _logger.info(
-                        "Creating helpdesk ticket for %s (status: lead → paid)",
+                        "🎫 Creating helpdesk ticket for %s (status: lead → paid)",
                         partner.name
                     )
                     # Create ticket directly with try/except to not break payment flow
@@ -36,9 +54,24 @@ class ResPartner(models.Model):
                         partner._create_contract_ticket()
                     except Exception as e:
                         _logger.error(
-                            "Failed to create ticket for %s: %s",
-                            partner.name, str(e)
+                            "❌ Failed to create ticket for %s: %s",
+                            partner.name, str(e), exc_info=True
                         )
+                else:
+                    _logger.info(
+                        "⏭️ Skipping ticket creation for %s: old_status=%s (expected 'lead')",
+                        partner.name,
+                        old_status.get(partner.id)
+                    )
+        else:
+            # Normal write operation (no status change to 'paid')
+            _logger.info(
+                "⏭️ Skipping ticket creation: customer_status in vals=%s | status value=%s | context flag=%s",
+                'customer_status' in vals,
+                vals.get('customer_status'),
+                self.env.context.get('_from_payment_automation')
+            )
+            result = super(ResPartner, self).write(vals)
 
         return result
 
@@ -77,8 +110,11 @@ class ResPartner(models.Model):
             # team_id and user_id intentionally left empty for manual assignment
         }
 
-        # Create the ticket - simple and direct
-        ticket = self.env['ticket.helpdesk'].sudo().create(ticket_vals)
+        # Create the ticket with context flag to skip team validation
+        # (team will be assigned manually by Finance later)
+        ticket = self.env['ticket.helpdesk'].sudo().with_context(
+            _skip_team_validation=True
+        ).create(ticket_vals)
 
         _logger.info(
             "✅ Auto-created helpdesk ticket #%s for customer %s (ID: %s) - Status changed to 'paid'",

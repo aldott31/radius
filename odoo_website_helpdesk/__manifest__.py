@@ -34,7 +34,7 @@
     'company': 'Cybrosys Techno Solutions',
     'maintainer': 'Cybrosys Techno Solutions',
     'depends': ['website', 'project', 'sale_project', 'hr_timesheet',
-                'mail', 'contacts'],
+                'mail', 'contacts', 'asr_radius_manager'],
     'data': [
         'security/odoo_website_helpdesk_groups.xml',
         'security/odoo_website_helpdesk_security.xml',

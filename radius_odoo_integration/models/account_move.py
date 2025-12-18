@@ -201,9 +201,18 @@ class AccountMove(models.Model):
         # Only update if current status is 'lead' (don't override active/for_installation/etc)
         if self.partner_id.customer_status == 'lead':
             update_vals['customer_status'] = 'paid'
-            _logger.info("Auto-updated customer_status from 'lead' to 'paid' for %s", self.partner_id.name)
+            _logger.info(
+                "💰 Auto-updating customer_status from 'lead' to 'paid' for %s (Invoice: %s)",
+                self.partner_id.name,
+                self.name
+            )
 
         # Use context flag to allow automated 'paid' status change
+        _logger.info(
+            "🔧 Calling partner.write() with context _from_payment_automation=True | Partner: %s | vals: %s",
+            self.partner_id.name,
+            update_vals
+        )
         self.partner_id.with_context(_from_payment_automation=True).write(update_vals)
 
         # Update payment statistics
