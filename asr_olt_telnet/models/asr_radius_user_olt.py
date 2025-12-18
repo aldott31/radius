@@ -100,7 +100,6 @@ class AsrRadiusUserOLT(models.Model):
             'ont_serial': False,
             'olt_pon_port': False,
             'olt_ont_id': False,
-            'olt_login_port': False,
         })
 
         # Log to chatter

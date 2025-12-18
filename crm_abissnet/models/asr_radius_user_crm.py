@@ -35,10 +35,7 @@ class AsrRadiusUserCRM(models.Model):
     ], string="SLA Level", related='subscription_id.sla_level', store=True, readonly=True,
         help="Inherited from subscription package. 1=Residential, 2=Small Biz, 3=Large Corp")
 
-    # Business Info (conditional)
-    is_business = fields.Boolean(string="Is Business", compute='_compute_is_business', store=True)
-    nipt = fields.Char(string="NIPT/VAT", tracking=True,
-                       help="Business Tax ID (required for SLA 2/3)")
+    # Business Info (conditional) - REMOVED: is_business and nipt, use partner.vat instead
     company_name = fields.Char(string="Company Name", tracking=True)
 
     # Contract & Billing
@@ -71,30 +68,10 @@ class AsrRadiusUserCRM(models.Model):
 
     # ==================== Computed Fields ====================
 
-    @api.depends('sla_level')
-    def _compute_is_business(self):
-        """SLA 2 dhe 3 janë business"""
-        for rec in self:
-            rec.is_business = rec.sla_level in ('2', '3')
+    # REMOVED: _compute_is_business - no longer needed
 
     # ==================== Constraints ====================
-
-    @api.constrains('nipt', 'subscription_id')
-    def _check_nipt_required(self):
-        """NIPT është i detyrueshëm për biznes (SLA 2/3)"""
-        for rec in self:
-            # Get SLA directly from subscription to avoid race condition with related field
-            sla = rec.subscription_id.sla_level if rec.subscription_id else None
-            nipt = (rec.nipt or '').strip()
-
-            # Debug logging
-            _logger.warning(f"RADIUS USER CONSTRAINT - User: {rec.username or rec.id}, "
-                          f"Subscription: {rec.subscription_id.name if rec.subscription_id else 'None'}, "
-                          f"SLA: {sla}, NIPT: '{nipt}'")
-
-            if sla in ('2', '3') and not nipt:
-                _logger.error(f"RADIUS USER VALIDATION FAILED - User: {rec.username}, SLA: {sla}, NIPT: '{rec.nipt}'")
-                raise ValidationError(_('NIPT is required for Business customers (SLA 2/3)'))
+    # REMOVED: _check_nipt_required - Tax ID validation now uses partner.vat
 
     @api.constrains('billing_day')
     def _check_billing_day(self):

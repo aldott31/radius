@@ -1,0 +1,21 @@
+<odoo>
+    <data>
+        <record id="view_users_form_inherit" model="ir.ui.view">
+            <field name="name">res.users.form.inherit</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="base.view_users_form"/>
+            <field name="arch" type="xml">
+                <!-- Add fields after login field (more reliable anchor in Odoo 18) -->
+                <xpath expr="//field[@name='login']" position="after">
+                    <field name="email" string="Email"/>
+                    <field name="phone" string="Phone"/>
+                    <field name="last_superset_call" string="Last Query Call"/>
+                </xpath>
+                <!-- Add button to header -->
+                <xpath expr="//header" position="inside">
+                    <button name="call_superset_query" string="Get Tickets" type="object" class="btn-primary"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
