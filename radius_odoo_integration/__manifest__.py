@@ -34,6 +34,7 @@
         # 4️⃣ WIZARDS (must load before views that reference them)
         'wizards/radius_provision_wizard_views.xml',
         'wizards/grace_days_wizard_views.xml',
+        'wizards/contract_wizard_views.xml',
 
         # 5️⃣ VIEWS (with actions and menu items)
         'views/res_partner_views.xml',

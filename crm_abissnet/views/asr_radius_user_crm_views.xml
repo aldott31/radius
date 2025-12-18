@@ -51,9 +51,11 @@
           <field name="partner_longitude" placeholder="19.8187" string="Longitude"/>
         </group>
 
-        <!-- Business Info -->
-        <group string="Business Info">
-          <field name="company_name" placeholder="Business name"/>
+        <!-- Business Info (conditional) -->
+        <group string="Business Info" invisible="not is_business">
+          <field name="is_business" invisible="1"/>
+          <field name="company_name" placeholder="Business name" required="is_business"/>
+          <field name="nipt" placeholder="K12345678X" required="is_business"/>
         </group>
 
       </xpath>
@@ -154,6 +156,7 @@
       <xpath expr="//search" position="inside">
         <field name="phone"/>
         <field name="email"/>
+        <field name="nipt"/>
         <field name="city"/>
         <field name="city_id" string="City (Infrastructure)"/>
         <field name="pop_id"/>
@@ -165,6 +168,7 @@
         <filter string="Enterprise (SLA 3)" name="sla3" domain="[('sla_level','=','3')]"/>
 
         <separator/>
+        <filter string="Business Customers" name="is_biz" domain="[('is_business','=',True)]"/>
         <filter string="Has Geolocation" name="has_geo"
                 domain="[('partner_latitude','!=',False),('partner_longitude','!=',False)]"/>
         <filter string="Has Access Device" name="has_device" domain="[('access_device_id','!=',False)]"/>

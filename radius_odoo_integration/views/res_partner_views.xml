@@ -17,6 +17,11 @@
                             type="object"
                             class="btn-primary"
                             groups="asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_manager"/>
+                    <button name="action_create_contract"
+                            string="📝 Add Contract"
+                            type="object"
+                            class="btn-primary"
+                            groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_manager"/>
                     <button name="action_disconnect_user"
                             string="🔄 Restart Connection"
                             type="object"
@@ -104,7 +109,6 @@
                 <!-- Contact Information -->
                 <group string="Contact Information">
                     <group>
-                        <field name="vat" string="Tax ID" placeholder="e.g. L12345678X" required="1"/>
                         <field name="street" placeholder="e.g. Rruga e Kavajes"/>
                         <field name="street2" placeholder="Address line 2"/>
                         <field name="zip" placeholder="ZIP Code"/>
@@ -142,6 +146,16 @@
                     </group>
                 </group>
 
+                <!-- Business Information (visible only for SLA 2/3) -->
+                <group string="Business Information" invisible="sla_level not in ('2', '3')">
+                    <group>
+                        <field name="nipt"
+                               placeholder="e.g. L12345678X"
+                               required="sla_level in ('2', '3')"/>
+                    </group>
+                    <group>
+                    </group>
+                </group>
 
                 <!-- Payment Information -->
                 <group string="Payment Information">
@@ -300,6 +314,10 @@
                                 <group string="Contract Information">
                                     <field name="contract_start_date"/>
                                     <field name="contract_end_date"/>
+                                </group>
+                                <group string="Business Information" invisible="sla_level == '1'">
+                                    <field name="is_business" invisible="1"/>
+                                    <field name="nipt"/>
                                 </group>
                             </group>
                         </page>

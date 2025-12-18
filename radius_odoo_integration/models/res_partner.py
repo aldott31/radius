@@ -138,7 +138,17 @@ class ResPartner(models.Model):
         help="Inherited from subscription package. 1=Residential, 2=Small Biz, 3=Large Corp")
 
     # ==================== BUSINESS INFO ====================
-    # REMOVED: nipt and is_business fields - Tax ID now managed via standard vat field
+    is_business = fields.Boolean(
+        string="Is Business",
+        compute='_compute_is_business',
+        store=True,
+        help="SLA 2 and 3 are business customers"
+    )
+    nipt = fields.Char(
+        string="NIPT/VAT",
+        tracking=True,
+        help="Business Tax ID (required for SLA 2/3)"
+    )
 
     # ==================== CONTRACT & BILLING ====================
     contract_start_date = fields.Date(
@@ -399,7 +409,17 @@ class ResPartner(models.Model):
         return ''.join(secrets.choice(alphabet) for _ in range(length))
 
     # ==================== ONCHANGE METHODS ====================
-    # REMOVED: _onchange_subscription_nipt - Tax ID validation handled by standard vat field
+    @api.onchange('subscription_id', 'nipt')
+    def _onchange_subscription_nipt(self):
+        """Validate NIPT when subscription changes"""
+        if self.subscription_id and self.subscription_id.sla_level in ('2', '3'):
+            if not (self.nipt or '').strip():
+                return {
+                    'warning': {
+                        'title': _('NIPT Required'),
+                        'message': _('NIPT/VAT is required for Business customers (SLA 2/3). Please fill in the NIPT field before saving.')
+                    }
+                }
 
     # ==================== PON PORT DISPLAY ====================
     @api.depends('radius_user_id.olt_pon_port', 'access_device_id.ip_address')
@@ -499,6 +519,7 @@ class ResPartner(models.Model):
                         'company_id': company.id,  # Ensure company_id is set
                         'partner_id': partner.id,
                         'radius_synced': False,
+                        'nipt': partner.nipt,  # Transfer NIPT to radius user
                     }
 
                     # Create with context flag to prevent recursion
@@ -543,7 +564,27 @@ class ResPartner(models.Model):
         if self.env.context.get('_from_radius_write'):
             return super(ResPartner, self).write(vals)
 
-        # REMOVED: NIPT validation - Tax ID now managed via standard vat field
+        # Validate NIPT requirement for business customers (SLA 2/3)
+        for rec in self:
+            # Determine SLA level after write
+            if 'subscription_id' in vals:
+                # New subscription being set
+                if vals.get('subscription_id'):
+                    subscription = self.env['asr.subscription'].browse(vals['subscription_id'])
+                    sla_after_write = subscription.sla_level if subscription else None
+                else:
+                    # Subscription being cleared
+                    sla_after_write = None
+            else:
+                # Subscription not changing, use current DIRECTLY from subscription (not from related field)
+                sla_after_write = rec.subscription_id.sla_level if rec.subscription_id else None
+
+            # Check if NIPT is required
+            if sla_after_write in ('2', '3'):
+                # Get NIPT value (from vals or current record)
+                nipt = (vals.get('nipt') or rec.nipt or '').strip()
+                if not nipt:
+                    raise ValidationError(_('NIPT/VAT is required for Business customers (SLA 2/3)'))
 
         # Check permission for changing status to 'paid' - ONLY via payment automation
         if 'customer_status' in vals and vals['customer_status'] == 'paid':
@@ -620,6 +661,8 @@ class ResPartner(models.Model):
                 radius_vals['contract_end_date'] = vals['contract_end_date']
             if 'billing_day' in vals:
                 radius_vals['billing_day'] = vals['billing_day']
+            if 'nipt' in vals:
+                radius_vals['nipt'] = vals['nipt']
             if 'installation_date' in vals:
                 radius_vals['installation_date'] = vals['installation_date']
             if 'installation_technician_id' in vals:
@@ -711,7 +754,11 @@ class ResPartner(models.Model):
             grp = (rec.current_radius_group or '').upper()
             rec.is_suspended = bool(re.search(r'(^|:)SUSPENDED$', grp))
 
-    # REMOVED: _compute_is_business - no longer needed
+    @api.depends('sla_level')
+    def _compute_is_business(self):
+        """SLA 2 and 3 are business customers"""
+        for rec in self:
+            rec.is_business = rec.sla_level in ('2', '3')
 
     def _compute_pppoe_status(self):
         """Read active session from asr.radius.session or radacct"""
@@ -873,6 +920,19 @@ class ResPartner(models.Model):
             'view_id': view_id,
             'target': 'new',
             'context': context,
+        }
+
+    def action_create_contract(self):
+        """Quick action to create a new sale order / contract via wizard"""
+        self.ensure_one()
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Kontrate e Re'),
+            'res_model': 'contract.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_partner_id': self.id},
         }
 
     def _update_payment_statistics(self):
