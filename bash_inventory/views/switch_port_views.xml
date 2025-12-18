@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_switch_port_tree" model="ir.ui.view">
+        <field name="name">switch.port.tree</field>
+        <field name="model">switch.port</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="switch_id"/>
+                <field name="sfp_module_id"/>
+                <field name="sfp_lot_id"/>
+            </tree>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add Ab Username and Acct Id fields to Partner Form -->
+    <record id="view_partner_form_bash_fields" model="ir.ui.view">
+        <field name="name">res.partner.form.bash.fields</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="radius_odoo_integration.view_partner_form_isp_customer"/>
+        <field name="priority">101</field>
+        <field name="arch" type="xml">
+
+            <!-- Make company_type visible (hidden by radius_odoo_integration) -->
+            <xpath expr="//field[@name='company_type']" position="attributes">
+                <attribute name="invisible">0</attribute>
+            </xpath>
+
+            <!-- Add fields after email field in Contact Information group -->
+            <xpath expr="//field[@name='email']" position="after">
+                <field name="x_ab_username"
+                       string="Ab username"
+                       placeholder="Ab username"/>
+                <field name="x_acctid"
+                       string="Acct Id"
+                       placeholder="Acct Id"
+                       readonly="1"/>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

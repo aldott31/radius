@@ -1,0 +1,29 @@
+<odoo>
+    <data>
+        <record id="res_company_extension" model="ir.ui.view">
+            <field name="name">res_company_extension</field>
+            <field name="model">res.company</field>
+            <field name="inherit_id" ref="base.view_company_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//notebook" position="inside">
+                    <page string="Superset">
+                        <group colspan="2">
+                            <group>
+                                <field name="ss_database_id" string="Company ID"/>
+                                <field name="ss_base_url" string="Superset Base Url"/>
+                                <field name="ss_username" string="Username"/>
+                                <field name="ss_password" string="Password" password="True"/>
+                                <field name="ss_access_token" string="Access token" widget="textarea" />
+                                <field name="ss_csrf_token" string="Csrf token" widget="textarea" />
+                                <field name="ss_session_cookie" string="Session Cookie" widget="textarea" />
+                                <button name="login_to_superset" type="object">
+                                    <i class="fa fa-check" style="color:green"/>Login
+                                </button>
+                            </group>
+                        </group>
+                    </page>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
