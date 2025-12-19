@@ -218,42 +218,8 @@ class AccountMove(models.Model):
         # Update payment statistics
         self.partner_id._update_payment_statistics()
 
-        # ⭐ NEW: Auto-unsuspend RADIUS user when payment is confirmed
-        if self.partner_id.is_radius_customer and self.partner_id.radius_username:
-            try:
-                # Check if user is currently suspended
-                if self.partner_id.is_suspended:
-                    _logger.info(
-                        "💰 Payment confirmed for %s - auto-unsuspending RADIUS user %s",
-                        self.partner_id.name,
-                        self.partner_id.radius_username
-                    )
-
-                    # Reactivate user (moves from SUSPENDED to normal group)
-                    self.partner_id.action_reactivate()
-
-                    # Move back to active IP pool (full internet)
-                    self.partner_id.action_move_to_active_pool()
-
-                    # Send activation notification
-                    self.partner_id._send_activation_notification()
-
-                    # Add to invoice chatter
-                    self.message_post(
-                        body=_("RADIUS Service Activated. Username: %s, Subscription: %s, Internet access is now active!") % (
-                            self.partner_id.radius_username,
-                            self.partner_id.subscription_id.name if self.partner_id.subscription_id else 'N/A'
-                        ),
-                        subtype_xmlid='mail.mt_note'
-                    )
-
-            except Exception as e:
-                _logger.error("Failed to auto-unsuspend RADIUS user %s: %s", self.partner_id.radius_username, str(e))
-                # Don't block payment processing if RADIUS activation fails
-                self.message_post(
-                    body=_("Payment received but RADIUS activation failed: %s") % str(e),
-                    subtype_xmlid='mail.mt_note'
-                )
+        # NOTE: Auto-unsuspend removed - service activation now happens after installation
+        # See workflow: Finance confirms → Installation completes → NOC registers ONU → Service activated
 
         _logger.info(
             "✅ Updated partner %s: service_paid_until=%s, payment_amount=%.2f",

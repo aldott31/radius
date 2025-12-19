@@ -10,6 +10,8 @@
         'base',                 # res.partner
         'contacts',             # Contact management
         'sale_management',      # sale.order
+        'sale_timesheet',       # Timesheet integration (auto-installs hr_timesheet, project, sale_project)
+        'hr',                   # Human Resources (for hr.department - used by bash_authentication)
         'account',              # Invoicing and payments
         'product',              # product.template/product.product
         'stock',                # Optional: for equipment tracking

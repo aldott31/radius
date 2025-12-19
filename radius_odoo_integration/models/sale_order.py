@@ -76,12 +76,10 @@ class SaleOrder(models.Model):
         help="Calculated end date based on start date + subscription months"
     )
 
-    # ==================== DUMMY FIELDS FOR COMPATIBILITY ====================
-    # These fields are only needed when sale_pdf_quote_builder or documents modules
-    # are NOT installed. If those modules are installed, they provide their own fields.
-    # Since we can't dynamically check module installation at field definition time,
-    # we've removed these dummy fields. If you get JS errors about missing fields,
-    # it means the module IS installed and working correctly.
+    # ==================== NOTE: TIMESHEET FIELDS ====================
+    # Timesheet-related fields (timesheet_count, tasks_count, project_id, etc.)
+    # are provided by the sale_timesheet module (which is now a dependency).
+    # No dummy fields needed!
 
     # ==================== COMPUTED METHODS ====================
     @api.depends('order_line.product_id.is_radius_service')
@@ -361,8 +359,14 @@ class SaleOrder(models.Model):
                     })
 
                     # 5) Generate credentials if missing
-                    if not order.partner_id.radius_username or not order.partner_id.radius_password:
-                        order.partner_id._generate_radius_credentials()
+                    if not order.partner_id.radius_username:
+                        order.partner_id.write({
+                            'radius_username': order.partner_id._generate_username()
+                        })
+                    if not order.partner_id.radius_password:
+                        order.partner_id.write({
+                            'radius_password': order.partner_id._generate_password()
+                        })
 
                     # 6) PRE-PROVISION in SUSPENDED mode (NO INTERNET YET!)
                     order.partner_id.action_sync_to_radius_suspended()

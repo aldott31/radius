@@ -147,13 +147,27 @@ class TicketHelpDesk(models.Model):
                                                             'Count')
     active = fields.Boolean(default=True, help='Active', string='Active')
     
-    # Field për finance visibility
+    # Field për finance/sales visibility (tickets without team)
     is_finance_visible = fields.Boolean(
         compute='_compute_finance_visible',
         search='_search_finance_visible',
         store=False,
-        string='Finance Visible',
-        help='Indicates if ticket is visible to finance users'
+        string='Finance/Sales Visible',
+        help='Indicates if ticket is visible to finance and sales users (unassigned tickets)'
+    )
+
+    # Customer status for button visibility (computed to avoid dependency issues)
+    customer_status = fields.Selection(
+        [
+            ('lead', 'Lead'),
+            ('paid', 'Paid'),
+            ('for_installation', 'For Installation'),
+            ('for_registration', 'For Registration'),
+            ('active', 'Active')
+        ],
+        compute='_compute_customer_status',
+        string='Customer Status',
+        store=False
     )
 
     show_create_task = fields.Boolean(string="Show Create Task",
@@ -179,23 +193,41 @@ class TicketHelpDesk(models.Model):
 
     @api.depends('team_id')
     def _compute_finance_visible(self):
-        """Ticketat pa team janë visible për finance users"""
+        """Ticketat pa team janë visible për finance dhe sales users"""
         for ticket in self:
             ticket.is_finance_visible = not ticket.team_id
 
+    @api.depends('customer_id')
+    def _compute_customer_status(self):
+        """Compute customer status from customer_id if field exists"""
+        for ticket in self:
+            if ticket.customer_id and hasattr(ticket.customer_id, 'customer_status'):
+                ticket.customer_status = ticket.customer_id.customer_status
+            else:
+                ticket.customer_status = False
+
     def _search_finance_visible(self, operator, value):
-        """Search method për finance visibility - kontrollon dinamikisht finance group"""
-        # Kontrollo nëse user ka CRM: Finance group
+        """Search method për finance/sales visibility - kontrollon dinamikisht finance dhe sales groups"""
+        # Kontrollo nëse user ka CRM: Finance ose CRM: Sales group
+        has_access = False
         try:
             finance_group = self.env.ref('asr_radius_manager.group_isp_finance')
             has_finance = finance_group in self.env.user.groups_id
         except:
             has_finance = False
-        
-        # Nëse është finance user dhe po kërkon records visible
-        if has_finance and operator == '=' and value:
+
+        try:
+            sales_group = self.env.ref('asr_radius_manager.group_isp_sales')
+            has_sales = sales_group in self.env.user.groups_id
+        except:
+            has_sales = False
+
+        has_access = has_finance or has_sales
+
+        # Nëse është finance ose sales user dhe po kërkon records visible
+        if has_access and operator == '=' and value:
             return [('team_id', '=', False)]
-        # Nëse nuk është finance, kthe empty domain që nuk gjen asgjë
+        # Nëse nuk është finance as sales, kthe empty domain që nuk gjen asgjë
         return [('id', '=', 0)]
 
     @api.onchange('customer_id')
@@ -481,3 +513,119 @@ class TicketHelpDesk(models.Model):
                 'default_res_ids': self.ids,
             }
         }
+
+    # ==================== NEW WORKFLOW METHODS ====================
+
+    def action_confirm_payment_send_installation(self):
+        """Finance confirms payment & docs, sends to Installation team"""
+        self.ensure_one()
+
+        # Find Installation team
+        installation_team = self.env['team.helpdesk'].search([
+            '|',
+            ('name', 'ilike', 'installation'),
+            ('name', 'ilike', 'install')
+        ], limit=1)
+
+        if not installation_team:
+            raise UserError(_(
+                "Installation Team not found.\n"
+                "Please create a Helpdesk Team with 'Installation' in the name."
+            ))
+
+        # Update customer status
+        if self.customer_id:
+            self.customer_id.write({'customer_status': 'for_installation'})
+            _logger.info(
+                "Finance confirmed payment for %s - Status: paid → for_installation",
+                self.customer_id.name
+            )
+
+        # Assign to Installation team
+        self.write({'team_id': installation_team.id})
+
+        # Post message
+        self.message_post(
+            body=_("✅ <b>Payment & Documents Confirmed by Finance</b><br/>"
+                   "Ticket assigned to Installation Team.<br/>"
+                   "Customer Status: Paid → For Installation"),
+            subtype_xmlid='mail.mt_note'
+        )
+
+        return True
+
+    def action_installation_complete(self):
+        """Installation complete - Send to NOC for ONU registration"""
+        self.ensure_one()
+
+        # Find NOC team
+        noc_team = self.env['team.helpdesk'].search([
+            '|',
+            ('name', 'ilike', 'noc'),
+            ('name', 'ilike', 'network')
+        ], limit=1)
+
+        if not noc_team:
+            raise UserError(_(
+                "NOC Team not found.\n"
+                "Please create a Helpdesk Team with 'NOC' in the name."
+            ))
+
+        # Update customer status
+        if self.customer_id:
+            self.customer_id.write({'customer_status': 'for_registration'})
+            _logger.info(
+                "🔧 Installation complete for %s - Sending to NOC for ONU registration",
+                self.customer_id.name
+            )
+
+        # Assign to NOC team
+        self.write({'team_id': noc_team.id})
+
+        # Post message
+        self.message_post(
+            body=_("✅ <b>Installation Complete</b><br/>"
+                   "Assigned to NOC Team for ONU registration.<br/>"
+                   "Customer Status: For Installation → For Registration"),
+            subtype_xmlid='mail.mt_note'
+        )
+
+        return True
+
+    def action_onu_registered_activate(self):
+        """NOC registers ONU - ACTIVATE internet & set ACTIVE"""
+        self.ensure_one()
+
+        # Update customer & ACTIVATE internet
+        if self.customer_id:
+            # ⚡ ACTIVATE INTERNET NOW
+            if self.customer_id.is_suspended:
+                _logger.info(
+                    "✅ ONU registered for %s - Activating internet service",
+                    self.customer_id.name
+                )
+                self.customer_id.action_reactivate()
+                self.customer_id.action_move_to_active_pool()
+                self.customer_id._send_activation_notification()
+
+            # Set to ACTIVE
+            self.customer_id.write({'customer_status': 'active'})
+
+        # Close ticket
+        close_stage = self.env['ticket.stage'].search([
+            ('closing_stage', '=', True)
+        ], limit=1)
+
+        if close_stage:
+            self.write({'stage_id': close_stage.id})
+
+        # Post message
+        self.message_post(
+            body=_("✅ <b>ONU Registered & Service Activated</b><br/>"
+                   "⚡ Internet Service ACTIVE<br/>"
+                   "Customer Status: For Registration → ACTIVE<br/>"
+                   "Ticket CLOSED."),
+            subtype_xmlid='mail.mt_note'
+        )
+
+        return True

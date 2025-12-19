@@ -51,6 +51,34 @@
                     <button name="action_create_invoice" string="Create Invoice"
                             type="object" class="btn-primary"
                             invisible="billable==False"/>
+
+                    <!-- Finance: Confirm Payment -->
+                    <button name="action_confirm_payment_send_installation"
+                            string="✅ Confirm &amp; Send to Installation"
+                            type="object"
+                            class="btn-success"
+                            invisible="subject != 'Kontrate e re' or team_id"
+                            groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"
+                            confirm="Have you verified the signed contract and ID card in the attachments?"/>
+
+                    <!-- Installation: Mark Complete -->
+                    <button name="action_installation_complete"
+                            string="🔧 Installation Complete - Send to NOC"
+                            type="object"
+                            class="btn-primary"
+                            invisible="customer_status != 'for_installation'"
+                            groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_technician,asr_radius_manager.group_isp_manager"
+                            confirm="Installation is complete and ready for ONU registration?"/>
+
+                    <!-- NOC: Register ONU & Activate -->
+                    <button name="action_onu_registered_activate"
+                            string="✅ ONU Registered - Activate Service"
+                            type="object"
+                            class="btn-success"
+                            invisible="customer_status != 'for_registration'"
+                            groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"
+                            confirm="ONU is registered and service is ready to activate?"/>
+
                     <field name="stage_id" widget="statusbar"
                            options="{'clickable': '1'}"/>
                 </header>
@@ -76,6 +104,9 @@
                         </button>
                     </div>
                     <field name="kanban_state" widget="state_selection"/>
+                    <!-- Load customer status for button visibility conditions -->
+                    <field name="customer_id" invisible="1"/>
+                    <field name="customer_status" invisible="1"/>
                     <div class="oe_title">
                         <label for="name" class="oe_edit_only"/>
                         <h1>
@@ -439,6 +470,26 @@
         <field name="res_model">ticket.helpdesk</field>
         <field name="domain">['|', '|', '|', ('assigned_user_id','=',uid), ('team_id.team_lead_id','=', uid), ('team_id.member_ids','in', [uid]), ('is_finance_visible','=', True)]</field>
         <field name="view_mode">kanban,list,form,calendar,activity,pivot,graph</field>
+    </record>
+
+    <!-- Payment Confirmation - Finance only -->
+    <record id="ticket_helpdesk_action_payment_confirmation" model="ir.actions.act_window">
+        <field name="name">Payment Confirmation</field>
+        <field name="res_model">ticket.helpdesk</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('subject', '=', 'Kontrate e re'), ('team_id', '=', False)]</field>
+        <field name="context">{
+            'default_subject': 'Kontrate e re'
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No payment confirmations pending
+            </p>
+            <p>
+                Tickets appear here automatically when a customer pays their invoice.
+                Verify the signed contract and ID card in attachments, then confirm.
+            </p>
+        </field>
     </record>
 
 </odoo>
