@@ -83,6 +83,46 @@ class AccountMove(models.Model):
             )
             return
 
+        # ⚠️ NEW CUSTOMER WORKFLOW: Don't calculate service_paid_until until ONU is registered
+        # For new customers (currently 'lead' status who will become 'paid'),
+        # the service start date will be set when NOC registers the ONU
+        # This prevents losing service days during installation process
+        #
+        # We check if current status is 'lead' because this indicates a NEW customer
+        # who hasn't had their ONU registered yet.
+        if self.partner_id.customer_status == 'lead':
+            _logger.info(
+                "⏸️  Skipping service_paid_until calculation for NEW customer %s (status: %s). "
+                "Service period will start when NOC registers ONU. Customer status will be updated to 'paid'.",
+                self.partner_id.name,
+                self.partner_id.customer_status
+            )
+            # Still update status to 'paid' but don't calculate service_paid_until
+            self.partner_id.with_context(_from_payment_automation=True).write({
+                'customer_status': 'paid'
+            })
+
+            # Update payment statistics for new customer
+            self.partner_id._update_payment_statistics()
+
+            _logger.info(
+                "✅ Updated NEW customer %s: status=paid, payment statistics updated, service_paid_until will be set when ONU registered",
+                self.partner_id.name
+            )
+
+            return
+
+        # Also skip for customers already marked as 'paid', 'for_installation', 'for_registration'
+        # These are customers waiting for ONU registration
+        if self.partner_id.customer_status in ['paid', 'for_installation', 'for_registration']:
+            _logger.info(
+                "⏸️  Skipping service_paid_until calculation for customer %s in status '%s'. "
+                "Service period will start when NOC registers ONU.",
+                self.partner_id.name,
+                self.partner_id.customer_status
+            )
+            return
+
         # Get payment date (invoice_date or date)
         payment_date = self.invoice_date or self.date or fields.Date.today()
 
@@ -197,23 +237,17 @@ class AccountMove(models.Model):
             update_vals['grace_days_debt'] = 0
             _logger.info("Cleared %d days of grace debt for customer %s", grace_days_debt, self.partner_id.name)
 
-        # Auto-update customer_status to 'paid' when payment is received
-        # Only update if current status is 'lead' (don't override active/for_installation/etc)
-        if self.partner_id.customer_status == 'lead':
-            update_vals['customer_status'] = 'paid'
-            _logger.info(
-                "💰 Auto-updating customer_status from 'lead' to 'paid' for %s (Invoice: %s)",
-                self.partner_id.name,
-                self.name
-            )
+        # NOTE: For NEW customers (status='lead'), we already updated their status to 'paid'
+        # at the beginning of this method before returning early.
+        # This section only runs for EXISTING customers who are renewing/extending service.
 
-        # Use context flag to allow automated 'paid' status change
+        # Use context flag to allow automated updates
         _logger.info(
-            "🔧 Calling partner.write() with context _from_payment_automation=True | Partner: %s | vals: %s",
+            "🔧 Updating partner %s | vals: %s",
             self.partner_id.name,
             update_vals
         )
-        self.partner_id.with_context(_from_payment_automation=True).write(update_vals)
+        self.partner_id.write(update_vals)
 
         # Update payment statistics
         self.partner_id._update_payment_statistics()
@@ -234,10 +268,6 @@ class AccountMove(models.Model):
             new_service_end.strftime('%d %B, %Y'),
             self.amount_total
         )
-
-        # Add status change note if applicable
-        if 'customer_status' in update_vals:
-            message_body += _("<br/>Customer status updated: Lead → Paid")
 
         self.partner_id.message_post(
             body=message_body,

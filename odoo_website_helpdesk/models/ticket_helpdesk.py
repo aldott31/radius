@@ -604,14 +604,106 @@ class TicketHelpDesk(models.Model):
 
         return True
 
-    def action_onu_registered_activate(self):
-        """NOC registers ONU - Set customer ACTIVE & close ticket"""
+    def _get_subscription_months_from_customer(self):
+        """
+        Find subscription_months from customer's most recent RADIUS sale order
+        Returns: int (subscription months) or None if not found
+        """
         self.ensure_one()
 
-        # Update customer to ACTIVE
+        if not self.customer_id:
+            return None
+
+        # Find most recent RADIUS sale order for this customer
+        sale_order = self.env['sale.order'].search([
+            ('partner_id', '=', self.customer_id.id),
+            ('is_radius_order', '=', True),
+            ('state', 'in', ['sale', 'done'])  # Only confirmed orders
+        ], order='date_order desc', limit=1)
+
+        if sale_order and sale_order.subscription_months:
+            _logger.info(
+                "Found RADIUS sale order %s for customer %s with %d months",
+                sale_order.name,
+                self.customer_id.name,
+                sale_order.subscription_months
+            )
+            return sale_order.subscription_months
+
+        # Fallback: check if customer has paid invoices with RADIUS products
+        invoices = self.env['account.move'].search([
+            ('partner_id', '=', self.customer_id.id),
+            ('move_type', '=', 'out_invoice'),
+            ('state', '=', 'posted'),
+            ('payment_state', 'in', ['paid', 'in_payment'])
+        ], order='invoice_date desc', limit=1)
+
+        if invoices:
+            # Get quantity from RADIUS product line (quantity = months)
+            for line in invoices.invoice_line_ids:
+                if hasattr(line.product_id, 'is_radius_service') and line.product_id.is_radius_service:
+                    months = max(1, int(line.quantity))
+                    _logger.info(
+                        "Fallback: Using quantity from invoice %s for customer %s: %d months",
+                        invoices.name,
+                        self.customer_id.name,
+                        months
+                    )
+                    return months
+
+        _logger.warning(
+            "Could not find subscription_months for customer %s (no RADIUS sale order or invoice)",
+            self.customer_id.name
+        )
+        return None
+
+    def action_onu_registered_activate(self):
+        """NOC registers ONU - Set customer ACTIVE, calculate service_paid_until & close ticket"""
+        self.ensure_one()
+
+        # Update customer to ACTIVE and calculate service_paid_until
         if self.customer_id:
+            # 🔧 CALCULATE SERVICE_PAID_UNTIL from sale order
+            # Service period starts NOW (when ONU is registered), not when payment was made
+            # This prevents losing service days during installation
+            service_start_date = fields.Date.today()
+            subscription_months = self._get_subscription_months_from_customer()
+
+            update_vals = {'customer_status': 'active'}
+
+            if subscription_months:
+                from dateutil.relativedelta import relativedelta
+                service_paid_until = service_start_date + relativedelta(months=subscription_months)
+                update_vals['service_paid_until'] = service_paid_until
+                update_vals['contract_start_date'] = update_vals.get('contract_start_date') or service_start_date
+
+                _logger.info(
+                    "✅ ONU registered for %s - Service starts TODAY: %s + %d months = %s",
+                    self.customer_id.name,
+                    service_start_date,
+                    subscription_months,
+                    service_paid_until
+                )
+
+                # Post message to customer chatter
+                self.customer_id.message_post(
+                    body=_("🎉 <b>Service Activated!</b><br/>"
+                           "ONU Registered & Online<br/>"
+                           "Service Period: %d month(s)<br/>"
+                           "Valid Until: %s") % (
+                        subscription_months,
+                        service_paid_until.strftime('%d %B, %Y')
+                    ),
+                    subtype_xmlid='mail.mt_note'
+                )
+            else:
+                _logger.warning(
+                    "Could not find subscription_months for %s - service_paid_until not calculated",
+                    self.customer_id.name
+                )
+
             # Set to ACTIVE
-            self.customer_id.write({'customer_status': 'active'})
+            self.customer_id.write(update_vals)
             _logger.info(
                 "✅ ONU registered for %s - Customer set to ACTIVE",
                 self.customer_id.name
