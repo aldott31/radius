@@ -555,7 +555,7 @@ class TicketHelpDesk(models.Model):
         return True
 
     def action_installation_complete(self):
-        """Installation complete - Send to NOC for ONU registration"""
+        """Installation complete - ACTIVATE internet & send to NOC for ONU registration"""
         self.ensure_one()
 
         # Find NOC team
@@ -571,11 +571,22 @@ class TicketHelpDesk(models.Model):
                 "Please create a Helpdesk Team with 'NOC' in the name."
             ))
 
-        # Update customer status
+        # Update customer status & ACTIVATE internet
         if self.customer_id:
+            # ⚡ ACTIVATE INTERNET NOW (for testing during installation)
+            if self.customer_id.is_suspended:
+                _logger.info(
+                    "🔧 Installation complete for %s - Activating internet for testing",
+                    self.customer_id.name
+                )
+                self.customer_id.action_reactivate()
+                self.customer_id.action_move_to_active_pool()
+                self.customer_id._send_activation_notification()
+
+            # Update status
             self.customer_id.write({'customer_status': 'for_registration'})
             _logger.info(
-                "🔧 Installation complete for %s - Sending to NOC for ONU registration",
+                "📡 Internet activated for %s - Sending to NOC for ONU registration",
                 self.customer_id.name
             )
 
@@ -585,6 +596,7 @@ class TicketHelpDesk(models.Model):
         # Post message
         self.message_post(
             body=_("✅ <b>Installation Complete</b><br/>"
+                   "⚡ Internet Service ACTIVATED (for testing)<br/>"
                    "Assigned to NOC Team for ONU registration.<br/>"
                    "Customer Status: For Installation → For Registration"),
             subtype_xmlid='mail.mt_note'
@@ -593,23 +605,17 @@ class TicketHelpDesk(models.Model):
         return True
 
     def action_onu_registered_activate(self):
-        """NOC registers ONU - ACTIVATE internet & set ACTIVE"""
+        """NOC registers ONU - Set customer ACTIVE & close ticket"""
         self.ensure_one()
 
-        # Update customer & ACTIVATE internet
+        # Update customer to ACTIVE
         if self.customer_id:
-            # ⚡ ACTIVATE INTERNET NOW
-            if self.customer_id.is_suspended:
-                _logger.info(
-                    "✅ ONU registered for %s - Activating internet service",
-                    self.customer_id.name
-                )
-                self.customer_id.action_reactivate()
-                self.customer_id.action_move_to_active_pool()
-                self.customer_id._send_activation_notification()
-
             # Set to ACTIVE
             self.customer_id.write({'customer_status': 'active'})
+            _logger.info(
+                "✅ ONU registered for %s - Customer set to ACTIVE",
+                self.customer_id.name
+            )
 
         # Close ticket
         close_stage = self.env['ticket.stage'].search([
@@ -621,8 +627,7 @@ class TicketHelpDesk(models.Model):
 
         # Post message
         self.message_post(
-            body=_("✅ <b>ONU Registered & Service Activated</b><br/>"
-                   "⚡ Internet Service ACTIVE<br/>"
+            body=_("✅ <b>ONU Registered Successfully</b><br/>"
                    "Customer Status: For Registration → ACTIVE<br/>"
                    "Ticket CLOSED."),
             subtype_xmlid='mail.mt_note'

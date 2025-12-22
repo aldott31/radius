@@ -70,14 +70,14 @@
                             groups="asr_radius_manager.group_isp_field_tech,asr_radius_manager.group_isp_technician,asr_radius_manager.group_isp_manager"
                             confirm="Installation is complete and ready for ONU registration?"/>
 
-                    <!-- NOC: Register ONU & Activate -->
+                    <!-- NOC: Register ONU & Set Active -->
                     <button name="action_onu_registered_activate"
-                            string="✅ ONU Registered - Activate Service"
+                            string="✅ ONU Registered - Set Active"
                             type="object"
                             class="btn-success"
                             invisible="customer_status != 'for_registration'"
                             groups="asr_radius_manager.group_isp_noc,asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"
-                            confirm="ONU is registered and service is ready to activate?"/>
+                            confirm="ONU registration complete and ready to set customer as ACTIVE?"/>
 
                     <field name="stage_id" widget="statusbar"
                            options="{'clickable': '1'}"/>

@@ -993,12 +993,21 @@ class ResPartner(models.Model):
     # ==================== SQL UPSERT HELPERS ====================
     @staticmethod
     def _upsert_radcheck(cursor, username, cleartext_password):
-        sql = """
+        """
+        Upsert RADIUS password into radcheck table.
+        Delete old entries first to prevent duplicates (radcheck has no unique constraint).
+        """
+        # Delete all existing password entries for this user
+        cursor.execute("""
+            DELETE FROM radcheck
+            WHERE username = %s AND attribute = 'Cleartext-Password'
+        """, (username,))
+
+        # Insert new password
+        cursor.execute("""
             INSERT INTO radcheck (username, attribute, op, value)
             VALUES (%s, 'Cleartext-Password', ':=', %s)
-            ON DUPLICATE KEY UPDATE value = VALUES(value)
-        """
-        cursor.execute(sql, (username, cleartext_password))
+        """, (username, cleartext_password))
 
     @staticmethod
     def _upsert_radusergroup(cursor, username, groupname):
