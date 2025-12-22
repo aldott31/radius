@@ -337,22 +337,33 @@ class AsrSubscription(models.Model):
                 # 1) DELETE old attributes
                 cur.execute("DELETE FROM radgroupreply WHERE groupname = %s", (groupname,))
 
-                # 2) Parse rate_limit → label (49M, 300M, etc.)
-                rate_label = None
+                # 2) Parse rate_limit → down/up labels
+                rate_in_label = None   # upload (service-policy input)
+                rate_out_label = None  # download (service-policy output)
                 if rec.rate_limit:
-                    # Parse "49M/49M" → "49M", "49/49" → "49M", "300M/300M" → "300M"
                     rl = rec.rate_limit.strip()
 
-                    # Try "X/Y" format
-                    m = re.match(r'^\s*([0-9]+)[mM]?\s*/\s*([0-9]+)[mM]?\s*$', rl)
+                    # Accept formats:
+                    #   "300M/30M"  -> output=300M, input=30M  (DOWNLOAD/UPLOAD)
+                    #   "300/30"    -> output=300M, input=30M
+                    #   "300M"      -> symmetric (input=output=300M)
+                    m = re.match(r'^\s*([0-9]+)\s*([kKmMgG]?)\s*/\s*([0-9]+)\s*([kKmMgG]?)\s*$', rl)
                     if m:
-                        # Use download speed (second number) as primary
-                        rate_label = f"{m.group(2)}M"
+                        down_num, down_unit = m.group(1), (m.group(2) or 'M').upper()
+                        up_num, up_unit = m.group(3), (m.group(4) or 'M').upper()
+                        down_label = f"{down_num}{down_unit}"
+                        up_label = f"{up_num}{up_unit}"
+
+                        # Convention: rate_limit = DOWNLOAD/UPLOAD
+                        rate_out_label = down_label
+                        rate_in_label = up_label
                     else:
-                        # Try single number "49M" or "300M"
-                        m2 = re.match(r'^\s*([0-9]+)[mM]?\s*$', rl)
+                        m2 = re.match(r'^\s*([0-9]+)\s*([kKmMgG]?)\s*$', rl)
                         if m2:
-                            rate_label = f"{m2.group(1)}M"
+                            num, unit = m2.group(1), (m2.group(2) or 'M').upper()
+                            label = f"{num}{unit}"
+                            rate_in_label = label
+                            rate_out_label = label
                         else:
                             _logger.warning('Invalid rate_limit format for plan %s: %s', rec.name, rl)
 
@@ -360,18 +371,18 @@ class AsrSubscription(models.Model):
                 rows = []
 
                 # ✅ CISCO AVPair - ABSOLUTE FORMAT
-                if rate_label:
+                if rate_in_label and rate_out_label:
                     rows.append((
                         groupname,
                         'Cisco-AVPair',
                         '+=',
-                        f'ip:interface-config=service-policy input {rate_label}'
+                        f'ip:interface-config=service-policy input {rate_in_label}'
                     ))
                     rows.append((
                         groupname,
                         'Cisco-AVPair',
                         '+=',
-                        f'ip:interface-config=service-policy output {rate_label}'
+                        f'ip:interface-config=service-policy output {rate_out_label}'
                     ))
 
                 # ✅ IP Pool (standard Framed-Pool)
