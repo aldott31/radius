@@ -335,19 +335,19 @@ class ProductTemplate(models.Model):
                     rows.append((
                         groupname,
                         'Cisco-AVPair',
-                        ':=',
+                        '+=',
                         f'ip:interface-config=service-policy input {rate_label}'
                     ))
                     rows.append((
                         groupname,
                         'Cisco-AVPair',
-                        ':=',
+                        '+=',
                         f'ip:interface-config=service-policy output {rate_label}'
                     ))
 
                 # ✅ IP Pool (Framed-Pool)
                 if rec.ip_pool_active:
-                    rows.append((groupname, 'Framed-Pool', ':=', rec.ip_pool_active.strip()))
+                    rows.append((groupname, 'Framed-Pool', '=', rec.ip_pool_active.strip()))
 
                 # ✅ Session Timeout
                 if rec.radius_session_timeout:

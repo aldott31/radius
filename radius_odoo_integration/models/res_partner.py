@@ -1759,7 +1759,11 @@ class ResPartner(models.Model):
 
 
     def action_move_to_expired_pool(self):
-        """Move RADIUS user to expired IP pool (no internet, only portal access)"""
+        """Move RADIUS user to expired IP pool (no internet, only portal access)
+
+        IMPORTANT: Uses radreply (per-user) table instead of radgroupreply (per-group)
+        to avoid affecting other users in the same subscription plan.
+        """
         for rec in self:
             if not rec.radius_username or not rec.subscription_id:
                 continue
@@ -1773,19 +1777,19 @@ class ResPartner(models.Model):
                         _logger.warning("No expired pool configured for subscription %s", rec.subscription_id.name)
                         continue
 
-                    groupname = rec.groupname
+                    username = rec.radius_username
 
-                    # Delete old Framed-Pool attribute
+                    # Delete old Framed-Pool attribute for THIS USER ONLY
                     cur.execute("""
-                        DELETE FROM radgroupreply
-                        WHERE groupname = %s AND attribute = 'Framed-Pool'
-                    """, (groupname,))
+                        DELETE FROM radreply
+                        WHERE username = %s AND attribute = 'Framed-Pool'
+                    """, (username,))
 
-                    # Insert expired pool
+                    # Insert expired pool for THIS USER ONLY
                     cur.execute("""
-                        INSERT INTO radgroupreply (groupname, attribute, op, value)
+                        INSERT INTO radreply (username, attribute, op, value)
                         VALUES (%s, 'Framed-Pool', ':=', %s)
-                    """, (groupname, expired_pool))
+                    """, (username, expired_pool))
 
                 conn.commit()
 
@@ -1794,7 +1798,7 @@ class ResPartner(models.Model):
                     subtype_xmlid='mail.mt_note'
                 )
 
-                _logger.info("Moved user %s to expired pool %s", rec.radius_username, expired_pool)
+                _logger.info("✅ Moved user %s to expired pool %s (per-user override)", rec.radius_username, expired_pool)
 
             except Exception as e:
                 _logger.error("Failed to move user %s to expired pool: %s", rec.radius_username, str(e))
@@ -1810,46 +1814,48 @@ class ResPartner(models.Model):
                     except Exception:
                         pass
 
+        return True
+
     def action_move_to_active_pool(self):
-        """Move RADIUS user back to active IP pool (full internet)"""
+        """Move RADIUS user back to active IP pool (full internet)
+
+        IMPORTANT: Simply REMOVES per-user pool override from radreply.
+        The user will then use the default pool from their subscription plan (radgroupreply).
+
+        This approach:
+        - Avoids operator precedence issues (radgroupreply := can override radreply)
+        - Allows plan-level pool changes to affect all users automatically
+        - Cleaner: expired users have override, active users use plan default
+        """
         for rec in self:
-            if not rec.radius_username or not rec.subscription_id:
+            if not rec.radius_username:
                 continue
 
             conn = None
             try:
                 conn = rec._get_radius_conn()
                 with conn.cursor() as cur:
-                    active_pool = rec.subscription_id.ip_pool_active
-                    if not active_pool:
-                        _logger.warning("No active pool configured for subscription %s", rec.subscription_id.name)
-                        continue
+                    username = rec.radius_username
 
-                    groupname = rec.groupname
-
-                    # Delete old Framed-Pool attribute
+                    # Simply DELETE per-user pool override
+                    # User will fall back to subscription plan's default pool
                     cur.execute("""
-                        DELETE FROM radgroupreply
-                        WHERE groupname = %s AND attribute = 'Framed-Pool'
-                    """, (groupname,))
-
-                    # Insert active pool
-                    cur.execute("""
-                        INSERT INTO radgroupreply (groupname, attribute, op, value)
-                        VALUES (%s, 'Framed-Pool', ':=', %s)
-                    """, (groupname, active_pool))
+                        DELETE FROM radreply
+                        WHERE username = %s AND attribute = 'Framed-Pool'
+                    """, (username,))
 
                 conn.commit()
 
+                pool_name = rec.subscription_id.ip_pool_active if rec.subscription_id else 'Plan Default'
                 rec.message_post(
-                    body=_("Payment confirmed - restored to active IP pool. Pool: %s. Full internet access restored") % active_pool,
+                    body=_("Payment confirmed - restored to active IP pool. Pool: %s (from subscription plan). Full internet access restored") % pool_name,
                     subtype_xmlid='mail.mt_note'
                 )
 
-                _logger.info("Moved user %s to active pool %s", rec.radius_username, active_pool)
+                _logger.info("✅ Removed per-user pool override for %s - will use plan default pool %s", rec.radius_username, pool_name)
 
             except Exception as e:
-                _logger.error("Failed to move user %s to active pool: %s", rec.radius_username, str(e))
+                _logger.error("Failed to restore user %s to active pool: %s", rec.radius_username, str(e))
                 if conn:
                     try:
                         conn.rollback()
@@ -1861,6 +1867,8 @@ class ResPartner(models.Model):
                         conn.close()
                     except Exception:
                         pass
+
+        return True
 
     @api.model
     def _cron_move_expired_to_expired_pool(self):
