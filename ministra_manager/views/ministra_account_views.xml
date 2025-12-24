@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_ministra_account_tree" model="ir.ui.view">
+        <field name="name">ministra.account.tree</field>
+        <field name="model">ministra.account</field>
+        <field name="arch" type="xml">
+            <list string="IPTV Accounts" decoration-muted="status == '0'" decoration-success="status == '1' and online == '1'">
+                <field name="name"/>
+                <field name="login"/>
+                <field name="partner_id"/>
+                <field name="full_name"/>
+                <field name="stb_mac"/>
+                <field name="tariff_plan"/>
+                <field name="status" widget="badge" decoration-success="status == '1'" decoration-danger="status == '0'"/>
+                <field name="online" widget="badge" decoration-success="online == '1'" decoration-muted="online == '0'" optional="hide"/>
+                <field name="ministra_synced" widget="boolean_toggle"/>
+                <field name="last_sync_date" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_ministra_account_form" model="ir.ui.view">
+        <field name="name">ministra.account.form</field>
+        <field name="model">ministra.account</field>
+        <field name="arch" type="xml">
+            <form string="IPTV Account">
+                <header>
+                    <button name="action_sync_to_ministra"
+                            type="object"
+                            string="Save to Ministra"
+                            class="oe_highlight"
+                            groups="ministra_manager.group_ministra_manager"
+                            invisible="not login"/>
+                    <button name="action_pull_from_ministra"
+                            type="object"
+                            string="Get from Ministra"
+                            class="btn-secondary"
+                            groups="ministra_manager.group_ministra_manager"
+                            invisible="not ministra_synced"/>
+                    <button name="action_delete_from_ministra"
+                            type="object"
+                            string="Delete from Ministra"
+                            class="btn-danger"
+                            confirm="Are you sure you want to delete this account from Ministra server?"
+                            groups="ab_ministra_connector.group_ab_ministra_admin"
+                            invisible="not ministra_synced"/>
+                    <field name="status" widget="statusbar" statusbar_visible="0,1"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <!-- Send Events Buttons -->
+                        <button name="action_send_reboot"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-power-off"
+                                string="Reboot STB"
+                                groups="ministra_manager.group_ministra_manager"
+                                invisible="not ministra_synced"/>
+                        <button name="action_reload_portal"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-refresh"
+                                string="Reload Portal"
+                                groups="ministra_manager.group_ministra_manager"
+                                invisible="not ministra_synced"/>
+                    </div>
+
+                    <widget name="web_ribbon" title="Not Synced" bg_color="text-bg-danger" invisible="ministra_synced"/>
+                    <widget name="web_ribbon" title="Online" bg_color="text-bg-success" invisible="online != '1' or not ministra_synced"/>
+                    <widget name="web_ribbon" title="Offline" bg_color="text-bg-secondary" invisible="online != '0' or not ministra_synced"/>
+
+                    <group>
+                        <group string="Account Info">
+                            <field name="login"/>
+                            <field name="password" password="True"/>
+                            <field name="full_name"/>
+                            <field name="phone"/>
+                            <field name="account_number"/>
+                            <field name="partner_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group string="STB Info">
+                            <field name="stb_mac"/>
+                            <field name="stb_sn"/>
+                            <field name="stb_type"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <group string="Subscription">
+                            <field name="tariff_plan"/>
+                            <field name="tariff_expired_date"/>
+                        </group>
+                        <group string="Status">
+                            <field name="online" widget="badge" decoration-success="online == '1'" decoration-muted="online == '0'"/>
+                            <field name="ip"/>
+                            <field name="version"/>
+                            <field name="last_active"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Comment">
+                            <field name="comment" placeholder="Internal notes..."/>
+                        </page>
+                        <page string="Sync Info">
+                            <group>
+                                <group>
+                                    <field name="ministra_synced"/>
+                                    <field name="last_sync_date"/>
+                                </group>
+                                <group>
+                                    <field name="last_sync_error" widget="text" invisible="not last_sync_error"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Kanban View -->
+    <record id="view_ministra_account_kanban" model="ir.ui.view">
+        <field name="name">ministra.account.kanban</field>
+        <field name="model">ministra.account</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile">
+                <field name="login"/>
+                <field name="full_name"/>
+                <field name="status"/>
+                <field name="online"/>
+                <field name="tariff_plan"/>
+                <field name="ministra_synced"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_global_click">
+                            <div class="o_kanban_record_top">
+                                <div class="o_kanban_record_headings">
+                                    <strong class="o_kanban_record_title">
+                                        <field name="name"/>
+                                    </strong>
+                                </div>
+                                <span class="float-end">
+                                    <field name="status" widget="badge" decoration-success="status == '1'" decoration-danger="status == '0'"/>
+                                    <field name="online" widget="badge" decoration-success="online == '1'" decoration-muted="online == '0'"/>
+                                </span>
+                            </div>
+                            <div class="o_kanban_record_body">
+                                <field name="full_name"/>
+                                <br/>
+                                <field name="tariff_plan"/>
+                            </div>
+                            <div class="o_kanban_record_bottom">
+                                <div class="oe_kanban_bottom_left">
+                                    <span t-if="record.ministra_synced.raw_value" class="badge text-bg-success">Synced</span>
+                                    <span t-else="" class="badge text-bg-danger">Not Synced</span>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_ministra_account_search" model="ir.ui.view">
+        <field name="name">ministra.account.search</field>
+        <field name="model">ministra.account</field>
+        <field name="arch" type="xml">
+            <search string="Search IPTV Accounts">
+                <field name="name" filter_domain="['|', '|', ('name', 'ilike', self), ('login', 'ilike', self), ('full_name', 'ilike', self)]"/>
+                <field name="login"/>
+                <field name="partner_id"/>
+                <field name="stb_mac"/>
+                <field name="tariff_plan"/>
+                <separator/>
+                <filter string="Active" name="filter_active" domain="[('status', '=', '1')]"/>
+                <filter string="Inactive" name="filter_inactive" domain="[('status', '=', '0')]"/>
+                <separator/>
+                <filter string="Online" name="filter_online" domain="[('online', '=', '1')]"/>
+                <filter string="Offline" name="filter_offline" domain="[('online', '=', '0')]"/>
+                <separator/>
+                <filter string="Synced" name="filter_synced" domain="[('ministra_synced', '=', True)]"/>
+                <filter string="Not Synced" name="filter_not_synced" domain="[('ministra_synced', '=', False)]"/>
+                <separator/>
+                <filter string="With Partner" name="filter_has_partner" domain="[('partner_id', '!=', False)]"/>
+                <filter string="Without Partner" name="filter_no_partner" domain="[('partner_id', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
+                    <filter string="Tariff Plan" name="group_tariff" context="{'group_by': 'tariff_plan'}"/>
+                    <filter string="Company" name="group_company" context="{'group_by': 'company_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_ministra_account" model="ir.actions.act_window">
+        <field name="name">IPTV Accounts</field>
+        <field name="res_model">ministra.account</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="context">{'search_default_filter_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No IPTV accounts found
+            </p>
+            <p>
+                Create your first IPTV account by clicking the "New" button.
+            </p>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- List View -->
+    <record id="view_ministra_tariff_tree" model="ir.ui.view">
+        <field name="name">ministra.tariff.tree</field>
+        <field name="model">ministra.tariff</field>
+        <field name="arch" type="xml">
+            <list string="IPTV Tariff Plans">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="external_id"/>
+                <field name="user_default"/>
+                <field name="days_to_expires"/>
+                <field name="account_count"/>
+                <field name="ministra_synced"/>
+                <field name="last_sync_date"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_ministra_tariff_form" model="ir.ui.view">
+        <field name="name">ministra.tariff.form</field>
+        <field name="model">ministra.tariff</field>
+        <field name="arch" type="xml">
+            <form string="IPTV Tariff Plan">
+                <header>
+                    <button name="action_sync_tariffs_from_ministra"
+                            type="object"
+                            string="Sync from Ministra"
+                            class="oe_highlight"
+                            groups="ab_ministra_connector.group_ab_ministra_admin"/>
+                    <button name="action_view_accounts"
+                            type="object"
+                            string="View Accounts"
+                            class="btn-secondary"
+                            invisible="account_count == 0"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_accounts"
+                                type="object"
+                                class="oe_stat_button"
+                                icon="fa-users">
+                            <field name="account_count" widget="statinfo" string="Accounts"/>
+                        </button>
+                    </div>
+
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="external_id"/>
+                            <field name="active"/>
+                            <field name="user_default"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="sequence"/>
+                            <field name="days_to_expires"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Description">
+                            <field name="description" placeholder="Tariff plan description..."/>
+                        </page>
+                        <page string="Packages Info" invisible="not packages_info">
+                            <field name="packages_info" widget="text"/>
+                        </page>
+                        <page string="Sync Info">
+                            <group>
+                                <group>
+                                    <field name="ministra_synced"/>
+                                    <field name="last_sync_date"/>
+                                </group>
+                                <group>
+                                    <field name="last_sync_error" widget="text" invisible="not last_sync_error"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_ministra_tariff_search" model="ir.ui.view">
+        <field name="name">ministra.tariff.search</field>
+        <field name="model">ministra.tariff</field>
+        <field name="arch" type="xml">
+            <search string="Search Tariff Plans">
+                <field name="name" filter_domain="['|', ('name', 'ilike', self), ('external_id', 'ilike', self)]"/>
+                <field name="external_id"/>
+                <separator/>
+                <filter string="Default Tariff" name="filter_default" domain="[('user_default', '=', True)]"/>
+                <filter string="Synced" name="filter_synced" domain="[('ministra_synced', '=', True)]"/>
+                <filter string="Not Synced" name="filter_not_synced" domain="[('ministra_synced', '=', False)]"/>
+                <separator/>
+                <filter string="Archived" name="filter_inactive" domain="[('active', '=', False)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Company" name="group_company" context="{'group_by': 'company_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_ministra_tariff" model="ir.actions.act_window">
+        <field name="name">IPTV Tariff Plans</field>
+        <field name="res_model">ministra.tariff</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No tariff plans found
+            </p>
+            <p>
+                Click "Sync from Ministra" to import tariff plans from the Ministra server.
+            </p>
+        </field>
+    </record>
+</odoo>

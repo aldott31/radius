@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ministra_account_user,ministra.account user,model_ministra_account,group_ministra_user,1,0,0,0
+access_ministra_account_manager,ministra.account manager,model_ministra_account,group_ministra_manager,1,1,1,1
+access_ministra_account_admin,ministra.account admin,model_ministra_account,ab_ministra_connector.group_ab_ministra_admin,1,1,1,1
+access_ministra_tariff_user,ministra.tariff user,model_ministra_tariff,group_ministra_user,1,0,0,0
+access_ministra_tariff_manager,ministra.tariff manager,model_ministra_tariff,group_ministra_manager,1,1,1,0
+access_ministra_tariff_admin,ministra.tariff admin,model_ministra_tariff,ab_ministra_connector.group_ab_ministra_admin,1,1,1,1
+access_ministra_provision_wizard_manager,ministra.provision.wizard manager,model_ministra_provision_wizard,group_ministra_manager,1,1,1,1
+access_ministra_provision_wizard_admin,ministra.provision.wizard admin,model_ministra_provision_wizard,ab_ministra_connector.group_ab_ministra_admin,1,1,1,1

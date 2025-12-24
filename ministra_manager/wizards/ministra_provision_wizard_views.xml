@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Provision Wizard Form View -->
+    <record id="view_ministra_provision_wizard_form" model="ir.ui.view">
+        <field name="name">ministra.provision.wizard.form</field>
+        <field name="model">ministra.provision.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Provision IPTV Account">
+                <group>
+                    <group string="Account Credentials">
+                        <field name="login" placeholder="e.g., 445123456 or customer@domain.com"/>
+                        <field name="password" password="True" placeholder="Leave empty to auto-generate"/>
+                        <field name="full_name" placeholder="Customer full name"/>
+                        <field name="phone"/>
+                        <field name="account_number" placeholder="External billing account number"/>
+                    </group>
+                    <group string="STB Info (Optional)">
+                        <field name="stb_mac" placeholder="AA:BB:CC:DD:EE:FF"/>
+                    </group>
+                </group>
+
+                <group>
+                    <group string="Subscription">
+                        <field name="tariff_plan"/>
+                        <field name="status"/>
+                    </group>
+                    <group string="Options">
+                        <field name="company_id" groups="base.group_multi_company"/>
+                        <field name="auto_sync"/>
+                    </group>
+                </group>
+
+                <footer>
+                    <button name="action_provision"
+                            type="object"
+                            string="Create Account"
+                            class="oe_highlight"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_ministra_provision_wizard" model="ir.actions.act_window">
+        <field name="name">Provision IPTV Account</field>
+        <field name="res_model">ministra.provision.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Add to Account tree view toolbar -->
+    <record id="view_ministra_account_tree_inherit_provision" model="ir.ui.view">
+        <field name="name">ministra.account.tree.inherit.provision</field>
+        <field name="model">ministra.account</field>
+        <field name="inherit_id" ref="view_ministra_account_tree"/>
+        <field name="arch" type="xml">
+            <list position="inside">
+                <header>
+                    <button name="%(action_ministra_provision_wizard)d"
+                            type="action"
+                            string="Quick Provision"
+                            groups="ministra_manager.group_ministra_manager"/>
+                </header>
+            </list>
+        </field>
+    </record>
+</odoo>

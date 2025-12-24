@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Cron: Sync Tariffs from Ministra (Daily) -->
+    <record id="cron_sync_ministra_tariffs" model="ir.cron">
+        <field name="name">Ministra: Sync Tariff Plans</field>
+        <field name="model_id" ref="model_ministra_tariff"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_sync_tariffs_from_ministra()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- IPTV User Group -->
+    <record id="group_ministra_user" model="res.groups">
+        <field name="name">IPTV User</field>
+        <field name="category_id" ref="base.module_category_services_iptv"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Can view IPTV accounts and tariffs (read-only)</field>
+    </record>
+
+    <!-- IPTV Manager Group -->
+    <record id="group_ministra_manager" model="res.groups">
+        <field name="name">IPTV Manager</field>
+        <field name="category_id" ref="base.module_category_services_iptv"/>
+        <field name="implied_ids" eval="[(4, ref('group_ministra_user'))]"/>
+        <field name="comment">Can create and edit IPTV accounts, sync with Ministra</field>
+    </record>
+
+    <!-- Create category if it doesn't exist -->
+    <record id="base.module_category_services_iptv" model="ir.module.category">
+        <field name="name">IPTV</field>
+        <field name="description">IPTV Management</field>
+        <field name="sequence">50</field>
+    </record>
+</odoo>

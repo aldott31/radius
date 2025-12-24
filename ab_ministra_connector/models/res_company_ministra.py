@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+from urllib.parse import quote
 
 from odoo import models, fields, _
 from odoo.exceptions import AccessError, UserError
@@ -101,28 +102,69 @@ class ResCompanyMinistra(models.Model):
 
         base = self._ministra_get_base_url()
 
+        # DEBUG: Show exact characters in base and resource
+        _logger.info("🔧 Base URL: %r", base)
+        _logger.info("🔧 Resource: %r", resource)
+
         url = f"{base}/{resource}"
+        _logger.info("🔧 URL after resource: %r", url)
 
         if identifiers:
+            # Log raw identifier before processing
+            _logger.info("🔧 Raw identifier: %r", identifiers)
+
             if isinstance(identifiers, (list, tuple, set)):
-                identifiers = ",".join(str(x) for x in identifiers)
-            url = f"{url}/{identifiers}"
+                identifiers = ",".join(str(x).strip() for x in identifiers)
+            else:
+                identifiers = str(identifiers).strip()
+
+            # URL encode the identifier to handle special characters
+            encoded_id = quote(identifiers, safe='')
+            _logger.info("🔧 Stripped identifier: %r", identifiers)
+            _logger.info("🔧 URL-encoded identifier: %r", encoded_id)
+
+            url = f"{url}/{encoded_id}"
+            _logger.info("🔧 URL after identifier: %r", url)
         else:
             # Some resources in docs show POST on a trailing slash
             if method == "POST":
                 url = f"{url}/"
+                _logger.info("🔧 URL after trailing slash: %r", url)
 
         timeout = int(timeout or self.ministra_api_timeout or 10)
+
+        # DEBUG: Log the request details (repr to see invisible chars)
+        _logger.info("🔧 Ministra API Request: %s %r", method, url)
+        _logger.info("🔧 Ministra API Request (str): %s %s", method, url)
+        _logger.info("🔧 Data: %s", data)
+        _logger.info("🔧 Params: %s", params)
+
+        # Prepare data - Try form-encoded format for POST/PUT
+        if data is not None and method in ('POST', 'PUT'):
+            # Send as form data (application/x-www-form-urlencoded)
+            _logger.info("🔧 Sending as form data")
+            send_data = data
+            send_json = None
+        elif data is not None:
+            # Send as JSON for other methods
+            _logger.info("🔧 Sending as JSON")
+            send_data = None
+            send_json = data
+        else:
+            send_data = None
+            send_json = None
 
         try:
             resp = requests.request(
                 method=method,
                 url=url,
                 auth=self._ministra_auth(),
-                data=data or {},
+                data=send_data if send_data is not None else None,
+                json=send_json if send_json is not None else None,
                 params=params or {},
                 timeout=timeout,
             )
+            _logger.info("🔧 Response Status: %s", resp.status_code)
         except requests.exceptions.RequestException as e:
             _logger.exception("Ministra API transport error: %s", e)
             raise UserError(_("Ministra API transport error:\n%s") % (str(e),))
@@ -137,6 +179,8 @@ class ResCompanyMinistra(models.Model):
             payload = resp.json()
         except Exception:
             raise UserError(_("Ministra API returned non-JSON response:\n%s") % (resp.text,))
+
+        _logger.info("🔧 Response: %s", payload)
 
         if payload.get("status") != "OK":
             raise UserError(_("Ministra API error:\n%s") % (payload.get("error") or payload))

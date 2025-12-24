@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Top Menu: IPTV Management -->
+    <menuitem id="menu_ministra_root"
+              name="IPTV Management"
+              sequence="60"
+              web_icon="ministra_manager,static/description/icon.png"
+              groups="ministra_manager.group_ministra_user"/>
+
+    <!-- Submenu: Accounts -->
+    <menuitem id="menu_ministra_accounts"
+              name="Accounts"
+              parent="menu_ministra_root"
+              sequence="10"/>
+
+    <menuitem id="menu_ministra_account_list"
+              name="IPTV Accounts"
+              parent="menu_ministra_accounts"
+              action="action_ministra_account"
+              sequence="10"/>
+
+    <!-- Submenu: Configuration -->
+    <menuitem id="menu_ministra_config"
+              name="Configuration"
+              parent="menu_ministra_root"
+              sequence="90"
+              groups="ab_ministra_connector.group_ab_ministra_admin"/>
+
+    <menuitem id="menu_ministra_tariff_list"
+              name="Tariff Plans"
+              parent="menu_ministra_config"
+              action="action_ministra_tariff"
+              sequence="10"/>
+</odoo>
