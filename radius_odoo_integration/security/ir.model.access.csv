@@ -7,3 +7,9 @@ access_product_radius_attribute_finance,product.radius.attribute finance,model_p
 access_radius_provision_wizard_all,radius.provision.wizard all,model_radius_provision_wizard,,1,1,1,1
 access_grace_days_wizard_manager,grace.days.wizard manager,model_grace_days_wizard,asr_radius_manager.group_isp_manager,1,1,1,1
 access_grace_days_wizard_finance,grace.days.wizard finance,model_grace_days_wizard,asr_radius_manager.group_isp_finance,1,1,1,1
+access_contract_wizard_all,contract.wizard all,model_contract_wizard,,1,1,1,1
+access_customer_contract_manager,customer.contract manager,model_customer_contract,asr_radius_manager.group_isp_manager,1,1,1,1
+access_customer_contract_sales,customer.contract sales,model_customer_contract,asr_radius_manager.group_isp_sales,1,1,1,0
+access_customer_contract_provisioning,customer.contract provisioning,model_customer_contract,asr_radius_manager.group_isp_provisioning,1,1,1,0
+access_customer_contract_finance,customer.contract finance,model_customer_contract,asr_radius_manager.group_isp_finance,1,1,0,0
+access_customer_contract_noc,customer.contract noc,model_customer_contract,asr_radius_manager.group_isp_noc,1,0,0,0

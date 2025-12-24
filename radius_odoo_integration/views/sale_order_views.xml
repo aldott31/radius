@@ -106,6 +106,14 @@
                         invisible="not is_radius_order or not radius_provisioned or state != 'sale'"
                         groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"
                         confirm="This will update the customer's RADIUS subscription. Continue?"/>
+
+                <button name="%(radius_odoo_integration.action_contract_wizard)d"
+                        string="📄 Kontrate e Re"
+                        type="action"
+                        class="btn-success"
+                        context="{'default_partner_id': partner_id}"
+                        invisible="partner_has_contract or not is_fully_paid"
+                        groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_manager"/>
             </xpath>
         </field>
     </record>

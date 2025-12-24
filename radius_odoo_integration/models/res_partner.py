@@ -295,6 +295,11 @@ class ResPartner(models.Model):
         compute='_compute_sale_invoice_counts',
         help="Number of invoices"
     )
+    contract_count = fields.Integer(
+        string="Contracts",
+        compute='_compute_contract_count',
+        help="Number of customer contracts"
+    )
 
     # ==================== INFRASTRUCTURE LINK ====================
     access_device_id = fields.Many2one(
@@ -955,6 +960,16 @@ class ResPartner(models.Model):
                 ])
             else:
                 rec.invoice_count = 0
+
+    def _compute_contract_count(self):
+        """Compute count of customer contracts"""
+        for rec in self:
+            if 'customer.contract' in self.env:
+                rec.contract_count = self.env['customer.contract'].search_count([
+                    ('partner_id', '=', rec.id)
+                ])
+            else:
+                rec.contract_count = 0
 
     # ==================== CONSTRAINTS ====================
     # Note: NIPT validation is done in create() and write() methods instead of @api.constrains
@@ -1632,6 +1647,31 @@ class ResPartner(models.Model):
             'context': {
                 'default_partner_id': self.id,
                 'default_move_type': 'out_invoice'
+            },
+            'target': 'current',
+        }
+
+    def action_view_contracts(self):
+        """Smart button: view all contracts for this customer"""
+        self.ensure_one()
+        form_view = self.env.ref('radius_odoo_integration.view_customer_contract_form', raise_if_not_found=False)
+        list_view = self.env.ref('radius_odoo_integration.view_customer_contract_list', raise_if_not_found=False)
+
+        views = []
+        if list_view:
+            views.append((list_view.id, 'list'))
+        if form_view:
+            views.append((form_view.id, 'form'))
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Contracts'),
+            'res_model': 'customer.contract',
+            'view_mode': 'list,form',
+            'views': views if views else False,
+            'domain': [('partner_id', '=', self.id)],
+            'context': {
+                'default_partner_id': self.id,
             },
             'target': 'current',
         }

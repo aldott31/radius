@@ -20,15 +20,6 @@
     <menuitem id="menu_helpdesk_team" name="Helpdesk Team"
               action="action_helpdesk_team"
               parent="helpdesk_management" sequence="10"/>
-
-    <!-- Payment Confirmation (Finance) -->
-    <menuitem id="menu_helpdesk_payment_confirmation"
-              name="💰 Payment Confirmation"
-              parent="menu_helpdesk"
-              action="ticket_helpdesk_action_payment_confirmation"
-              sequence="15"
-              groups="asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager"/>
-
     <!-- Configuration Menu -->
     <menuitem id="menu_helpdesk_configuration" name="Configuration"
               sequence="50" parent="menu_helpdesk"/>

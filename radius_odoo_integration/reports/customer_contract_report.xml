@@ -1,0 +1,896 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Paperformat: A4 pa margina (ndryshe s'del fix) -->
+    <record id="paperformat_abissnet_contract" model="report.paperformat">
+        <field name="name">Abissnet Contract A4 (0 margins)</field>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">0</field>
+        <field name="margin_bottom">0</field>
+        <field name="margin_left">0</field>
+        <field name="margin_right">0</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <!-- PDF Report Action -->
+    <record id="action_report_customer_contract" model="ir.actions.report">
+        <field name="name">Formulari i Regjistrimit</field>
+        <field name="model">customer.contract</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">radius_odoo_integration.report_customer_contract_document</field>
+        <field name="report_file">radius_odoo_integration.report_customer_contract_document</field>
+        <field name="binding_model_id" ref="model_customer_contract"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="paperformat_abissnet_contract"/>
+    </record>
+
+    <!-- Report Template (si fotoja, të gjitha vijat portokalli) -->
+    <template id="report_customer_contract_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.basic_layout">
+
+                    <div class="page ab-page">
+                        <style>
+                            @page { size: A4; margin: 0; }
+                            html, body { margin:0; padding:0; }
+                            * { box-sizing: border-box; }
+
+                            /* ULTRA FIX: Hiq të gjitha borders nga të gjitha elementet */
+                            * {
+                                border-color: transparent !important;
+                            }
+
+                            table, tr, td, th, tbody, thead, tfoot {
+                                border: 0 !important;
+                                border-width: 0 !important;
+                                border-style: none !important;
+                                border-color: transparent !important;
+                            }
+
+                            .ab-page{
+                                width: 210mm;
+                                min-height: 297mm;
+                                padding: 10mm;
+                                background: #fff;
+                                color:#000;
+                                font-family: "Times New Roman","Liberation Serif","DejaVu Serif",serif;
+                                font-size: 10pt;
+                                line-height: 1.15;
+                            }
+
+                            .b{ font-weight:bold; }
+
+                            /* FIX: hiq çdo border default nga Odoo/WKHTML (që dalin të zinj) */
+                            .ab-page table,
+                            .ab-page tr,
+                            .ab-page td,
+                            .ab-page th{
+                                border: 0 none !important;
+                                border-width: 0 !important;
+                                border-style: none !important;
+                            }
+                            .ab-page table{
+                                border-collapse: collapse !important;
+                                border-spacing: 0 !important;
+                            }
+
+                            .box{
+                                position: relative;
+                                border: 2px solid #FF6600 !important;
+                                border-width: 2px !important;
+                                border-style: solid !important;
+                                border-color: #FF6600 !important;
+                                background:#fff;
+                            }
+
+                            /* Tag i vogël sipër bordurës */
+                            .tag{
+                                position:absolute;
+                                top:-2px;
+                                background:#FF6600;
+                                color:#fff;
+                                font-weight:bold;
+                                padding: 1.2mm 4mm;
+                                font-size: 10pt;
+                                z-index: 2;
+                                white-space: nowrap;
+                            }
+                            .tag.left{ left:-2px; }
+                            .tag.right{ right:-2px; }
+
+                            /* underline field */
+                            .line{
+                                border: 0 !important;
+                                border-bottom: 1px solid #FF6600 !important;
+                                border-bottom-width: 1px !important;
+                                border-bottom-style: solid !important;
+                                border-bottom-color: #FF6600 !important;
+                                height: 5.5mm;
+                                line-height: 5.5mm;
+                                padding-left: 1mm;
+                                overflow: hidden;
+                                white-space: nowrap;
+                            }
+
+                            .mt2{ margin-top:2mm; }
+                            .mt3{ margin-top:3mm; }
+
+                            /* TOP: logo + titulli */
+                            .top-row{
+                                display: table;
+                                width:100%;
+                                border-collapse: collapse;
+                                margin-bottom: 2mm;
+                            }
+                            .top-logo{
+                                display: table-cell;
+                                width: 60mm;
+                                vertical-align: top;
+                            }
+                            .top-logo img{
+                                height: 18mm;
+                                width:auto;
+                            }
+                            .top-title{
+                                display: table-cell;
+                                vertical-align: top;
+                            }
+                            .title-bar{
+                                margin-left: 4mm;
+                                background:#FF6600;
+                                color:#fff;
+                                font-weight:bold;
+                                font-size: 26pt;
+                                text-align:center;
+                                padding: 3mm 0 2mm;
+                            }
+
+                            /* Header boxes: bosh + operator + QR */
+                            .hdr-row{
+                                display: table;
+                                width:100%;
+                                border-collapse: collapse;
+                                margin-bottom: 3mm;
+                            }
+                            .hdr-empty-cell{
+                                display: table-cell;
+                                width: 44mm;
+                                vertical-align: top;
+                            }
+                            .empty-box{
+                                width: 40mm;
+                                height: 32mm;
+                                border: 2px solid #FF6600 !important;
+                                border-width: 2px !important;
+                                border-style: solid !important;
+                                border-color: #FF6600 !important;
+                            }
+
+                            .hdr-operator-cell{
+                                display: table-cell;
+                                vertical-align: top;
+                                padding: 0 3mm;
+                            }
+                            .operator-box{
+                                height: 32mm;
+                                padding: 6mm 4mm 3mm 4mm;
+                            }
+
+                            .op-table{
+                                width:100%;
+                                border-collapse: collapse;
+                                font-size: 9pt;
+                                line-height: 1.1;
+                            }
+                            .op-table td{ vertical-align: top; }
+                            .op-left{ width: 58%; padding-right: 4mm; }
+                            .op-right{ width: 42%; }
+
+                            .hdr-qr-cell{
+                                display: table-cell;
+                                width: 36mm;
+                                vertical-align: top;
+                                text-align: right;
+                            }
+                            .qr-box{
+                                width: 32mm;
+                                height: 32mm;
+                                border: 2px solid #FF6600 !important;  /* portokalli */
+                                border-width: 2px !important;
+                                border-style: solid !important;
+                                border-color: #FF6600 !important;
+                                display: table;
+                                background:#fff;
+                            }
+                            .qr-box .qr-in{
+                                display: table-cell;
+                                vertical-align: middle;
+                                text-align: center;
+                            }
+                            .qr-box img{
+                                width: 28mm;
+                                height: 28mm;
+                            }
+
+                            /* Contract terms */
+                            .contract-box{
+                                padding: 6mm 4mm 4mm 4mm;
+                            }
+                            .contract-grid{
+                                width:100%;
+                                border-collapse: collapse;
+                            }
+                            .contract-grid td{
+                                width:50%;
+                                vertical-align: top;
+                            }
+                            .lines{
+                                width:100%;
+                                border-collapse: collapse;
+                            }
+                            .lines td{ padding: 0 0 1.2mm 0; vertical-align: bottom; }
+                            .lbl{
+                                width: 32mm;
+                                font-weight:bold;
+                                padding-right: 2mm;
+                                white-space: nowrap;
+                            }
+
+                            /* Months boxes */
+                            .months-wrap{ padding-top: 0.5mm; }
+                            .months{ border-collapse: collapse; }
+                            .months td{
+                                border:1px solid #FF6600 !important;
+                                border-width: 1px !important;
+                                border-style: solid !important;
+                                border-color: #FF6600 !important;
+                                width: 7mm;
+                                height: 6mm;
+                                text-align:center;
+                                vertical-align: middle;
+                                font-size: 8pt;
+                                font-weight:bold;
+                                padding:0;
+                                background: transparent !important;
+                                color:#000 !important;
+                            }
+                            /* Muajt e paguar mbushen me portokalli */
+                            .months td.paid{
+                                background:#FF6600 !important;
+                                color:#fff !important;
+                            }
+
+                            /* Clients 2 columns */
+                            .clients-box{
+                                padding: 6mm 0 4mm 0;
+                            }
+                            .clients-grid{
+                                width:100%;
+                                border-collapse: collapse;
+                            }
+                            .clients-grid td{
+                                width:50%;
+                                vertical-align: top;
+                                padding: 0 4mm 0 4mm;
+                            }
+                            .clients-grid td.right{
+                                border: 0 !important;
+                                border-left: 2px solid #FF6600 !important;
+                                border-left-width: 2px !important;
+                                border-left-style: solid !important;
+                                border-left-color: #FF6600 !important;
+                            }
+                            .client-lines .lbl{ width: 28mm; }
+
+                            /* Services */
+                            .services-box{
+                                padding: 6mm 4mm 4mm 4mm;
+                            }
+                            .services{
+                                width:100%;
+                                border-collapse: collapse;
+                                margin-top: 1mm;
+                            }
+                            
+                            .services tr{
+                                border-bottom: 1px solid #FF6600 !important;
+                            }
+                            .services tr:last-child{
+                                border-bottom: 0 !important;
+                            }
+                            .services td{
+                                padding: 0;
+                                vertical-align: middle;
+                            }
+                            .svc-lbl{
+                                width: 40mm;
+                                font-weight:bold;
+                                white-space: nowrap;
+                                padding-right: 2mm;
+                                padding-left: 0;
+                                vertical-align: middle;
+                            }
+                            .svc-val{
+                                border: 0 !important;
+                                border-bottom: 1px solid #FF6600 !important;
+                                border-bottom-width: 1px !important;
+                                border-bottom-style: solid !important;
+                                border-bottom-color: #FF6600 !important;
+                                height: 6mm;
+                                line-height: 6mm;
+                                padding: 0 1mm;
+                                overflow:hidden;
+                                white-space: nowrap;
+                                vertical-align: middle;
+                                text-align: left;
+                            }
+                            .svc-money{
+                                width: 33mm;
+                                border: 0 !important;
+                                border: 1px solid #FF6600 !important;
+                                border-width: 1px !important;
+                                border-style: solid !important;
+                                border-color: #FF6600 !important;
+                                height: 6mm;
+                                line-height: 6mm;
+                                text-align:center;
+                                vertical-align: middle;
+                                padding: 0;
+                            }
+                            .svc-pre{
+                                width: 33mm;
+                                border: 0 !important;
+                                border: 1px solid #FF6600 !important;
+                                border-width: 1px !important;
+                                border-style: solid !important;
+                                border-color: #FF6600 !important;
+                                height: 6mm;
+                                line-height: 6mm;
+                                text-align:center;
+                                vertical-align: middle;
+                                padding: 0;
+                            }
+                            .svc-head td{
+                                padding: 0;
+                                padding-bottom: 1mm;
+                                vertical-align: middle;
+                            }
+                            .svc-head .h{
+                                font-weight:bold;
+                                text-align:center;
+                                border: 0 !important;
+                                border: 1px solid #FF6600 !important;
+                                border-width: 1px !important;
+                                border-style: solid !important;
+                                border-color: #FF6600 !important;
+                                padding: 1mm;
+                                height: 6mm;
+                                line-height: 1;
+                                vertical-align: middle;
+                            }
+                            .bigbox{
+                                border:2px solid #FF6600 !important;
+                                border-width: 2px !important;
+                                border-style: solid !important;
+                                border-color: #FF6600 !important;
+                                height: 21mm;
+                                text-align:center;
+                                vertical-align: middle;
+                                padding: 1.5mm;
+                            }
+                            .total-label{
+                                font-weight:bold;
+                                text-align:center;
+                                padding-top: 2mm;
+                            }
+
+                            /* Acceptance box */
+                            .accept-box{
+                                border: 2px solid #FF6600 !important;
+                                border-width: 2px !important;
+                                border-style: solid !important;
+                                border-color: #FF6600 !important;
+                                padding: 1.6mm 3mm;
+                                margin-top: 2mm;
+                                font-size: 8pt;
+                                text-align:center;
+                                line-height: 1.2;
+                            }
+
+                            /* Signature */
+                            .sign-box{
+                                padding: 6mm 4mm 4mm 4mm;
+                                margin-top: 2mm;
+                            }
+                            .warn{
+                                font-size: 8pt;
+                                line-height: 1.2;
+                                text-align: justify;
+                                margin-bottom: 3mm;
+                            }
+                            .sign-sep{
+                                border: 0 !important;
+                                border-top: 1px solid #FF6600 !important;
+                                border-top-width: 1px !important;
+                                border-top-style: solid !important;
+                                border-top-color: #FF6600 !important;
+                                margin: 2mm 0 2mm;
+                            }
+                            .sign-table{
+                                width:100%;
+                                border-collapse: collapse;
+                            }
+                            .sign-table td{
+                                width:50%;
+                                text-align:center;
+                                vertical-align: top;
+                                padding: 1mm 0;
+                            }
+                            .sign-head{
+                                font-weight:bold;
+                                font-size: 14pt;
+                                padding-bottom: 1mm;
+                            }
+                            .sign-sub{
+                                font-size: 8pt;
+                                padding-bottom: 1mm;
+                            }
+                            .sign-line{
+                                border: 0 !important;
+                                border-bottom: 1px solid #FF6600 !important;
+                                border-bottom-width: 1px !important;
+                                border-bottom-style: solid !important;
+                                border-bottom-color: #FF6600 !important;
+                                height: 7mm;
+                                line-height: 7mm;
+                                margin: 0 10mm;
+                            }
+                            .sign-mid{
+                                font-weight:bold;
+                                font-size: 11pt;
+                                padding-top: 2mm;
+                            }
+                            .sign-sig{
+                                border: 0 !important;
+                                border-bottom: 1px solid #FF6600 !important;
+                                border-bottom-width: 1px !important;
+                                border-bottom-style: solid !important;
+                                border-bottom-color: #FF6600 !important;
+                                height: 10mm;
+                                line-height: 10mm;
+                                margin: 0 10mm;
+                            }
+                            .sign-foot{
+                                font-size: 8pt;
+                                padding-top: 1mm;
+                            }
+                        </style>
+
+                        <!-- TOP -->
+                        <div class="top-row">
+                            <div class="top-logo">
+                                <img t-if="o.env.company.logo"
+                                     t-att-src="image_data_uri(o.env.company.logo)"
+                                     alt="Logo"/>
+                            </div>
+                            <div class="top-title">
+                                <div class="title-bar">Formulari i Regjistrimit</div>
+                            </div>
+                        </div>
+
+                        <!-- HEADER BOXES -->
+                        <div class="hdr-row">
+                            <div class="hdr-empty-cell">
+                                <div class="empty-box"></div>
+                            </div>
+
+                            <div class="hdr-operator-cell">
+                                <div class="box operator-box">
+                                    <div class="tag left">Operatori</div>
+                                    <table class="op-table">
+                                        <tr>
+                                            <td class="op-left">
+                                                <span class="b">Shoqëria Abissnet sh.a.</span><br/>
+                                                Rr. Ismail Qemali, Pll. 18, K.II, Tiranë, Shqipëri<br/>
+                                                <span class="b">NUIS: K01417001C</span><br/>
+                                                Çertifikatë: Nr.2022-AP-1.1-395/dt.22.11.2022
+                                            </td>
+                                            <td class="op-right">
+                                                <span class="b">Tel Shitjet: +355 44 300 123</span><br/>
+                                                <span class="b">Tel Suporti: +355 44 300 001</span><br/>
+                                                <span class="b">Email: info@abissnet.al</span><br/>
+                                                <span class="b">www.abissnet.al</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="hdr-qr-cell">
+                                <div class="qr-box">
+                                    <div class="qr-in">
+                                        <img t-if="o.qr_code"
+                                             t-att-src="'data:image/png;base64,%s' % o.qr_code.decode('utf-8')"
+                                             alt="QR"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CONTRACT TERMS -->
+                        <div class="box contract-box">
+                            <div class="tag right">Kushtet e Kontratës</div>
+
+                            <table class="contract-grid">
+                                <tr>
+                                    <td style="padding-right:4mm;">
+                                        <table class="lines">
+                                            <tr>
+                                                <td class="lbl">Afati/Pagesa:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.afati == '1'">1 muaj</t>
+                                                        <t t-elif="o.afati == '3'">3 muaj</t>
+                                                        <t t-elif="o.afati == '6'">6 muaj</t>
+                                                        <t t-elif="o.afati == '12'">12 muaj</t>
+                                                        <t t-elif="o.afati == '24'">24 muaj</t>
+                                                        <t t-if="o.pagesa"> / </t>
+                                                        <t t-if="o.pagesa == 'prepaid'">Parapagim</t>
+                                                        <t t-elif="o.pagesa == 'postpaid'">Paspagim</t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Nr. Kontratës:</td>
+                                                <td><div class="line"><span t-field="o.name"/></div></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Muaji Paguar:</td>
+                                                <td class="months-wrap">
+                                                    <t t-set="paid_months" t-value="o.prepaid_months or 0"/>
+                                                    <table class="months">
+                                                        <tr>
+                                                            <t t-foreach="range(1, 13)" t-as="m">
+                                                                <td t-att-class="'paid' if m &lt;= paid_months else ''">
+                                                                    <t t-esc="m"/>
+                                                                </td>
+                                                            </t>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+
+                                    <td style="padding-left:4mm;">
+                                        <table class="lines">
+                                            <tr>
+                                                <td class="lbl">Data:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <span t-field="o.data" t-options='{"widget":"date","format":"dd/MM/yyyy"}'/>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Penaliteti:</td>
+                                                <td><div class="line">referuar Pikës 5.1</div></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Nr. Përdoruesit:</td>
+                                                <td><div class="line"><span t-field="o.partner_id.radius_username"/></div></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Total Muaj Paguar:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-set="total_paid" t-value="o.cmimi_total * (o.prepaid_months or 0)"/>
+                                                        $ <t t-esc="'{:,.2f}'.format(total_paid)"/>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- CLIENTS -->
+                        <div class="box clients-box mt3">
+                            <div class="tag left">Pajtimtar - Individ</div>
+                            <div class="tag right">Person juridik/Person Fizik (me NUIS)</div>
+
+                            <table class="clients-grid">
+                                <tr>
+                                    <!-- LEFT -->
+                                    <td>
+                                        <table class="lines client-lines">
+                                            <tr>
+                                                <td class="lbl">Emri:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates == 'individ'"><span t-field="o.emri"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Nr. Personal:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates == 'individ'"><span t-field="o.nr_personal"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">ID</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates == 'individ'"><span t-field="o.id_number"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Datëlindja:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates == 'individ'"><span t-field="o.datelindja"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Vendlindja:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates == 'individ'"><span t-field="o.vendlindja"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Adresa:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates == 'individ'"><span t-field="o.adresa_1"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Mobile:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates == 'individ'"><span t-field="o.mobile_1"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">E-mail:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates == 'individ'"><span t-field="o.email"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+
+                                    <!-- RIGHT -->
+                                    <td class="right">
+                                        <table class="lines client-lines">
+                                            <tr>
+                                                <td class="lbl">Emri:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates != 'individ'"><span t-field="o.emri"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">NUIS:</td>
+                                                <td><div class="line"><span t-field="o.partner_id.vat"/></div></td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Adresa:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates != 'individ'"><span t-field="o.adresa_1"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Përfaqësuesi ligjor:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates != 'individ'"><span t-field="o.perfaqesuesi_ligjor"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Nr. Personal i përfaqësuesit:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates != 'individ'"><span t-field="o.nr_personal_perfaqesues"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">Mobile:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates != 'individ'"><span t-field="o.mobile_1"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="lbl">E-mail:</td>
+                                                <td>
+                                                    <div class="line">
+                                                        <t t-if="o.tipi_kontrates != 'individ'"><span t-field="o.email"/></t>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- SERVICES -->
+                        <div class="box services-box mt3">
+                            <div class="tag right">Shërbimet</div>
+
+                            <table class="services">
+                                <tr class="svc-head">
+                                    <td colspan="2"></td>
+                                    <td class="h">Çmimi/Muaj</td>
+                                    <td class="h">Parapagimi</td>
+                                </tr>
+
+                                <tr>
+                                    <td class="svc-lbl">Lloji Lidhjes:</td>
+                                    <td class="svc-val">
+                                        <t t-if="o.lloji_lidhjes == 'fiber_optike'">Fiber -Optike</t>
+                                        <t t-elif="o.lloji_lidhjes == 'fiber_optike_std'">Fiber Optike</t>
+                                        <t t-elif="o.lloji_lidhjes == 'fiber_optike_posta'">Fiber Optike (Posta Shqiptare)</t>
+                                        <t t-elif="o.lloji_lidhjes == 'fiber_optike_rrethe'">Fiber Optike Rrethë</t>
+                                        <t t-elif="o.lloji_lidhjes == 'fiber_optike_sla2'">Fiber Optike SLA 2 Business 2025</t>
+                                        <t t-elif="o.lloji_lidhjes == 'fiber_optike_sla3'">Fiber Optike SLA3</t>
+                                        <t t-elif="o.lloji_lidhjes == 'fiber_optike_superiore'">Fiber Optike Superiore</t>
+                                        <t t-elif="o.lloji_lidhjes == 'fiber_optike_rrethe_alt'">Fiber Optike (Rrethë)</t>
+                                    </td>
+                                    <td class="svc-money">$ <t t-esc="'{:,.2f}'.format(o.cmimi_lloji_lidhjes or 0)"/></td>
+                                    <td class="svc-pre"></td>
+                                </tr>
+
+                                <tr>
+                                    <td class="svc-lbl">Shërbimi Internet:</td>
+                                    <td class="svc-val"><span t-field="o.emri_planit_internet"/></td>
+                                    <td class="bigbox" rowspan="3">
+                                        <t t-if="o.cmimi_planit">$ <t t-esc="'{:,.2f}'.format(o.cmimi_planit)"/><br/></t>
+                                        <t t-if="o.cmimi_teknologjia_tv">$ <t t-esc="'{:,.2f}'.format(o.cmimi_teknologjia_tv)"/></t>
+                                    </td>
+                                    <td class="bigbox" rowspan="3"></td>
+                                </tr>
+
+                                <tr>
+                                    <td class="svc-lbl">Shërbimi TV:</td>
+                                    <td class="svc-val"><span t-field="o.emri_planit_tv"/></td>
+                                </tr>
+
+                                <tr>
+                                    <td class="svc-lbl">Shërbimi Telefonik:</td>
+                                    <td class="svc-val"><span t-field="o.emri_planit_telefon"/></td>
+                                </tr>
+
+                                <tr>
+                                    <td class="svc-lbl">Lloji i IP:</td>
+                                    <td class="svc-val">
+                                        <t t-if="o.ip_statike == 'no'">IP Statike - Po</t>
+                                        <t t-else="">Dinamike</t>
+                                    </td>
+                                    <td class="svc-money">$ <t t-esc="'{:,.2f}'.format(o.cmimi_ip_statike or 0)"/></td>
+                                    <td class="svc-pre"></td>
+                                </tr>
+
+                                <tr>
+                                    <td class="svc-lbl">Pajisje Interneti:</td>
+                                    <td class="svc-val">
+                                        <t t-foreach="o.cpe_internet_product_ids" t-as="product">
+                                            <span t-field="product.name"/><t t-if="not product_last">, </t>
+                                        </t>
+                                    </td>
+                                    <td class="svc-money">$ <t t-esc="'{:,.2f}'.format(o.cmimi_cpe_internet or 0)"/></td>
+                                    <td class="svc-pre"></td>
+                                </tr>
+
+                                <tr>
+                                    <td class="svc-lbl">Pajisje TV:</td>
+                                    <td class="svc-val">
+                                        <t t-foreach="o.cpe_tv_product_ids" t-as="product">
+                                            <span t-field="product.name"/><t t-if="not product_last">, </t>
+                                        </t>
+                                    </td>
+                                    <td class="svc-money">$ <t t-esc="'{:,.2f}'.format(o.cmimi_cpe_tv or 0)"/></td>
+                                    <td class="svc-pre"></td>
+                                </tr>
+
+                                <tr>
+                                    <td class="svc-lbl">Router/Wifi/Tjetër:</td>
+                                    <td class="svc-val">
+                                        <t t-foreach="o.router_wifi_product_ids" t-as="product">
+                                            <span t-field="product.name"/><t t-if="not product_last">, </t>
+                                        </t>
+                                    </td>
+                                    <td class="svc-money">$ <t t-esc="'{:,.2f}'.format(o.cmimi_router_wifi or 0)"/></td>
+                                    <td class="svc-pre"></td>
+                                </tr>
+
+                                <tr>
+                                    <td colspan="2" class="total-label">Totali:</td>
+                                    <td class="svc-money b">$ <t t-esc="'{:,.2f}'.format(o.cmimi_total or 0)"/></td>
+                                    <td class="svc-pre"></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- ACCEPTANCE -->
+                        <div class="accept-box">
+                            Pajtimtari deklaron se është njohur me Kushtet e Përgjithshme të Kontratës se Pajtimit,
+                            të publikuara në faqen zyrtare të Abissnet sh.a. (www.abissnet.al), dhe te aksesueshme në QR Code
+                            të kësaj kontrate,dhe i pranon ato në tërësi. Pajtimtari konfirmon se ka pasur mundësinë t'i lexojë
+                            dhe t'i kuptojë këto kushte përpara nënshkrimit të kësaj kontrate
+                        </div>
+
+                        <!-- SIGNATURE -->
+                        <div class="box sign-box mt2">
+                            <div class="tag right">Nënshkrimi</div>
+
+                            <div class="warn">
+                                <span class="b">Kujdes!</span>
+                                Deklarimet e të dhënave të rreme apo paraqitja e dokumentave të falsifikuara për regjistrim,
+                                përbëjnë krime të falsifikimit dhe/ose përdorimit të dokumentave të falsifikuara që parashikohen
+                                nga nenet 186, 189 ose 191 të kodit Penal të Republikës të Shqipërisë. Në rastet e parashikuara
+                                me ligj të dhënat e këtij formulari u vihen në dispozicon autoriteteve të përcaktuara në Kodin e
+                                Precedurës Penale, në bazë të Kërkesës së tyre.
+                            </div>
+
+                            <div class="sign-sep"></div>
+
+                            <table class="sign-table">
+                                <tr>
+                                    <td class="sign-head">Përdoruesi</td>
+                                    <td class="sign-head">Letërnjoftim / n</td>
+                                </tr>
+                                <tr>
+                                    <td class="sign-sub">Rregjistrimi bëhet nga</td>
+                                    <td class="sign-sub">Lloji/Numri i dokumentit&#160;&#160;&#160;&#160;&#160;&#160;&#160;Lloji/Nr</td>
+                                </tr>
+                                <tr>
+                                    <td><div class="sign-line"></div></td>
+                                    <td><div class="sign-line"></div></td>
+                                </tr>
+                                <tr>
+                                    <td class="sign-mid">Nënshkrimi i Përdoruesit</td>
+                                    <td class="sign-mid">Nënshkrimi i Operatorit</td>
+                                </tr>
+                                <tr>
+                                    <td><div class="sign-sig"></div></td>
+                                    <td><div class="sign-sig"></div></td>
+                                </tr>
+                                <tr>
+                                    <td class="sign-foot">Emër Mbiemër, Firmë</td>
+                                    <td class="sign-foot">Emër Mbiemër, Firmë</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                    </div>
+
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

@@ -2,7 +2,7 @@
 {
     'name': 'RADIUS Odoo Integration',
     'summary': 'Integrates FreeRADIUS with standard Odoo modules (Contacts, Sales, Products)',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.0.1',
     'category': 'Services/RADIUS',
     'author': 'Abissnet',
     'license': 'LGPL-3',
@@ -10,8 +10,6 @@
         'base',                 # res.partner
         'contacts',             # Contact management
         'sale_management',      # sale.order
-        'sale_timesheet',       # Timesheet integration (auto-installs hr_timesheet, project, sale_project)
-        'hr',                   # Human Resources (for hr.department - used by bash_authentication)
         'account',              # Invoicing and payments
         'product',              # product.template/product.product
         'stock',                # Optional: for equipment tracking
@@ -37,11 +35,18 @@
         # 4️⃣ WIZARDS (must load before views that reference them)
         'wizards/radius_provision_wizard_views.xml',
         'wizards/grace_days_wizard_views.xml',
+        'wizards/contract_wizard_views.xml',
 
-        # 5️⃣ VIEWS (with actions and menu items)
+        # 5️⃣ REPORTS (must load before views that reference them)
+        'reports/customer_contract_report.xml',
+
+        # 6️⃣ VIEWS (with actions and menu items)
         'views/res_partner_views.xml',
+        'views/res_partner_contract_views.xml',
         'views/product_template_views.xml',
         'views/sale_order_views.xml',
+        'views/account_invoice_views.xml',
+        'views/customer_contract_views.xml',
     ],
     'installable': True,
     'application': False,

@@ -76,10 +76,25 @@ class SaleOrder(models.Model):
         help="Calculated end date based on start date + subscription months"
     )
 
-    # ==================== NOTE: TIMESHEET FIELDS ====================
-    # Timesheet-related fields (timesheet_count, tasks_count, project_id, etc.)
-    # are provided by the sale_timesheet module (which is now a dependency).
-    # No dummy fields needed!
+    # ==================== CONTRACT STATUS ====================
+    partner_has_contract = fields.Boolean(
+        string="Partner Has Contract",
+        compute='_compute_partner_has_contract',
+        help="True if partner already has a contract"
+    )
+
+    is_fully_paid = fields.Boolean(
+        string="Is Fully Paid",
+        compute='_compute_is_fully_paid',
+        help="True if all invoices are paid"
+    )
+
+    # ==================== DUMMY FIELDS FOR COMPATIBILITY ====================
+    # These fields are only needed when sale_pdf_quote_builder or documents modules
+    # are NOT installed. If those modules are installed, they provide their own fields.
+    # Since we can't dynamically check module installation at field definition time,
+    # we've removed these dummy fields. If you get JS errors about missing fields,
+    # it means the module IS installed and working correctly.
 
     # ==================== COMPUTED METHODS ====================
     @api.depends('order_line.product_id.is_radius_service')
@@ -119,6 +134,32 @@ class SaleOrder(models.Model):
                 rec.service_end_date = rec.service_start_date + relativedelta(months=rec.subscription_months)
             else:
                 rec.service_end_date = False
+
+    @api.depends('partner_id')
+    def _compute_partner_has_contract(self):
+        """Check if partner has any contract"""
+        for rec in self:
+            if rec.partner_id:
+                contract_count = self.env['customer.contract'].search_count([
+                    ('partner_id', '=', rec.partner_id.id)
+                ])
+                rec.partner_has_contract = contract_count > 0
+            else:
+                rec.partner_has_contract = False
+
+    @api.depends('invoice_ids', 'invoice_ids.payment_state')
+    def _compute_is_fully_paid(self):
+        """Check if all invoices are fully paid"""
+        for rec in self:
+            if rec.invoice_ids:
+                # Check if all invoices are paid
+                rec.is_fully_paid = all(
+                    invoice.payment_state in ['paid', 'in_payment']
+                    for invoice in rec.invoice_ids
+                )
+            else:
+                # No invoices yet
+                rec.is_fully_paid = False
 
     # ==================== ONCHANGE: AUTO-ADD SUBSCRIPTION PRODUCT ====================
     @api.onchange('partner_id')
@@ -359,14 +400,8 @@ class SaleOrder(models.Model):
                     })
 
                     # 5) Generate credentials if missing
-                    if not order.partner_id.radius_username:
-                        order.partner_id.write({
-                            'radius_username': order.partner_id._generate_username()
-                        })
-                    if not order.partner_id.radius_password:
-                        order.partner_id.write({
-                            'radius_password': order.partner_id._generate_password()
-                        })
+                    if not order.partner_id.radius_username or not order.partner_id.radius_password:
+                        order.partner_id._generate_radius_credentials()
 
                     # 6) PRE-PROVISION in SUSPENDED mode (NO INTERNET YET!)
                     order.partner_id.action_sync_to_radius_suspended()

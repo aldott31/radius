@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Add Contracts smart button to partner form -->
+    <record id="view_res_partner_form_contracts" model="ir.ui.view">
+        <field name="name">res.partner.form.contracts</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_contracts" type="object"
+                        class="oe_stat_button" icon="fa-file-text-o">
+                    <field name="contract_count" widget="statinfo" string="Contracts"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

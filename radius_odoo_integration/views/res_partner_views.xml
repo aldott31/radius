@@ -17,6 +17,18 @@
                             type="object"
                             class="btn-primary"
                             groups="asr_radius_manager.group_isp_customer_service,asr_radius_manager.group_isp_manager"/>
+                    <button name="%(radius_odoo_integration.action_contract_wizard)d"
+                            string="📄 Kontrate e Re"
+                            type="action"
+                            class="btn-success"
+                            context="{'default_partner_id': id}"
+                            groups="asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_manager"/>
+                    <button name="%(radius_odoo_integration.action_radius_provision_wizard)d"
+                            string="⚙️ Provision to RADIUS"
+                            type="action"
+                            class="btn-primary"
+                            context="{'default_partner_id': id}"
+                            groups="asr_radius_manager.group_isp_provisioning,asr_radius_manager.group_isp_manager"/>
                     <button name="action_disconnect_user"
                             string="🔄 Restart Connection"
                             type="object"
@@ -104,7 +116,7 @@
                 <!-- Contact Information -->
                 <group string="Contact Information">
                     <group>
-                        <field name="vat" string="Tax ID" placeholder="e.g. L12345678X" required="1"/>
+                        <field name="vat" string="NUIS" placeholder="e.g. L12345678X" required="1"/>
                         <field name="street" placeholder="e.g. Rruga e Kavajes"/>
                         <field name="street2" placeholder="Address line 2"/>
                         <field name="zip" placeholder="ZIP Code"/>
@@ -143,22 +155,35 @@
                 </group>
 
 
+                <!-- Contract Information -->
+                <group string="Contract Information">
+                    <group>
+                        <field name="contract_start_date" string="Contract Start Date"/>
+                        <field name="contract_end_date" string="Contract End Date"/>
+                        <field name="billing_day" string="Billing Day"/>
+                    </group>
+                    <group>
+                        <field name="service_paid_until" string="Service Paid Until"/>
+                        <field name="grace_days_debt" string="Grace Days" invisible="grace_days_debt == 0"/>
+                    </group>
+                </group>
+
                 <!-- Payment Information -->
                 <group string="Payment Information">
                     <group>
-                        <field name="last_payment_date"/>
-                        <field name="service_paid_until"/>
-                        <field name="grace_days_debt" invisible="grace_days_debt == 0"/>
-                        <field name="last_payment_amount"/>
-                        <field name="total_paid_amount"/>
+                        <field name="last_payment_date" string="Last Payment Date"/>
+                        <field name="last_payment_amount" string="Last Payment Amount" widget="monetary"/>
+                        <field name="total_paid_amount" string="Total Paid" widget="monetary"/>
                     </group>
                     <group>
-                        <field name="first_payment_date"/>
-                        <field name="payment_balance"/>
-                        <field name="contract_start_date"/>
-                        <field name="billing_day"/>
+                        <field name="first_payment_date" string="First Payment Date"/>
+                        <field name="payment_balance" string="Balance" widget="monetary"/>
                     </group>
-                    <group colspan="2">
+                </group>
+
+                <!-- Actions -->
+                <group>
+                    <group>
                         <button name="%(radius_odoo_integration.action_add_grace_days_wizard)d"
                                 type="action"
                                 string="Add Grace Days"
@@ -167,16 +192,16 @@
                                 context="{'default_partner_id': id}"
                                 invisible="not service_paid_until"/>
                         <button name="action_refresh_payment_stats" type="object"
-                                string="Refresh Payment Statistics"
+                                string="Refresh Payment Stats"
                                 class="btn-secondary"
-                                icon="fa-refresh"
-                                help="Manually update payment statistics from all paid invoices"/>
+                                icon="fa-refresh"/>
+                    </group>
+                    <group>
                         <button name="action_update_status_from_payments" type="object"
                                 string="Update Status from Payments"
                                 class="btn-primary"
                                 icon="fa-check"
-                                invisible="customer_status != 'lead' or not last_payment_date"
-                                help="Update status to 'Paid' based on payment history"/>
+                                invisible="customer_status != 'lead' or not last_payment_date"/>
                     </group>
                 </group>
 

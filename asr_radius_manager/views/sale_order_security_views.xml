@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-    Restrict "Create Invoice" button to Sales, Finance and Manager groups
+    Restrict "Create Invoice" button to Finance and Manager groups only
+    Sales users will not see this button
     -->
     <record id="view_order_form_invoice_security" model="ir.ui.view">
         <field name="name">sale.order.form.invoice.security</field>
@@ -10,7 +11,7 @@
         <field name="arch" type="xml">
             <!-- Add groups restriction to Create Invoice button -->
             <xpath expr="//button[@name='%(sale.action_view_sale_advance_payment_inv)d']" position="attributes">
-                <attribute name="groups">asr_radius_manager.group_isp_sales,asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager</attribute>
+                <attribute name="groups">asr_radius_manager.group_isp_finance,asr_radius_manager.group_isp_manager</attribute>
             </xpath>
         </field>
     </record>
