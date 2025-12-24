@@ -108,18 +108,6 @@ class ProductTemplate(models.Model):
         store=False
     )
 
-    # ==================== DUMMY FIELDS FOR COMPATIBILITY ====================
-    service_upsell_threshold = fields.Float(
-        string="Upsell Threshold",
-        default=0.0,
-        help="Dummy field - install sale_upsell for real functionality"
-    )
-    service_upsell_threshold_ratio = fields.Float(
-        string="Upsell Threshold Ratio",
-        default=1.0,
-        help="Dummy field - install sale_upsell for real functionality"
-    )
-
     # ==================== SQL CONSTRAINTS ====================
     _sql_constraints = [
         ('radius_plan_code_company_unique',

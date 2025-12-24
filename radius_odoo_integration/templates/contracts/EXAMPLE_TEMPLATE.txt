@@ -1,0 +1,112 @@
+================================================================================
+          SHEMBULL - Si duhet të duket Template DOCX
+================================================================================
+
+Ky është një shembull tekstual. Duhet ta krijoni në Microsoft Word (.docx)
+
+--------------------------------------------------------------------------------
+                        FORMULARI I REGJISTRIMIT
+--------------------------------------------------------------------------------
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  OPERATORI: Shoqëria Abissnet sh.a.                                  │
+│  NUIS: K01417001C                                                    │
+│  Tel Shitjet: +355 44 300 123 | Tel Suporti: +355 44 300 001       │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                       KUSHTET E KONTRATËS                            │
+├─────────────────────────────────────────────────────────────────────┤
+│  Afati/Pagesa: {{ afati_pagesa }}                                   │
+│  Data: {{ contract_date }}                                          │
+│  Nr. Kontratës: {{ contract_number }}                               │
+│  Penaliteti: {{ penaliteti }}                                       │
+│  Nr. Përdoruesit: {{ nr_perdoruesit }}                              │
+│  Total Muaj Paguar: {{ total_muaj_paguar }}                         │
+│                                                                      │
+│  Muaji Paguar:                                                       │
+│  {{ muaj_1 }} 1  {{ muaj_2 }} 2  {{ muaj_3 }} 3  {{ muaj_4 }} 4   │
+│  {{ muaj_5 }} 5  {{ muaj_6 }} 6  {{ muaj_7 }} 7  {{ muaj_8 }} 8   │
+│  {{ muaj_9 }} 9  {{ muaj_10 }} 10 {{ muaj_11 }} 11 {{ muaj_12 }} 12│
+└─────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────┬──────────────────────────────────────┐
+│   PAJTIMTAR - INDIVID        │   PERSON JURIDIK/PERSON FIZIK (NUIS) │
+├──────────────────────────────┼──────────────────────────────────────┤
+│  Emri: {{ emri_individ }}    │   Emri: {{ emri_kompanie }}          │
+│  Nr. Personal: {{ nr_personal }} NUIS: {{ nuis }}                   │
+│  ID: {{ id_number }}         │   Adresa: {{ adresa_kompanie }}      │
+│  Datëlindja: {{ datelindja }}│   Përfaqësuesi ligjor:               │
+│  Vendlindja: {{ vendlindja }}│   {{ perfaqesuesi_ligjor }}          │
+│  Adresa: {{ adresa_individ }}│   Nr. Personal përfaqësuesi:         │
+│  Mobile: {{ mobile_individ }}│   {{ nr_personal_perfaqesues }}      │
+│  E-mail: {{ email_individ }} │   Mobile: {{ mobile_kompanie }}      │
+│                              │   E-mail: {{ email_kompanie }}       │
+└──────────────────────────────┴──────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                            SHËRBIMET                                 │
+├──────────────────────────────────────┬──────────────┬───────────────┤
+│  Shërbimi                            │  Çmimi/Muaj  │  Parapagimi   │
+├──────────────────────────────────────┼──────────────┼───────────────┤
+│  Lloji Lidhjes:                      │              │               │
+│  {{ lloji_lidhjes }}                 │ {{ cmimi_lloji_lidhjes }}    │
+├──────────────────────────────────────┼──────────────┼───────────────┤
+│  Shërbimi Internet:                  │              │               │
+│  {{ sherbimi_internet }}             │ {{ cmimi_internet }}         │
+├──────────────────────────────────────┼──────────────┼───────────────┤
+│  Shërbimi TV:                        │              │               │
+│  {{ sherbimi_tv }}                   │ {{ cmimi_tv }}               │
+├──────────────────────────────────────┼──────────────┼───────────────┤
+│  Shërbimi Telefonik:                 │              │               │
+│  {{ sherbimi_telefonik }}            │ {{ cmimi_telefonik }}        │
+├──────────────────────────────────────┼──────────────┼───────────────┤
+│  Lloji i IP:                         │              │               │
+│  {{ lloji_ip }}                      │ {{ cmimi_ip }}               │
+├──────────────────────────────────────┼──────────────┼───────────────┤
+│  Pajisje Interneti:                  │              │               │
+│  {{ pajisje_internet }}              │ {{ cmimi_pajisje_internet }} │
+├──────────────────────────────────────┼──────────────┼───────────────┤
+│  Pajisje TV:                         │              │               │
+│  {{ pajisje_tv }}                    │ {{ cmimi_pajisje_tv }}       │
+├──────────────────────────────────────┼──────────────┼───────────────┤
+│  Router/Wifi/Tjetër:                 │              │               │
+│  {{ router_wifi }}                   │ {{ cmimi_router_wifi }}      │
+├──────────────────────────────────────┴──────────────┼───────────────┤
+│                                  TOTALI:            │  {{ total }}  │
+└─────────────────────────────────────────────────────┴───────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  KOMENTE:                                                            │
+│  {{ comment }}                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  Pajtimtari deklaron se është njohur me Kushtet e Përgjithshme të   │
+│  Kontratës së Pajtimit, të publikuara në faqen zyrtare të           │
+│  Abissnet sh.a. (www.abissnet.al), dhe të aksesueshme në QR Code    │
+│  të kësaj kontrate, dhe i pranon ato në tërësi.                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                            NËNSHKRIMI                                │
+├──────────────────────────────────┬──────────────────────────────────┤
+│  Përdoruesi                       │  Letërnjoftim / n                │
+│  Rregjistrimi bëhet nga           │  Lloji/Numri i dokumentit        │
+│                                   │                                  │
+│                                   │                                  │
+│  _____________________________    │  _____________________________   │
+│  Nënshkrimi i Përdoruesit         │  Nënshkrimi i Operatorit         │
+│  Emër Mbiemër, Firmë              │  Emër Mbiemër, Firmë             │
+└──────────────────────────────────┴──────────────────────────────────┘
+
+================================================================================
+
+INSTRUKSIONE:
+1. Kopjo këtë tekst në Microsoft Word
+2. Formato sipas dizajnit tuaj (ngjyra, fonts, tabela)
+3. Lër placeholders ashtu siç janë: {{ placeholder_name }}
+4. Ruaje si: contract_template.docx
+5. Vendose në folder: radius_odoo_integration/templates/contracts/
+
+================================================================================
