@@ -383,7 +383,9 @@ class ContractWizard(models.TransientModel):
         if self.nipt:
             partner_update_vals['vat'] = self.nipt
 
-        self.partner_id.write(partner_update_vals)
+        # Update partner with context flag to prevent RADIUS auto-sync
+        # Installation will handle RADIUS plan activation
+        self.partner_id.with_context(_skip_contract_radius_sync=True).write(partner_update_vals)
 
         # Create customer.contract record
         contract_vals = {

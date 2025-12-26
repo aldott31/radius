@@ -409,19 +409,21 @@ class SaleOrder(models.Model):
                             'radius_password': order.partner_id._generate_password()
                         })
 
-                    # 6) NOTE: RADIUS provisioning will happen during installation
-                    # Installation team will create the user in SUSPENDED mode and activate for testing
+                    # 6) PRE-PROVISION in SUSPENDED mode (NO INTERNET YET!)
+                    # User is created in RADIUS but in SUSPENDED state
+                    # Installation will activate the plan later
+                    order.partner_id.action_sync_to_radius_suspended()
 
-                    # 7) Update order status (marked as ready for provisioning)
+                    # 7) Update order status
                     order.write({
-                        'radius_provisioned': False,  # Will be set to True by Installation
-                        'radius_provision_date': False,
+                        'radius_provisioned': True,
+                        'radius_provision_date': fields.Datetime.now(),
                         'radius_provision_error': False,
                     })
 
                     # 8) Post success message
                     order.message_post(
-                        body=_("RADIUS order prepared. Username: %s. Service will be provisioned during installation.") % order.partner_id.radius_username
+                        body=_("RADIUS user pre-provisioned in SUSPENDED mode: %s. Installation will activate service.") % order.partner_id.radius_username
                     )
 
                 except Exception as e:
