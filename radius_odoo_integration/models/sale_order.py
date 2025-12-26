@@ -394,8 +394,8 @@ class SaleOrder(models.Model):
                                 "Subscription '%s' not found. Please sync product to RADIUS first."
                             ) % plan_code)
 
-                    # 4) Update partner subscription
-                    order.partner_id.write({
+                    # 4) Update partner subscription (with context flag to prevent auto-sync for renewals)
+                    order.partner_id.with_context(_skip_contract_radius_sync=True).write({
                         'subscription_id': subscription.id,
                     })
 
@@ -409,10 +409,22 @@ class SaleOrder(models.Model):
                             'radius_password': order.partner_id._generate_password()
                         })
 
-                    # 6) PRE-PROVISION in SUSPENDED mode (NO INTERNET YET!)
-                    # User is created in RADIUS but in SUSPENDED state
-                    # Installation will activate the plan later
-                    order.partner_id.action_sync_to_radius_suspended()
+                    # 6) PRE-PROVISION in SUSPENDED mode ONLY for NEW customers!
+                    # For existing customers (renewals), skip RADIUS provisioning
+                    # to avoid interrupting their active service
+                    if not order.partner_id.radius_synced:
+                        # NEW CUSTOMER: provision in SUSPENDED mode
+                        # User is created in RADIUS but in SUSPENDED state
+                        # Installation will activate the plan later
+                        order.partner_id.action_sync_to_radius_suspended()
+
+                        success_msg = _("RADIUS user pre-provisioned in SUSPENDED mode: %s. Installation will activate service.") % order.partner_id.radius_username
+                        _logger.info("🆕 NEW customer provisioned in SUSPENDED: %s", order.partner_id.radius_username)
+                    else:
+                        # EXISTING CUSTOMER (renewal): don't change RADIUS state
+                        # Payment will extend service_paid_until without interrupting service
+                        success_msg = _("Renewal order for existing customer %s. RADIUS state unchanged, service will extend upon payment.") % order.partner_id.radius_username
+                        _logger.info("🔄 RENEWAL for existing customer: %s (radius_synced=True, skipping SUSPENDED provisioning)", order.partner_id.radius_username)
 
                     # 7) Update order status
                     order.write({
@@ -422,9 +434,7 @@ class SaleOrder(models.Model):
                     })
 
                     # 8) Post success message
-                    order.message_post(
-                        body=_("RADIUS user pre-provisioned in SUSPENDED mode: %s. Installation will activate service.") % order.partner_id.radius_username
-                    )
+                    order.message_post(body=success_msg)
 
                 except Exception as e:
                     _logger.exception("RADIUS pre-provisioning failed for order %s", order.name)
