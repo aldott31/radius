@@ -400,8 +400,14 @@ class SaleOrder(models.Model):
                     })
 
                     # 5) Generate credentials if missing
-                    if not order.partner_id.radius_username or not order.partner_id.radius_password:
-                        order.partner_id._generate_radius_credentials()
+                    if not order.partner_id.radius_username:
+                        order.partner_id.write({
+                            'radius_username': order.partner_id._generate_username()
+                        })
+                    if not order.partner_id.radius_password:
+                        order.partner_id.write({
+                            'radius_password': order.partner_id._generate_password()
+                        })
 
                     # 6) PRE-PROVISION in SUSPENDED mode (NO INTERNET YET!)
                     order.partner_id.action_sync_to_radius_suspended()
