@@ -2,7 +2,7 @@
     'name': 'API Authentication',
     'version': '1.0.1',
     'author': 'BASH',
-    'depends': ['base', 'stock', 'odoo_website_helpdesk', 'web', 'purchase'],
+    'depends': ['base', 'stock', 'odoo_website_helpdesk', 'web', 'purchase', 'radius_odoo_integration'],
     'data': [
         'data/groups.xml',
         'views/res_users.xml',
