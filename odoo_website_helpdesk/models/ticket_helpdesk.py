@@ -555,7 +555,7 @@ class TicketHelpDesk(models.Model):
         return True
 
     def action_installation_complete(self):
-        """Installation complete - ACTIVATE internet & send to NOC for ONU registration"""
+        """Installation complete - ACTIVATE RADIUS plan for testing"""
         self.ensure_one()
 
         # Find NOC team
@@ -571,22 +571,35 @@ class TicketHelpDesk(models.Model):
                 "Please create a Helpdesk Team with 'NOC' in the name."
             ))
 
-        # Update customer status & ACTIVATE internet
+        # Update customer status & ACTIVATE PLAN
         if self.customer_id:
-            # ⚡ ACTIVATE INTERNET NOW (for testing during installation)
+            # ⚡ ACTIVATE PLAN (SUSPENDED → PLAN with speed limits)
+            # User was already provisioned in SUSPENDED by Sales
+            # Now we activate the plan for testing during installation
             if self.customer_id.is_suspended:
                 _logger.info(
-                    "🔧 Installation complete for %s - Activating internet for testing",
+                    "⚡ Activating RADIUS plan for %s (testing during installation)",
                     self.customer_id.name
                 )
                 self.customer_id.action_reactivate()
                 self.customer_id.action_move_to_active_pool()
                 self.customer_id._send_activation_notification()
 
+                self.customer_id.message_post(
+                    body=_("⚡ <b>RADIUS Plan Activated</b><br/>"
+                           "Username: %s<br/>"
+                           "Plan: %s<br/>"
+                           "Status: SUSPENDED → ACTIVE (testing)") % (
+                        self.customer_id.radius_username,
+                        self.customer_id.subscription_id.name if self.customer_id.subscription_id else 'N/A'
+                    ),
+                    subtype_xmlid='mail.mt_note'
+                )
+
             # Update status
             self.customer_id.write({'customer_status': 'for_registration'})
             _logger.info(
-                "📡 Internet activated for %s - Sending to NOC for ONU registration",
+                "📡 Installation complete for %s - Plan activated, sending to NOC for ONU registration",
                 self.customer_id.name
             )
 
@@ -596,7 +609,7 @@ class TicketHelpDesk(models.Model):
         # Post message
         self.message_post(
             body=_("✅ <b>Installation Complete</b><br/>"
-                   "⚡ Internet Service ACTIVATED (for testing)<br/>"
+                   "⚡ RADIUS Plan ACTIVATED (for testing)<br/>"
                    "Assigned to NOC Team for ONU registration.<br/>"
                    "Customer Status: For Installation → For Registration"),
             subtype_xmlid='mail.mt_note'

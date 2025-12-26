@@ -545,8 +545,10 @@ class AsrRadiusUser(models.Model):
                     rec.partner_id.with_context(_from_radius_write=True).sudo().write(partner_vals)
 
         # ✅ FIX #1: Auto-sync to RADIUS when subscription changes
-        # ALWAYS check (even if from partner), only skip if from sync operations
-        if 'subscription_id' in vals and not self.env.context.get('skip_radius_auto_sync'):
+        # ALWAYS check (even if from partner), only skip if from sync operations OR from contract creation
+        if ('subscription_id' in vals and
+            not self.env.context.get('skip_radius_auto_sync') and
+            not self.env.context.get('_skip_contract_radius_sync')):
             success_count = 0
             failed_count = 0
 
