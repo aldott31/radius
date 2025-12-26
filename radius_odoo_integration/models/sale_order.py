@@ -345,10 +345,10 @@ class SaleOrder(models.Model):
         }
 
     def action_confirm(self):
-        """Override confirm to auto-provision RADIUS in SUSPENDED mode"""
+        """Override confirm to prepare RADIUS order (provision happens at installation)"""
         res = super(SaleOrder, self).action_confirm()
 
-        # Auto-provision RADIUS orders in SUSPENDED mode (ALWAYS, not optional)
+        # Prepare RADIUS orders WITHOUT provisioning (provisioning will happen during installation)
         for order in self:
             if order.is_radius_order and not order.radius_provisioned:
                 try:
@@ -409,19 +409,19 @@ class SaleOrder(models.Model):
                             'radius_password': order.partner_id._generate_password()
                         })
 
-                    # 6) PRE-PROVISION in SUSPENDED mode (NO INTERNET YET!)
-                    order.partner_id.action_sync_to_radius_suspended()
+                    # 6) NOTE: RADIUS provisioning will happen during installation
+                    # Installation team will create the user in SUSPENDED mode and activate for testing
 
-                    # 7) Update order status
+                    # 7) Update order status (marked as ready for provisioning)
                     order.write({
-                        'radius_provisioned': True,
-                        'radius_provision_date': fields.Datetime.now(),
+                        'radius_provisioned': False,  # Will be set to True by Installation
+                        'radius_provision_date': False,
                         'radius_provision_error': False,
                     })
 
                     # 8) Post success message
                     order.message_post(
-                        body=_("RADIUS user pre-provisioned in SUSPENDED mode: %s. Service will activate automatically after payment") % order.partner_id.radius_username
+                        body=_("RADIUS order prepared. Username: %s. Service will be provisioned during installation.") % order.partner_id.radius_username
                     )
 
                 except Exception as e:

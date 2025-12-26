@@ -555,7 +555,7 @@ class TicketHelpDesk(models.Model):
         return True
 
     def action_installation_complete(self):
-        """Installation complete - ACTIVATE internet & send to NOC for ONU registration"""
+        """Installation complete - PROVISION to RADIUS & ACTIVATE internet for testing"""
         self.ensure_one()
 
         # Find NOC team
@@ -571,22 +571,54 @@ class TicketHelpDesk(models.Model):
                 "Please create a Helpdesk Team with 'NOC' in the name."
             ))
 
-        # Update customer status & ACTIVATE internet
+        # Update customer status & PROVISION + ACTIVATE internet
         if self.customer_id:
-            # ⚡ ACTIVATE INTERNET NOW (for testing during installation)
+            # 🔧 STEP 1: Provision to RADIUS in SUSPENDED mode (if not already provisioned)
+            if self.customer_id.is_radius_customer:
+                # Check if user exists in RADIUS
+                if not self.customer_id.radius_user_id:
+                    _logger.info(
+                        "🔧 Installation complete for %s - Provisioning to RADIUS in SUSPENDED mode",
+                        self.customer_id.name
+                    )
+                    try:
+                        # Provision user in SUSPENDED mode
+                        self.customer_id.action_sync_to_radius_suspended()
+
+                        self.customer_id.message_post(
+                            body=_("🔧 <b>RADIUS User Created</b><br/>"
+                                   "Username: %s<br/>"
+                                   "Status: SUSPENDED (ready for activation)<br/>"
+                                   "Plan: %s") % (
+                                self.customer_id.radius_username,
+                                self.customer_id.subscription_id.name if self.customer_id.subscription_id else 'N/A'
+                            ),
+                            subtype_xmlid='mail.mt_note'
+                        )
+                    except Exception as e:
+                        _logger.error("Failed to provision RADIUS user for %s: %s", self.customer_id.name, str(e))
+                        raise UserError(_(
+                            "Failed to provision RADIUS user: %s\n\n"
+                            "Please check:\n"
+                            "- RADIUS subscription is set\n"
+                            "- RADIUS credentials are generated\n"
+                            "- MySQL connection is working"
+                        ) % str(e))
+
+            # ⚡ STEP 2: ACTIVATE INTERNET NOW (for testing during installation)
             if self.customer_id.is_suspended:
                 _logger.info(
-                    "🔧 Installation complete for %s - Activating internet for testing",
+                    "⚡ Activating internet for %s (testing during installation)",
                     self.customer_id.name
                 )
                 self.customer_id.action_reactivate()
                 self.customer_id.action_move_to_active_pool()
                 self.customer_id._send_activation_notification()
 
-            # Update status
+            # STEP 3: Update status
             self.customer_id.write({'customer_status': 'for_registration'})
             _logger.info(
-                "📡 Internet activated for %s - Sending to NOC for ONU registration",
+                "📡 Installation complete for %s - Internet activated, sending to NOC for ONU registration",
                 self.customer_id.name
             )
 
@@ -596,6 +628,7 @@ class TicketHelpDesk(models.Model):
         # Post message
         self.message_post(
             body=_("✅ <b>Installation Complete</b><br/>"
+                   "🔧 RADIUS User Provisioned in SUSPENDED mode<br/>"
                    "⚡ Internet Service ACTIVATED (for testing)<br/>"
                    "Assigned to NOC Team for ONU registration.<br/>"
                    "Customer Status: For Installation → For Registration"),
